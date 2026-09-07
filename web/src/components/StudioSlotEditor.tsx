@@ -5,6 +5,7 @@ import type { DualFraming } from '../utils/focalPoint'
 import { playbackPathForSlot } from '../utils/clipStudioCatalog'
 import { resolveSourcePhoto } from '../utils/clipStudioStore'
 import { normalizeClipWeights } from '../data/reactionCatalog'
+import { suggestClipPrompt } from '../utils/suggestClipPrompt'
 import { PhotoFocalEditor } from './PhotoFocalEditor'
 
 const STATUS_LABEL: Record<ClipSlot['status'], string> = {
@@ -41,30 +42,67 @@ export function StudioSlotEditor({
 }: StudioSlotEditorProps) {
   const photoRef = useRef<HTMLInputElement>(null)
   const videoRef = useRef<HTMLInputElement>(null)
+  const promptRef = useRef<HTMLTextAreaElement>(null)
   const [framingOpen, setFramingOpen] = useState(false)
   const [busy, setBusy] = useState(false)
   const [copied, setCopied] = useState(false)
+  const [toast, setToast] = useState<string | null>(null)
+  const [justSuggested, setJustSuggested] = useState(false)
 
   const resolvedPhoto = resolveSourcePhoto(slot, dog)
   const usingDogDefault = !slot.sourcePhoto && Boolean(resolvedPhoto)
   const previewVideo = playbackPathForSlot(slot)
+  const needsVideo = slot.status !== 'video_attached'
   const chance = normalizeClipWeights(intent.clipSlots.map((item) => ({
     path: item.id,
     weight: item.weight,
   }))).find((item) => item.path === slot.id)?.percent ?? 0
 
+  const showToast = (message: string) => {
+    setToast(message)
+    window.setTimeout(() => setToast(null), 2200)
+  }
+
+  const suggestPrompt = () => {
+    const prompt = suggestClipPrompt({
+      dogName: dog.name,
+      personality: dog.personality,
+      intentId: intent.id,
+      intentDescription: intent.description,
+      slotLabel: slot.label,
+      userNotes: slot.notes,
+      hasSourcePhoto: Boolean(slot.sourcePhoto),
+      framing: slot.sourcePhoto?.framing ?? null,
+    })
+    onPatch({ prompt })
+    setJustSuggested(true)
+    window.setTimeout(() => {
+      promptRef.current?.focus()
+      promptRef.current?.select()
+    }, 0)
+  }
+
   const copyPrompt = async () => {
+    const text = slot.prompt.trim()
+    if (!text) {
+      showToast('Suggest a prompt first')
+      return
+    }
     try {
-      await navigator.clipboard.writeText(slot.prompt)
+      await navigator.clipboard.writeText(text)
       setCopied(true)
-      window.setTimeout(() => setCopied(false), 1500)
+      showToast('Copied — paste into Grok Imagine (6s · 9:16)')
+      window.setTimeout(() => setCopied(false), 1800)
     } catch {
-      /* ignore */
+      promptRef.current?.select()
+      showToast('Copy failed — select the prompt and copy')
     }
   }
 
   return (
-    <article className={`studio-slot studio-slot--${slot.status}`}>
+    <article
+      className={`studio-slot studio-slot--${slot.status}${needsVideo ? ' studio-slot--needs-video' : ''}`}
+    >
       <header className="studio-slot-header">
         <span className={`studio-status studio-status--${usingDogDefault && slot.status === 'empty' ? 'photo_ready' : slot.status}`}>
           {usingDogDefault && slot.status === 'empty'
@@ -198,21 +236,54 @@ export function StudioSlotEditor({
         </div>
       </div>
 
-      <label className="studio-field">
-        Prompt
-        <textarea
-          rows={5}
-          value={slot.prompt}
-          onChange={(event) => onPatch({ prompt: event.target.value })}
-        />
-      </label>
-      <div className="studio-prompt-actions">
-        <button type="button" className="btn-text" onClick={() => void copyPrompt()}>
-          {copied ? 'Copied' : 'Copy prompt'}
-        </button>
-        <span className="studio-prompt-hint">
-          Paste into Pika / Gemini / Grok, then attach the MP4 here.
-        </span>
+      <div className={`studio-prompt-panel${justSuggested ? ' studio-prompt-panel--fresh' : ''}`}>
+        {needsVideo && (
+          <p className="studio-suggest-cta">
+            Needs a video — Suggest prompt, Copy, paste into Grok Imagine (6s · 9:16).
+          </p>
+        )}
+        <label className="studio-field">
+          Prompt
+          <textarea
+            ref={promptRef}
+            rows={7}
+            value={slot.prompt}
+            onChange={(event) => {
+              setJustSuggested(false)
+              onPatch({ prompt: event.target.value })
+            }}
+          />
+        </label>
+        <label className="studio-field">
+          Slot notes (optional)
+          <input
+            value={slot.notes ?? ''}
+            placeholder="Extra direction for this variant (included when you Suggest)"
+            onChange={(event) => onPatch({ notes: event.target.value })}
+          />
+        </label>
+        <div className="studio-prompt-actions">
+          <button type="button" className="studio-btn-suggest" onClick={suggestPrompt}>
+            Suggest prompt
+          </button>
+          <button
+            type="button"
+            className="studio-btn-copy"
+            onClick={() => void copyPrompt()}
+            disabled={!slot.prompt.trim()}
+          >
+            {copied ? 'Copied' : 'Copy'}
+          </button>
+          <span className="studio-prompt-hint">
+            Paste into Grok Imagine image-to-video, 6s · 9:16. Howling only on howl/sing slots; no
+            talking dogs. Then attach the MP4. Re-suggest anytime.
+          </span>
+        </div>
+        {toast && (
+          <p className="studio-toast" role="status" aria-live="polite">
+            {toast}
+          </p>
+        )}
       </div>
 
       <div className="studio-slot-meta">

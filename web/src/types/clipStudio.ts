@@ -35,6 +35,8 @@ export interface ClipSlot {
   weight: number
   prompt: string
   label: string
+  /** Optional extra direction for Suggest prompt (this variant only). */
+  notes?: string
   sourcePhoto: ClipSourcePhoto | null
   resultVideo: ClipResultVideo | null
   status: ClipSlotStatus

@@ -16,14 +16,14 @@ A gentle memorial experience that simulates FaceTiming a beloved dog who has pas
 | **Sharing** | Supabase memorial links | Same UX target; clip assets per memorial (planned) |
 | **Status** | Production memorial sharing | v1 scaffold — see [`docs/CLIP_LIBRARY_PLAN.md`](docs/CLIP_LIBRARY_PLAN.md) |
 
-**Next steps for Mark:** from home, pick **Murphy / Riley / Both** (photos are preloaded), or open **Clip Studio** (`/studio`) to refine framing, copy prompts into Pika / Gemini / Grok, and attach MP4s. See [`docs/CLIP_STUDIO.md`](docs/CLIP_STUDIO.md). Ken Burns photo mode stays as fallback until dual-mode is complete.
+**Next steps for Mark:** from home, pick **Murphy / Riley / Both** (photos are preloaded; Riley is the black huskita, Murphy is the other dog), or open **Clip Studio** (`/studio`) to refine framing, **Suggest prompt** → **Copy** into Grok Imagine (6s · 9:16, or Pika), and attach MP4s. See [`docs/CLIP_STUDIO.md`](docs/CLIP_STUDIO.md). Ken Burns photo mode stays as fallback until dual-mode is complete.
 
 ### Three call modes
 
 | Mode | Photo | Notes |
 |------|-------|-------|
-| **Murphy** | [`web/public/modes/murphy.jpg`](web/public/modes/murphy.jpg) | Tan/ginger huskita, folded ears |
-| **Riley** | [`web/public/modes/riley.jpg`](web/public/modes/riley.jpg) | Black-and-white huskita, upright ears |
+| **Murphy** | [`web/public/modes/murphy.jpg`](web/public/modes/murphy.jpg) | Tan/ginger huskita, folded ears — the other dog, not Riley |
+| **Riley** | [`web/public/modes/riley.jpg`](web/public/modes/riley.jpg) | Black-and-white huskita, upright ears — the black huskita |
 | **Both** | [`web/public/modes/both.jpg`](web/public/modes/both.jpg) | Murphy left, Riley right — shared memorial |
 
 These stills are the picker / Studio avatars and the default Clip Studio source photo (idle + key reaction slots). Demo calls stay on clip playback.
@@ -81,7 +81,7 @@ See the sections below for iOS-specific details (clips, keywords, CI).
 
 - Home / demo **three-mode picker**: Murphy, Riley, or Both, with preloaded stills
 - Upload photos; crossfading Ken Burns playback during calls *(legacy still mode — kept until clip dual-mode ships)*
-- **Clip Studio** (`/studio`) — per-dog intents, phrases, photo framing, prompts, attach MP4s
+- **Clip Studio** (`/studio`) — per-dog intents, phrases, photo framing, **Suggest prompt** → **Copy** into Grok Imagine (6s · 9:16), attach MP4s
 - **Clip-library direction:** idle loop + meaning-matched prerendered reactions (`/catalog` overview)
 - **Call-screen photo controls** — Side-drawer Ken Burns speed (saved in browser), swipe or tap prev/next between photos
 - **Portrait crop framing** — Drag a portrait frame on create/edit photos; zoom out for together shots

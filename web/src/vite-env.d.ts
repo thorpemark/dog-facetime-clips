@@ -3,6 +3,8 @@
 interface ImportMetaEnv {
   readonly VITE_SUPABASE_URL: string
   readonly VITE_SUPABASE_ANON_KEY: string
+  /** Optional xAI API key for later in-app polish. SuperGrok subscription is not this. */
+  readonly VITE_XAI_API_KEY?: string
 }
 
 interface ImportMeta {
