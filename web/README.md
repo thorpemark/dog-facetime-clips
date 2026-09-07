@@ -1,5 +1,7 @@
 # Memorial Call — Web App
 
+<!-- deploy trigger: GitHub Pages workflow (path filter web/**) -->
+
 > **Clips fork:** This web app lives in [dog-facetime-clips-clips](https://github.com/thorpemark/dog-facetime-clips-clips). Voice reactions target prerendered clip buckets (`src/data/reactionCatalog.ts`). The still-image Ken Burns product is [dog-facetime-clips](https://github.com/thorpemark/dog-facetime-clips).
 
 A browser-based memorial video call experience. Create personal dog memorials, upload photos, share a link with family, and call one dog or two together — no account needed.
