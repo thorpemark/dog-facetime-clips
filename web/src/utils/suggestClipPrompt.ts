@@ -227,6 +227,16 @@ function intentMotion(input: SuggestPromptInput, allowHowl: boolean, allowPlayHu
   return `A short, readable “${description}” reaction while looking toward the phone camera.${silent}${variantBit}`
 }
 
+/** Always included: camera must stay still so idle playback does not need a framing reset. */
+function lockedCameraBlock(): string {
+  return (
+    'LOCKED CAMERA: The camera is perfectly still. ' +
+    'No pan, tilt, dolly, zoom, push-in, pull-out, handheld shake, or reframing. ' +
+    'Framing is identical from the first frame to the last frame — the same crop as the source still. ' +
+    'Only the subject (dog) moves.'
+  )
+}
+
 function framingLine(input: SuggestPromptInput): string {
   const zoom = input.framing?.portrait?.focalZoom ?? 1
   const tight = zoom >= 1.35
@@ -235,9 +245,9 @@ function framingLine(input: SuggestPromptInput): string {
     : 'chest-up portrait FaceTime crop'
 
   if (input.hasSourcePhoto) {
-    return `Use the attached source still as frame 1 and honor the ${crop}. Locked 9:16, phone at chest height. Same framing for the whole 6s — no zoom, no pan, no cut, no morph.`
+    return `Use the attached source still as frame 1 and honor the ${crop}. Phone at chest height. Same crop as the still from first frame to last — camera perfectly still; only the dog moves.`
   }
-  return `Locked 9:16 portrait FaceTime framing, phone at chest height, ${crop}. If a still is attached, use it as frame 1. Same framing for the whole 6s — no zoom, no pan, no cut, no morph.`
+  return `9:16 portrait FaceTime, phone at chest height, ${crop}. If a still is attached, use it as frame 1. Same crop first-to-last — camera perfectly still; only the dog moves.`
 }
 
 function breedLine(dogName: string, personality: DogPersonality): string {
@@ -280,14 +290,15 @@ export function suggestClipPrompt(input: SuggestPromptInput): string {
 
   const lines = [
     audioBlock(dogName, { allowHowl, allowPlayHuff }),
-    'Grok Imagine image-to-video, 6s, 9:16. One continuous shot: reaction peaks in the first ~2–3 seconds, then return to a calm FaceTime idle and hold. Same dog, same framing — no zoom, no pan, no cut, no morph.',
+    lockedCameraBlock(),
+    'Grok Imagine image-to-video, 6s, 9:16. One continuous shot: reaction peaks in the first ~2–3 seconds, then return to a calm FaceTime idle and hold. Camera stays perfectly still; only the dog moves. Same crop first-to-last — no cut, no morph.',
     'Natural lighting, no text, no extra animals.',
     breedLine(dogName, input.personality),
     beat ? `Personality: ${beat}` : '',
     `Intent (${intentId}): ${intentDescription}. Motion: ${motion}`,
     notes ? `Director notes for this slot: ${notes}` : '',
     framingLine(input),
-    'Preserve exact identity, face, coat, and markings from the source still. Same dog throughout. Reject breed morphing, identity drift, zooms, and cuts.',
+    'Preserve exact identity, face, coat, and markings from the source still. Same dog throughout. Reject breed morphing, identity drift, zooms, pans, and cuts. Repeat: camera perfectly still; identical framing first-to-last; only the dog moves.',
   ]
 
   return lines
