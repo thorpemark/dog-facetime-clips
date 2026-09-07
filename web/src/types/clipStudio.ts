@@ -54,9 +54,35 @@ export interface IntentBucket {
   clipSlots: ClipSlot[]
 }
 
+export const VOCAL_STYLES = ['silent', 'soft', 'barks', 'howler', 'talker'] as const
+export type VocalStyle = (typeof VOCAL_STYLES)[number]
+
+export const VOICE_SIZES = ['small_high', 'medium', 'large_low'] as const
+export type VoiceSize = (typeof VOICE_SIZES)[number]
+
+export const ENERGY_LEVELS = ['calm', 'normal', 'hyper'] as const
+export type EnergyLevel = (typeof ENERGY_LEVELS)[number]
+
+export const EYE_STYLES = ['soft_sad', 'alert', 'goofy'] as const
+export type EyeStyle = (typeof EYE_STYLES)[number]
+
+export const MOUTH_STYLES = ['dry', 'slobberer'] as const
+export type MouthStyle = (typeof MOUTH_STYLES)[number]
+
+export const TOUCH_STYLES = ['cuddly', 'grumble_hug'] as const
+export type TouchStyle = (typeof TOUCH_STYLES)[number]
+
 export interface DogPersonality {
   breed: string
   notes: string[]
+  /** How the dog typically uses its voice. Silent is silence-first. */
+  vocalStyle: VocalStyle
+  /** Register for allowed vocalization. Unused in AUDIO when vocalStyle is silent (except howl/play exceptions). */
+  voiceSize: VoiceSize
+  energy: EnergyLevel
+  eyes: EyeStyle
+  mouth: MouthStyle
+  touch: TouchStyle
 }
 
 export interface DogLibrary {

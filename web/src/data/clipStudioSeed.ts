@@ -18,9 +18,10 @@ import {
 } from './reactionCatalog'
 import { generateId } from '../lib/ids'
 import { suggestClipPrompt } from '../utils/suggestClipPrompt'
+import { normalizePersonality } from '../utils/dogPersonality'
 
 /** Existing browsers merge this seed when their stored revision is lower. */
-export const STUDIO_SEED_REVISION = 2
+export const STUDIO_SEED_REVISION = 3
 
 export function buildClipPrompt(
   dog: { name: string; personality: DogPersonality },
@@ -130,6 +131,12 @@ export const MURPHY_PERSONALITY: DogPersonality = {
     'Loves hugs, chest scratches, and offering his neck with his nose up.',
     'Sings and howls well — a full musical husky howl.',
   ],
+  vocalStyle: 'silent',
+  voiceSize: 'large_low',
+  energy: 'normal',
+  eyes: 'goofy',
+  mouth: 'dry',
+  touch: 'cuddly',
 }
 
 export const RILEY_PERSONALITY: DogPersonality = {
@@ -141,6 +148,12 @@ export const RILEY_PERSONALITY: DogPersonality = {
     'Does not like hugs: silent warning face, bares teeth when her side is touched or she is asked for a hug (not an attack).',
     'Awkward howl attempt — hesitant and slightly off, not a full song.',
   ],
+  vocalStyle: 'silent',
+  voiceSize: 'medium',
+  energy: 'normal',
+  eyes: 'alert',
+  mouth: 'dry',
+  touch: 'grumble_hug',
 }
 
 export const BOTH_PERSONALITY: DogPersonality = {
@@ -151,6 +164,12 @@ export const BOTH_PERSONALITY: DogPersonality = {
     'Keep both dogs in frame. Same still as the Both mode card.',
     'Murphy loves hugs and howls well; Riley is hug-wary and has an awkward howl.',
   ],
+  vocalStyle: 'silent',
+  voiceSize: 'medium',
+  energy: 'normal',
+  eyes: 'goofy',
+  mouth: 'dry',
+  touch: 'cuddly',
 }
 
 export function createDogLibrary(
@@ -168,10 +187,7 @@ export function createDogLibrary(
   return {
     id: options?.id ?? generateId(),
     name,
-    personality: {
-      breed: personality.breed,
-      notes: [...personality.notes],
-    },
+    personality: normalizePersonality(personality),
     avatarPath: options?.avatarPath,
     defaultPhoto: defaultPhoto ? structuredClone(defaultPhoto) : null,
     intents: intentsFromCatalog(dog, options?.catalog, defaultPhoto),

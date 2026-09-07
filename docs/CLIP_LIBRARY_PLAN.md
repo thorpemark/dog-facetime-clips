@@ -54,7 +54,7 @@ Each **bucket** is a semantic category with many synonymous **phrases** and seve
 | `here` | "here", "over here", "this way" | Look toward camera |
 | `play` | "want to play", "do you want to play", "play", "play fight", "come play" | Play-bow (front low, rear up) + one challenge huff |
 | `quiet` | "quiet", "shh", "settle" | Calm down (future) |
-| `hug` | "hug", "cuddle" | Murphy: loves hug / neck offer. Riley: bares teeth, growls |
+| `hug` | "hug", "cuddle" | `touch=cuddly`: loves hug / neck offer. `touch=grumble_hug`: bares teeth, silent warning (Riley-style) |
 | `howl` | "howl", "sing" | Murphy: full song. Riley: awkward attempt |
 
 Buckets are extensible. **`{dogName}`** and **`{ownerName}`** placeholders expand at runtime from memorial profile data.
@@ -136,7 +136,7 @@ Wire point: `useKeywordSpotter` → `matchTranscript` → `onMatch(bucketId)` �
 4. **Suggest prompt** → **Copy** → generate in Grok Imagine (6s · 9:16) / Pika / Gemini → **Attach MP4**.
 5. Optional `generatorUsed` label only (no live APIs).
 
-Seed templates still live in `web/src/data/reactionCatalog.ts` and are copied into Murphy / Riley / Both on first load. Personality-specific hug/howl prompts are composed by `web/src/utils/suggestClipPrompt.ts`.
+Seed templates still live in `web/src/data/reactionCatalog.ts` and are copied into Murphy / Riley / Both on first load. Suggest hug/howl/play + AUDIO lines are composed from each dog’s Studio **Personality** radios (`web/src/utils/suggestClipPrompt.ts`), not from hard-coded dog-name branches.
 
 Missing files fail gracefully: playback tries other variants, then returns to idle. The demo ships bright colored placeholder MP4s so GitHub Pages has *something* visible to play.
 

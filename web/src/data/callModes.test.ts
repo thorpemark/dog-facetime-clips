@@ -42,7 +42,7 @@ describe('studio seed migration', () => {
         {
           id: 'murphy',
           name: 'Murphy',
-          personality: { breed: 'huskita', notes: [] },
+          personality: { breed: 'huskita', notes: [] } as ClipStudioState['dogs'][number]['personality'],
           intents: [
             {
               id: 'name',
@@ -67,19 +67,24 @@ describe('studio seed migration', () => {
         {
           id: 'riley',
           name: 'Riley',
-          personality: { breed: 'huskita', notes: [] },
+          personality: { breed: 'huskita', notes: [] } as ClipStudioState['dogs'][number]['personality'],
           intents: [],
         },
       ],
     }
 
     const next = migrateStudioState(legacy)
-    expect(next.seedRevision).toBe(2)
+    expect(next.seedRevision).toBe(3)
     expect(next.dogs.some((dog) => dog.id === 'both')).toBe(true)
     const murphy = next.dogs.find((dog) => dog.id === 'murphy')
     expect(murphy?.defaultPhoto?.publicPath).toBe('modes/murphy.jpg')
     expect(murphy?.intents[0]?.clipSlots[0]?.sourcePhoto?.publicPath).toBe(
       'modes/murphy.jpg',
+    )
+    expect(murphy?.personality.vocalStyle).toBe('silent')
+    expect(murphy?.personality.touch).toBe('cuddly')
+    expect(next.dogs.find((dog) => dog.id === 'riley')?.personality.touch).toBe(
+      'grumble_hug',
     )
   })
 })

@@ -8,7 +8,7 @@ Demo persistence uses **localStorage** (library JSON) and **IndexedDB** (photos/
 
 1. Open **Clip Studio**.
 2. Type a name in **New dog name** → **Add dog**.
-3. Edit the personality notes (first line = breed; following lines = character). Suggest prompt and new clip slots pick this up.
+3. Set the **Personality** radios (vocal style, voice size, energy, eyes, mouth, touch) and optional notes (first line = breed; following lines = character). Suggest prompt and new clip slots pick this up.
 
 Murphy, Riley, and **Both** ship as seed dogs (huskitas) with baked stills in `web/public/modes/`. **Riley is the black huskita.** **Murphy is the other dog** (not Riley).
 
@@ -54,13 +54,8 @@ This is the main generation loop. It is fully offline in the browser.
 2. Click **Suggest prompt**. The composer fills the textarea from:
    - dog name + breed notes (huskita / Husky × Akita). **Riley = black huskita**; **Murphy = the other huskita** (keep them distinct; do not swap coats).
    - intent (treat, hug, howl, come, …)
-   - seed personality, including:
-     - **Murphy & Riley:** remarkably **non-vocal**; they express via face and body
-     - **Riley hug:** silent warning face — bares teeth when her side is touched or she is asked for a hug (not an attack). No growl sound.
-     - **Murphy hug:** loves the hug, chest scratch, nose up offering his neck, mouth closed
-     - **Murphy howl:** strong, confident sing (howl/sing vocal exception)
-     - **Riley howl:** awkward, weak howl attempt (howl/sing vocal exception)
-     - **Play:** downward-dog play-bow (front low, rear up) plus one short sneeze-like challenge huff — not a bark
+   - seed **Personality** radios (not dog-name ifs). Murphy and Riley ship silent / dry / huskita defaults; Murphy is goofy + cuddly, Riley is alert + grumble-hug. Changing radios changes Suggest. See trait table below.
+   - **Play:** downward-dog play-bow (front low, rear up) plus one short sneeze-like challenge huff — not a bark (intent exception even for silent dogs)
    - this slot’s label + optional slot notes
    - framing context when a photo is attached (portrait FaceTime, keep identity)
    - a **6s** Grok Imagine arc: reaction peaks in the first ~2–3s → return to calm FaceTime idle and hold. Camera stays perfectly still; only the dog moves.
@@ -83,11 +78,32 @@ Playback returns to the idle still/clip. If Grok pans, zooms, or reframes, the l
 
 The 6s arc and the closing line repeat this. Reject keepers where the crop drifts.
 
-### AUDIO first — silence-first (howl/sing and play-huff excepted)
+### Personality radios
 
-Murphy and Riley are remarkably **non-vocal**. They express via face and body (closed mouth, ear/eye/weight shifts), not sound. Grok Imagine will still invent a bark, howl, soundtrack, or talking-dog mouth if the prompt invites it — so Suggest puts **AUDIO first** and stays short.
+Each dog in the Studio library has a compact **Personality** panel. Radios are mutually exclusive within a group. They persist with the library (localStorage in demo) and drive Suggest — any added dog can use them, not just Murphy/Riley.
 
-Default AUDIO block (every slot that is not howl/sing or play):
+| Trait | Values | What Suggest does |
+|-------|--------|-------------------|
+| **vocalStyle** | `silent` · `soft` · `barks` · `howler` · `talker` | Builds the AUDIO block. Silent = silence-first (current Murphy/Riley default). Soft = faint whine/breath only. Barks/howler = matching vocalization. Talker = a few English words, labeled **experimental**. |
+| **voiceSize** | `small_high` · `medium` · `large_low` | Pitch of allowed vocalization (high small-dog vs low large-dog). **Muted/disabled in the UI when vocalStyle is silent.** Still colors howl-intent AUDIO when a silent dog is asked to howl/sing. |
+| **energy** | `calm` · `normal` · `hyper` | Motion line: slow/unhurried vs typical vs quick/hyper (stay in frame). |
+| **eyes** | `soft_sad` · `alert` · `goofy` | Personality eyes (Murphy seeds `goofy`; Riley seeds `alert`). |
+| **mouth** | `dry` · `slobberer` | Dry muzzle vs a little slobber/drool. |
+| **touch** | `cuddly` · `grumble_hug` | Hug beat: loves hugs / neck offer vs Riley-style silent warning face (bares teeth, not an attack, no growl). |
+
+Seed profiles:
+
+- **Murphy:** silent, large/low voice size (for howl exception), normal energy, goofy eyes, dry mouth, cuddly.
+- **Riley:** silent, medium voice size, normal energy, alert eyes, dry mouth, grumble-hug.
+- **Both** (together memorial): silent; hug/howl/play still use the pair-specific together-shot lines (Murphy leans in, Riley wary; Murphy sings, Riley awkward howl).
+
+Freeform notes (first line = breed) still layer on. Howl-quality notes such as “sings and howls well” or “awkward howl attempt” are included **only** on howl/sing intents so a name clip cannot pick up “sings and howls well.”
+
+### AUDIO first — driven by vocalStyle (howl/sing and play-huff excepted)
+
+Grok Imagine will invent a bark, howl, soundtrack, or talking-dog mouth if the prompt invites it — so Suggest puts **AUDIO first** and stays short. AUDIO is built from **vocalStyle**, not from the dog’s name.
+
+Default AUDIO when vocalStyle is **silent** (every slot that is not howl/sing or play):
 
 - **Silence-first.**
 - **Hard ban:** bark, howl, whine, growl, music, speech, ambience.
@@ -95,18 +111,25 @@ Default AUDIO block (every slot that is not howl/sing or play):
 - **Mouth closed.** Face and body motion only.
 - Do **not** say “soft dog sounds”, “pant/huff/whine”, or other language that invites sound.
 
-Exceptions (still no bark, music, speech, or ambience):
+Other vocalStyle defaults (non-howl, non-play):
+
+- **soft:** faint whine or breath ok; still no bark, howl, music, or speech unless an intent exception applies.
+- **barks:** brief barks allowed, pitched by voiceSize; no howl/music/speech.
+- **howler:** a brief howl/aroo allowed, pitched by voiceSize; no bark/music/speech.
+- **talker:** a few clear English words, labeled experimental; no music/ambience/cartoon overacting.
+
+Intent exceptions (still no music or ambience; apply even when vocalStyle is silent):
 
 - **Howl / sing intents:** a brief dog howl or husky song. Slot notes such as “responds to a howl” do **not** unlock vocalization on a name / come / hug / treat clip.
-- **Play intents only:** one short **challenge huff** (sneeze-like chuff — the common way dogs ask to play-fight). Motion is a **play-bow / downward-dog stretch** (front low, rear up). Not a bark.
+- **Play intents only:** one short **challenge huff** (sneeze-like chuff — the common way dogs ask to play-fight). Motion is a **play-bow / downward-dog stretch** (front low, rear up). Not a bark. Silent dogs still get this single huff.
 
 Other rules:
 
 - **Name, come, here, owner, attention, eye-contact, perk-up:** ears perk + eye contact only. Closed mouth.
-- **Riley hug** may show teeth (silent warning face). That is still **not** a growl or a howl.
-- Murphy/Riley personality lines about howling are **omitted** from non-howl prompts so a name clip cannot pick up “sings and howls well.”
+- **grumble_hug** may show teeth (silent warning face). That is still **not** a growl or a howl.
+- Howl-quality notes are **omitted** from non-howl prompts.
 
-Reject keepers where the dog talks, barks, howls on a non-howl slot, or holds a howl-gape. If a keeper is visually good but Grok added bark/music/ambience, **strip audio before attaching** — post mute is normal. A play keeper may keep **one** short challenge huff; strip anything else.
+Reject keepers where the dog talks (unless vocalStyle is talker), barks/howls against the AUDIO block, or holds a howl-gape on a non-howl slot. If a keeper is visually good but Grok added extra bark/music/ambience, **strip audio before attaching** — post mute is normal. A play keeper may keep **one** short challenge huff; strip anything else.
 
 ### SuperGrok vs an API key
 

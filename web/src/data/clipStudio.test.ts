@@ -5,8 +5,9 @@ import { slugifyIntent } from '../utils/clipStudioMedia'
 import {
   applyStudioAction,
   deriveSlotStatus,
+  migrateStudioState,
 } from '../utils/clipStudioStore'
-import type { ClipSlot } from '../types/clipStudio'
+import type { ClipSlot, ClipStudioState, DogPersonality } from '../types/clipStudio'
 
 describe('slugifyIntent', () => {
   it('turns a display name into a stable id', () => {
@@ -135,6 +136,31 @@ describe('seed modes and photos', () => {
 })
 
 describe('seed personality', () => {
+  it('seeds Murphy and Riley with known trait radios', () => {
+    const seed = createSeedStudioState()
+    const murphy = seed.dogs.find((dog) => dog.id === 'murphy')
+    const riley = seed.dogs.find((dog) => dog.id === 'riley')
+    const both = seed.dogs.find((dog) => dog.id === 'both')
+
+    expect(murphy?.personality).toMatchObject({
+      vocalStyle: 'silent',
+      voiceSize: 'large_low',
+      energy: 'normal',
+      eyes: 'goofy',
+      mouth: 'dry',
+      touch: 'cuddly',
+    })
+    expect(riley?.personality).toMatchObject({
+      vocalStyle: 'silent',
+      voiceSize: 'medium',
+      energy: 'normal',
+      eyes: 'alert',
+      mouth: 'dry',
+      touch: 'grumble_hug',
+    })
+    expect(both?.personality.vocalStyle).toBe('silent')
+  })
+
   it('bakes Riley hug / howl and Murphy hug / howl into prompts', () => {
     const seed = createSeedStudioState()
     const murphy = seed.dogs.find((dog) => dog.id === 'murphy')
@@ -145,7 +171,7 @@ describe('seed personality', () => {
     const rileyHowl = riley?.intents.find((intent) => intent.id === 'howl')?.clipSlots[0]
 
     expect(murphyHug?.prompt).toMatch(/loves hugs/i)
-    expect(rileyHug?.prompt).toMatch(/bares her teeth/i)
+    expect(rileyHug?.prompt).toMatch(/bares (her )?teeth/i)
     expect(murphyHowl?.prompt).toMatch(/howls well/i)
     expect(rileyHowl?.prompt).toMatch(/awkward/i)
   })
@@ -156,5 +182,31 @@ describe('seed personality', () => {
     expect(buckets.some((bucket) => bucket.id === 'hug')).toBe(true)
     expect(buckets.some((bucket) => bucket.id === 'howl')).toBe(true)
     expect(buckets.find((bucket) => bucket.id === 'come')?.clips.length).toBeGreaterThan(0)
+  })
+})
+
+describe('migrateStudioState personality radios', () => {
+  it('fills Murphy/Riley radios on older libraries that only had notes', () => {
+    const seed = createSeedStudioState()
+    const murphy = seed.dogs[0]
+    const legacy = {
+      ...seed,
+      seedRevision: 2,
+      dogs: [
+        {
+          ...murphy,
+          personality: {
+            breed: murphy.personality.breed,
+            notes: murphy.personality.notes,
+          } as DogPersonality,
+        },
+        ...seed.dogs.slice(1),
+      ],
+    }
+    const migrated = migrateStudioState(legacy as ClipStudioState)
+    expect(migrated.dogs[0].personality.vocalStyle).toBe('silent')
+    expect(migrated.dogs[0].personality.touch).toBe('cuddly')
+    expect(migrated.dogs[0].personality.eyes).toBe('goofy')
+    expect(migrated.seedRevision).toBe(3)
   })
 })
