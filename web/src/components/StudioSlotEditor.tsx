@@ -275,9 +275,9 @@ export function StudioSlotEditor({
             {copied ? 'Copied' : 'Copy'}
           </button>
           <span className="studio-prompt-hint">
-            Paste into Grok Imagine image-to-video, 6s · 9:16. AUDIO is silence-first (howl/sing, or
-            one play-bow challenge huff). If Grok adds bark/music, strip audio before attaching. Then
-            attach the MP4. Re-suggest anytime.
+            Paste into Grok Imagine image-to-video, 6s · 9:16. Locked camera — only the dog moves.
+            AUDIO is silence-first (howl/sing, or one play-bow challenge huff). If Grok adds
+            bark/music, strip audio before attaching. Then attach the MP4. Re-suggest anytime.
           </span>
         </div>
         {toast && (

@@ -76,7 +76,10 @@ describe('suggestClipPrompt', () => {
     expect(prompt).toMatch(/9:16/)
     expect(prompt).toMatch(/return to (a )?calm FaceTime idle/i)
     expect(prompt).toMatch(/peaks in the first ~2–3 seconds/i)
-    expect(prompt).toMatch(/no zoom/i)
+    expect(prompt).toMatch(/LOCKED CAMERA/)
+    expect(prompt).toMatch(/perfectly still/i)
+    expect(prompt).toMatch(/no pan, tilt, dolly, zoom, push-in, pull-out, handheld shake, or reframing/i)
+    expect(prompt).toMatch(/only the subject \(dog\) moves/i)
     expect(prompt).toMatch(/huskita/i)
     expect(prompt).toMatch(/Husky/i)
     expect(prompt).toMatch(/do not morph/i)
@@ -96,7 +99,8 @@ describe('suggestClipPrompt', () => {
     })
 
     expect(prompt.startsWith('AUDIO (read first):')).toBe(true)
-    expect(prompt.split('\n').length).toBeLessThanOrEqual(9)
+    expect(prompt).toMatch(/LOCKED CAMERA/)
+    expect(prompt.split('\n').length).toBeLessThanOrEqual(10)
   })
 
   it('bakes react-then-idle into the shared 6s arc', () => {
@@ -118,9 +122,63 @@ describe('suggestClipPrompt', () => {
     expect(rileyHug).toMatch(/bares her teeth/i)
     expect(rileyHug).toMatch(/return to (a )?calm FaceTime idle/i)
     expect(rileyHug).toMatch(/hold/i)
+    expect(rileyHug).toMatch(/Camera stays perfectly still; only the dog moves/)
     expect(murphyHowl).toMatch(/howls well/i)
     expect(murphyHowl).toMatch(/return to (a )?calm FaceTime idle/i)
     expect(murphyHowl).toMatch(/6s/)
+    expect(murphyHowl).toMatch(/identical framing first-to-last/)
+  })
+
+  it('always includes a strong LOCKED CAMERA block, including play and howl exceptions', () => {
+    const samples = [
+      suggestClipPrompt({
+        dogName: 'Murphy',
+        personality: MURPHY_PERSONALITY,
+        intentId: 'name',
+        intentDescription: 'Dog name',
+        slotLabel: 'Perk up / eye contact',
+      }),
+      suggestClipPrompt({
+        dogName: 'Riley',
+        personality: RILEY_PERSONALITY,
+        intentId: 'play',
+        intentDescription: 'Play / play-bow',
+        slotLabel: 'Challenge huff / play-bow',
+      }),
+      suggestClipPrompt({
+        dogName: 'Murphy',
+        personality: MURPHY_PERSONALITY,
+        intentId: 'howl',
+        intentDescription: 'Howl / sing',
+        slotLabel: 'Howl / sing',
+      }),
+      suggestClipPrompt({
+        dogName: 'Both',
+        personality: BOTH_PERSONALITY,
+        intentId: 'hug',
+        intentDescription: 'Hug / cuddle',
+        slotLabel: 'Together hug',
+        hasSourcePhoto: true,
+        framing,
+      }),
+    ]
+
+    for (const prompt of samples) {
+      expect(prompt).toMatch(/LOCKED CAMERA:/)
+      expect(prompt).toMatch(/The camera is perfectly still/)
+      expect(prompt).toMatch(/No pan, tilt, dolly, zoom, push-in, pull-out, handheld shake, or reframing/)
+      expect(prompt).toMatch(/Framing is identical from the first frame to the last frame/)
+      expect(prompt).toMatch(/same crop as the source still/)
+      expect(prompt).toMatch(/Only the subject \(dog\) moves/)
+      expect(prompt).toMatch(/Camera stays perfectly still; only the dog moves/)
+      expect(prompt).toMatch(/Repeat: camera perfectly still/)
+    }
+
+    expect(samples[1]).toMatch(/Play clip/)
+    expect(samples[1]).toMatch(/one short challenge huff/i)
+    expect(samples[2]).toMatch(/Howl\/sing clip/)
+    expect(samples[3]).toMatch(/Silence-first/)
+    expect(samples[3]).toMatch(/attached source still/)
   })
 
   it('includes slot notes and generic personality when there is no dog-specific beat', () => {

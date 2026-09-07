@@ -63,13 +63,25 @@ This is the main generation loop. It is fully offline in the browser.
      - **Play:** downward-dog play-bow (front low, rear up) plus one short sneeze-like challenge huff — not a bark
    - this slot’s label + optional slot notes
    - framing context when a photo is attached (portrait FaceTime, keep identity)
-   - a **6s** Grok Imagine arc: reaction peaks in the first ~2–3s → return to calm FaceTime idle and hold. Same dog, same framing, no zoom / cut / morph.
+   - a **6s** Grok Imagine arc: reaction peaks in the first ~2–3s → return to calm FaceTime idle and hold. Camera stays perfectly still; only the dog moves.
+   - **LOCKED CAMERA** on every Suggest (see below) so playback can return to idle without a framing reset.
    - **AUDIO first** (silence-first by default — see below). Prompts stay short.
 3. **Copy** (toast confirms). Paste into **Grok Imagine** as an **image-to-video** prompt, with the framed still as the source image.
-4. In Grok Imagine, length options are **6 / 10 / 15s** (there is no 3–4s). Use **6s**, **9:16 portrait**, H.264 MP4. Reject morphing / breed drift / extra dogs / talking dogs / clips that keep reacting until the last frame.
+4. In Grok Imagine, length options are **6 / 10 / 15s** (there is no 3–4s). Use **6s**, **9:16 portrait**, H.264 MP4. Reject morphing / breed drift / extra dogs / talking dogs / camera moves / clips that keep reacting until the last frame.
 5. **Attach MP4** back on the same slot. If Grok still adds bark, music, or other audio, **strip the audio before attaching** — post mute is normal.
 
 You can edit the prompt after Suggest, then Copy again. Suggest again to rebuild from the current dog / intent / notes / framing.
+
+### LOCKED CAMERA — only the dog moves
+
+Playback returns to the idle still/clip. If Grok pans, zooms, or reframes, the last frame no longer matches idle and the call has to “reset.” Suggest therefore puts a **LOCKED CAMERA** block on every prompt (howl and play included):
+
+- Camera **perfectly still**.
+- **No** pan, tilt, dolly, zoom, push-in, pull-out, handheld shake, or reframing.
+- Framing **identical** from first frame to last — same crop as the source still.
+- **Only the subject (dog) moves.**
+
+The 6s arc and the closing line repeat this. Reject keepers where the crop drifts.
 
 ### AUDIO first — silence-first (howl/sing and play-huff excepted)
 
@@ -106,8 +118,8 @@ Clip Studio does **not** call Grok from GitHub Pages. In-app **Generate with Gro
 
 1. Frame the source still in Studio so the crop matches the FaceTime portrait (and landscape if you care about desktop).
 2. Suggest prompt → Copy. Keep camera distance consistent across a dog.
-3. Image-to-video in Grok Imagine (or Pika / Gemini). Grok Imagine: **6s** (not 3–4s), **9:16 portrait**, H.264 MP4. The suggested prompt is silence-first (howl/sing or one play-bow challenge huff excepted) and asks for react-then-return-to-idle so the extra seconds stay as a loopable FaceTime hold. If Grok still adds bark/music, strip audio before attaching — post mute is normal.
-4. Reject morphing / identity drift. Attach the keeper, or mark **needs redo**.
+3. Image-to-video in Grok Imagine (or Pika / Gemini). Grok Imagine: **6s** (not 3–4s), **9:16 portrait**, H.264 MP4. The suggested prompt locks the camera (only the dog moves), is silence-first (howl/sing or one play-bow challenge huff excepted), and asks for react-then-return-to-idle so the extra seconds stay as a loopable FaceTime hold. If Grok still adds bark/music, strip audio before attaching — post mute is normal.
+4. Reject morphing / identity drift / camera movement. Attach the keeper, or mark **needs redo**.
 5. Optional: later commit keepers under `web/public/clips/reactions/{intent}/{intent}_{nn}.mp4` for GitHub Pages.
 
 Weights are relative (40/30/30 ≡ 4/3/3). Playback picks with `pickWeightedClip`.
