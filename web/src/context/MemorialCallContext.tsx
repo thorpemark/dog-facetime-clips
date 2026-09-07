@@ -19,7 +19,8 @@ import type {
   KeywordRulesConfig,
 } from '../types'
 import { DEFAULT_PROFILE } from '../types'
-import { loadKeywordRules } from '../utils/keywordRules'
+import { loadKeywordRules, rulesConfigFromCatalog } from '../utils/keywordRules'
+import type { TranscriptMatch } from '../utils/matchTranscript'
 
 interface MemorialCallContextValue {
   profile: DogProfile
@@ -30,6 +31,7 @@ interface MemorialCallContextValue {
   setShowDebugPanel: (show: boolean) => void
   rulesConfig: KeywordRulesConfig | null
   lastTranscript: string
+  lastMatch: TranscriptMatch | null
   speechSupported: boolean
   speechError: string | null
   mediaPlayback: ReturnType<typeof useMediaPlayback>
@@ -70,7 +72,7 @@ export function MemorialCallProvider({
   const [isMuted, setIsMuted] = useState(false)
   const [showDebugPanel, setShowDebugPanel] = useState(false)
   const [rulesConfig, setRulesConfig] = useState<KeywordRulesConfig | null>(
-    null,
+    () => rulesConfigFromCatalog(),
   )
 
   const cooldownRef = useRef<number | null>(null)
@@ -216,6 +218,7 @@ export function MemorialCallProvider({
       setShowDebugPanel,
       rulesConfig,
       lastTranscript: keywordSpotter.lastTranscript,
+      lastMatch: keywordSpotter.lastMatch,
       speechSupported: keywordSpotter.speechSupported,
       speechError: keywordSpotter.speechError,
       mediaPlayback,
@@ -238,6 +241,7 @@ export function MemorialCallProvider({
       showDebugPanel,
       rulesConfig,
       keywordSpotter.lastTranscript,
+      keywordSpotter.lastMatch,
       keywordSpotter.speechSupported,
       keywordSpotter.speechError,
       keywordSpotter.triggerPhrase,

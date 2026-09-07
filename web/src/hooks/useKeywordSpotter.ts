@@ -1,6 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { KeywordRule } from '../types'
-import { findMatchingRule } from '../utils/keywordRules'
+import {
+  MATCH_CONFIDENCE_THRESHOLD,
+  matchTranscript,
+  type TranscriptMatch,
+} from '../utils/matchTranscript'
 
 type SpeechRecognitionCtor = new () => SpeechRecognition
 
@@ -15,6 +19,7 @@ function getSpeechRecognition(): SpeechRecognitionCtor | null {
 export function useKeywordSpotter(onMatch: (ruleId: string) => void) {
   const [isListening, setIsListening] = useState(false)
   const [lastTranscript, setLastTranscript] = useState('')
+  const [lastMatch, setLastMatch] = useState<TranscriptMatch | null>(null)
   const [speechSupported, setSpeechSupported] = useState(false)
   const [speechError, setSpeechError] = useState<string | null>(null)
 
@@ -36,18 +41,16 @@ export function useKeywordSpotter(onMatch: (ruleId: string) => void) {
       const now = Date.now()
       if (now - lastMatchTimeRef.current < matchCooldownMs) return
 
-      const match = findMatchingRule(
-        rulesRef.current,
-        transcript,
-        dogNameRef.current,
-        ownerNameRef.current,
-      )
+      const match = matchTranscript(transcript, {
+        dogName: dogNameRef.current,
+        ownerName: ownerNameRef.current,
+      })
       if (match) {
+        const known = rulesRef.current.some((rule) => rule.id === match.bucketId)
+        if (!known && rulesRef.current.length > 0) return
         lastMatchTimeRef.current = now
-        // match.id is the reaction bucket id (e.g. "come", "treat").
-        // TODO (clips fork): playback layer should call pickRandomClipForBucket(match.id)
-        // for a random prerendered variant — see reactionCatalog.ts + reactionClipUrlForBucket.
-        onMatch(match.id)
+        setLastMatch(match)
+        onMatch(match.bucketId)
       }
     },
     [onMatch],
@@ -136,6 +139,8 @@ export function useKeywordSpotter(onMatch: (ruleId: string) => void) {
   return {
     isListening,
     lastTranscript,
+    lastMatch,
+    matchThreshold: MATCH_CONFIDENCE_THRESHOLD,
     speechSupported,
     speechError,
     startListening,

@@ -1,8 +1,11 @@
 import type { KeywordRule, KeywordRulesConfig } from '../types'
 import {
-  pickRandomClipForBucket,
+  IDLE_CLIP_PATHS,
+  pickWeightedClip,
   type ReactionBucket,
 } from '../data/reactionCatalog'
+import { getEffectiveCatalog } from './catalogOverrides'
+import { matchTranscript } from './matchTranscript'
 
 export function resolvePhrases(
   rule: KeywordRule,
@@ -22,13 +25,8 @@ export function ruleMatchesTranscript(
   dogName: string,
   ownerName: string,
 ): boolean {
-  const normalized = transcript.toLowerCase()
-  for (const phrase of resolvePhrases(rule, dogName, ownerName)) {
-    if (normalized.includes(phrase.toLowerCase())) {
-      return true
-    }
-  }
-  return false
+  const match = matchTranscript(transcript, { dogName, ownerName })
+  return match?.bucketId === rule.id
 }
 
 export function findMatchingRule(
@@ -37,39 +35,14 @@ export function findMatchingRule(
   dogName: string,
   ownerName: string,
 ): KeywordRule | undefined {
-  const sorted = [...rules].sort((a, b) => b.priority - a.priority)
-  return sorted.find((rule) =>
-    ruleMatchesTranscript(rule, transcript, dogName, ownerName),
-  )
+  const match = matchTranscript(transcript, { dogName, ownerName })
+  if (!match) return undefined
+  return rules.find((rule) => rule.id === match.bucketId)
 }
 
-export async function loadKeywordRules(): Promise<KeywordRulesConfig> {
-  const base = import.meta.env.BASE_URL
-  const response = await fetch(`${base}keyword_rules.json`)
-  if (!response.ok) {
-    throw new Error('Failed to load keyword_rules.json')
-  }
-  return response.json() as Promise<KeywordRulesConfig>
-}
-
-export function clipUrl(fileName: string): string {
-  const path = fileName.startsWith('clips/') ? fileName : `clips/${fileName}`
-  return `${import.meta.env.BASE_URL}${path}`
-}
-
-/**
- * Resolve a reaction clip URL for a matched bucket id.
- * TODO (clips fork): call from playVideoReaction instead of rule.clipFileName.
- * Picks randomly among prerendered variants in reactionCatalog.ts.
- */
-export function reactionClipUrlForBucket(bucketId: string): string | undefined {
-  const path = pickRandomClipForBucket(bucketId)
-  return path ? clipUrl(path) : undefined
-}
-
-/** Map catalog bucket to legacy KeywordRule shape for spotter compatibility. */
 export function bucketToKeywordRule(bucket: ReactionBucket): KeywordRule {
-  const fallbackClip = bucket.clipPaths[bucket.clipPaths.length - 1] ?? 'idle.mp4'
+  const ranked = [...bucket.clips].sort((a, b) => b.weight - a.weight)
+  const fallbackClip = ranked[0]?.path ?? 'clips/idle.mp4'
   const fileName = fallbackClip.replace(/^clips\//, '')
   return {
     id: bucket.id,
@@ -78,4 +51,48 @@ export function bucketToKeywordRule(bucket: ReactionBucket): KeywordRule {
     priority: bucket.priority,
     description: bucket.description,
   }
+}
+
+/** Catalog is the source of truth; keyword_rules.json remains a static fallback copy. */
+export function rulesConfigFromCatalog(): KeywordRulesConfig {
+  const catalog = getEffectiveCatalog()
+  return {
+    version: 2,
+    idleClip: IDLE_CLIP_PATHS[2] ?? IDLE_CLIP_PATHS[0] ?? 'idle.mp4',
+    rules: catalog.map(bucketToKeywordRule),
+  }
+}
+
+export async function loadKeywordRules(): Promise<KeywordRulesConfig> {
+  try {
+    const base = import.meta.env.BASE_URL
+    const response = await fetch(`${base}keyword_rules.json`)
+    if (response.ok) {
+      const legacy = (await response.json()) as KeywordRulesConfig
+      const fromCatalog = rulesConfigFromCatalog()
+      return {
+        ...fromCatalog,
+        idleClip: legacy.idleClip || fromCatalog.idleClip,
+      }
+    }
+  } catch {
+    /* catalog-only is enough for GitHub Pages */
+  }
+  return rulesConfigFromCatalog()
+}
+
+export function clipUrl(fileName: string): string {
+  const path = fileName.startsWith('clips/') ? fileName : `clips/${fileName}`
+  return `${import.meta.env.BASE_URL}${path}`
+}
+
+/**
+ * Resolve a reaction clip URL for a matched bucket id using weighted pick.
+ */
+export function reactionClipUrlForBucket(bucketId: string): string | undefined {
+  const catalog = getEffectiveCatalog()
+  const bucket = catalog.find((b) => b.id === bucketId)
+  if (!bucket) return undefined
+  const path = pickWeightedClip(bucket, { excludeLast: true, clips: bucket.clips })
+  return path ? clipUrl(path) : undefined
 }

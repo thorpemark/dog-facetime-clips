@@ -6,6 +6,7 @@ export function DebugPanelView() {
     profile,
     behaviorState,
     lastTranscript,
+    lastMatch,
     speechSupported,
     speechError,
     rulesConfig,
@@ -36,6 +37,12 @@ export function DebugPanelView() {
       <p className="debug-meta">State: {stateLabel}</p>
       {lastTranscript && (
         <p className="debug-meta">Heard: &ldquo;{lastTranscript}&rdquo;</p>
+      )}
+      {lastMatch && (
+        <p className="debug-meta">
+          Match: {lastMatch.bucketId} ({lastMatch.method}, {lastMatch.score.toFixed(2)}
+          {lastMatch.matchedPhrase ? `, “${lastMatch.matchedPhrase}”` : ''})
+        </p>
       )}
       {!speechSupported && (
         <p className="debug-warn">

@@ -1,7 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { KeywordRulesConfig } from '../types'
 import type { MotionPreset } from '../types/memorial'
+import { IDLE_CLIP_PATHS, pickWeightedClip } from '../data/reactionCatalog'
+import { getEffectiveCatalog } from '../utils/catalogOverrides'
 import { clipUrl } from '../utils/keywordRules'
+import { loadVideoWithFallback, uniqueUrls } from '../utils/videoSource'
 import {
   DEFAULT_FOCAL_X,
   DEFAULT_FOCAL_Y,
@@ -83,6 +86,7 @@ export function useMediaPlayback(
   const onCompleteRef = useRef<(() => void) | null>(null)
   const idleTimerRef = useRef<number | null>(null)
   const reactionTimerRef = useRef<number | null>(null)
+  const cancelLoadRef = useRef<(() => void) | null>(null)
   const photosRef = useRef(photos)
   const crossfadeIntervalRef = useRef(crossfadeIntervalMs)
   const prevCrossfadeIntervalRef = useRef(crossfadeIntervalMs)
@@ -120,6 +124,8 @@ export function useMediaPlayback(
     if (reactionTimerRef.current) window.clearTimeout(reactionTimerRef.current)
     idleTimerRef.current = null
     reactionTimerRef.current = null
+    cancelLoadRef.current?.()
+    cancelLoadRef.current = null
   }, [])
 
   const bumpMotionKey = useCallback((slot: 'primary' | 'secondary') => {
@@ -204,6 +210,52 @@ export function useMediaPlayback(
     goToPhoto(photoIndexRef.current - 1)
   }, [goToPhoto])
 
+  const idleUrls = useCallback(() => {
+    return uniqueUrls([
+      rulesConfig?.idleClip ? clipUrl(rulesConfig.idleClip) : undefined,
+      ...IDLE_CLIP_PATHS.map((path) => clipUrl(path)),
+    ])
+  }, [rulesConfig])
+
+  const finishReactionToIdle = useCallback(
+    (onComplete?: () => void) => {
+      const idleSlot =
+        activeSlotRef.current === 'primary' ? 'secondary' : 'primary'
+      const idleVideo =
+        idleSlot === 'primary' ? primaryRef.current : secondaryRef.current
+
+      const done = () => {
+        setCurrentClipId('idle')
+        isPlayingReactionRef.current = false
+        setIsReactionPlaying(false)
+        onComplete?.()
+        onCompleteRef.current = null
+      }
+
+      if (!idleVideo) {
+        done()
+        return
+      }
+
+      cancelLoadRef.current?.()
+      cancelLoadRef.current = loadVideoWithFallback(idleVideo, idleUrls(), {
+        loop: true,
+        onReady: () => {
+          cancelLoadRef.current = null
+          void idleVideo.play()
+          crossfadeTo(idleSlot)
+          done()
+        },
+        onFail: () => {
+          cancelLoadRef.current = null
+          idleVideo.removeAttribute('src')
+          done()
+        },
+      })
+    },
+    [crossfadeTo, idleUrls],
+  )
+
   const loadIdle = useCallback(() => {
     clearTimers()
     isPlayingReactionRef.current = false
@@ -227,13 +279,9 @@ export function useMediaPlayback(
       return
     }
 
-    if (!rulesConfig) return
     const video = primaryRef.current
     if (!video) return
 
-    video.src = clipUrl(rulesConfig.idleClip)
-    video.loop = true
-    void video.play()
     activeSlotRef.current = 'primary'
     setPrimaryOpacity(1)
     setSecondaryOpacity(0)
@@ -243,7 +291,20 @@ export function useMediaPlayback(
       secondary.pause()
       secondary.removeAttribute('src')
     }
-  }, [clearTimers, photos, rulesConfig, scheduleIdleCycle, usePhotos])
+
+    cancelLoadRef.current?.()
+    cancelLoadRef.current = loadVideoWithFallback(video, idleUrls(), {
+      loop: true,
+      onReady: () => {
+        cancelLoadRef.current = null
+        void video.play()
+      },
+      onFail: () => {
+        cancelLoadRef.current = null
+        video.removeAttribute('src')
+      },
+    })
+  }, [clearTimers, idleUrls, photos, scheduleIdleCycle, usePhotos])
 
   const playPhotoReaction = useCallback(
     (clipId: string, onComplete: () => void) => {
@@ -280,12 +341,22 @@ export function useMediaPlayback(
 
   const playVideoReaction = useCallback(
     (clipId: string, onComplete: () => void) => {
-      if (!rulesConfig || isPlayingReactionRef.current) return
-      const rule = rulesConfig.rules.find((r) => r.id === clipId)
-      if (!rule) return
-
-      // TODO (clips fork): use reactionClipUrlForBucket(clipId) for random multi-clip pick
-      // from reactionCatalog.ts instead of a fixed rule.clipFileName.
+      if (isPlayingReactionRef.current) return
+      const catalog = getEffectiveCatalog()
+      const bucket = catalog.find((item) => item.id === clipId)
+      const picked = bucket
+        ? pickWeightedClip(bucket, { excludeLast: true, clips: bucket.clips })
+        : undefined
+      const fallbackFile = rulesConfig?.rules.find((r) => r.id === clipId)?.clipFileName
+      const urls = uniqueUrls([
+        picked ? clipUrl(picked) : undefined,
+        fallbackFile ? clipUrl(fallbackFile) : undefined,
+        ...(bucket?.clips.map((c) => clipUrl(c.path)) ?? []),
+      ])
+      if (urls.length === 0) {
+        onComplete()
+        return
+      }
 
       const incomingSlot =
         activeSlotRef.current === 'primary' ? 'secondary' : 'primary'
@@ -298,47 +369,27 @@ export function useMediaPlayback(
       onCompleteRef.current = onComplete
       setCurrentClipId(clipId)
 
-      incomingVideo.loop = false
-      incomingVideo.src = clipUrl(rule.clipFileName)
-
       const onEnded = () => {
         incomingVideo.removeEventListener('ended', onEnded)
-        if (!rulesConfig) return
-
-        const idleSlot =
-          activeSlotRef.current === 'primary' ? 'secondary' : 'primary'
-        const idleVideo =
-          idleSlot === 'primary' ? primaryRef.current : secondaryRef.current
-        if (!idleVideo) return
-
-        idleVideo.loop = true
-        idleVideo.src = clipUrl(rulesConfig.idleClip)
-
-        const onIdleReady = () => {
-          idleVideo.removeEventListener('canplay', onIdleReady)
-          void idleVideo.play()
-          crossfadeTo(idleSlot)
-          setCurrentClipId('idle')
-          isPlayingReactionRef.current = false
-          setIsReactionPlaying(false)
-          onCompleteRef.current?.()
-          onCompleteRef.current = null
-        }
-        idleVideo.addEventListener('canplay', onIdleReady)
-        idleVideo.load()
+        finishReactionToIdle(onCompleteRef.current ?? onComplete)
       }
 
-      const onCanPlay = () => {
-        incomingVideo.removeEventListener('canplay', onCanPlay)
-        void incomingVideo.play()
-        crossfadeTo(incomingSlot)
-        incomingVideo.addEventListener('ended', onEnded)
-      }
-
-      incomingVideo.addEventListener('canplay', onCanPlay)
-      incomingVideo.load()
+      cancelLoadRef.current?.()
+      cancelLoadRef.current = loadVideoWithFallback(incomingVideo, urls, {
+        loop: false,
+        onReady: () => {
+          cancelLoadRef.current = null
+          void incomingVideo.play()
+          crossfadeTo(incomingSlot)
+          incomingVideo.addEventListener('ended', onEnded)
+        },
+        onFail: () => {
+          cancelLoadRef.current = null
+          finishReactionToIdle(onCompleteRef.current ?? onComplete)
+        },
+      })
     },
-    [crossfadeTo, rulesConfig],
+    [crossfadeTo, finishReactionToIdle, rulesConfig],
   )
 
   const playReaction = useCallback(

@@ -8,7 +8,10 @@ export const REACTION_PRESETS: Record<string, MotionPreset> = {
   good: 'calm',
   no: 'calm',
   come: 'perk',
+  here: 'perk',
   owner: 'excited',
+  play: 'excited',
+  quiet: 'calm',
 }
 
 export function presetForRule(ruleId: string): MotionPreset {
