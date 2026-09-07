@@ -47,14 +47,14 @@ Each **bucket** is a semantic category with many synonymous **phrases** and seve
 | `name` | `{dogName}`, "Murphy", "Riley" | Perk up, eye contact |
 | `come` | "come here", "c'mere", "here boy" | Head tilt, step forward |
 | `good` | "good dog", "good boy", "who's a good" | Happy wag, soft eyes |
-| `treat` | "treat", "chicken", "want a cookie", "snack" | Excited, mouth open |
+| `treat` | "treat", "chicken", "want a cookie", "snack" | Eager treat interest, mouth closed, silence-first |
 | `walk` | "walk", "go for a walk", "outside" | Alert, tail energy |
 | `no` | "no", "no no", "stop that" | Ears back, pause |
 | `owner` | `{ownerName}`, "Mark" | Recognition, lean in |
 | `here` | "here", "over here", "this way" | Look toward camera |
 | `play` | "play", "ball", "fetch" | Bouncy (future) |
 | `quiet` | "quiet", "shh", "settle" | Calm down (future) |
-| `hug` | "hug", "cuddle" | Murphy: loves hug / neck offer. Riley: bares teeth, growls |
+| `hug` | "hug", "cuddle" | Murphy: hug melt / neck offer. Riley: grumble-hug teeth (visual protest, no bark) |
 | `howl` | "howl", "sing" | Murphy: full song. Riley: awkward attempt |
 
 Buckets are extensible. **`{dogName}`** and **`{ownerName}`** placeholders expand at runtime from memorial profile data.

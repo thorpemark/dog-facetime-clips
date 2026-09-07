@@ -117,9 +117,9 @@ export const REACTION_CATALOG: ReactionBucket[] = [
       'want a treat',
     ],
     clips: [
-      clip('treat', 1, 40, 'Excited, mouth open'),
+      clip('treat', 1, 40, 'Eager treat interest'),
       clip('treat', 2, 35, 'Food interest'),
-      clip('treat', 3, 25, 'Lick / expectant'),
+      clip('treat', 3, 25, 'Expectant lean'),
       legacyClip('react_treat.mp4', 10),
     ],
     priority: 8,

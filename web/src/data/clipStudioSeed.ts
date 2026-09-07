@@ -124,7 +124,7 @@ function intentsFromCatalog(
 export const MURPHY_PERSONALITY: DogPersonality = {
   breed: 'huskita (Husky × Akita mix)',
   notes: [
-    'Murphy is the other huskita — not Riley (Riley is the black huskita).',
+    'Murphy is the other huskita (tan/ginger, folded ears) — not Riley (Riley is the black huskita).',
     'Warm, expressive, slightly goofy.',
     'Loves hugs, chest scratches, and offering his neck with his nose up.',
     'Sings and howls well — a full musical husky howl.',
@@ -136,7 +136,7 @@ export const RILEY_PERSONALITY: DogPersonality = {
   notes: [
     'Riley is the black huskita.',
     'Independent, expressive, a bit stubborn.',
-    'Does not like hugs: bares teeth and growls when her side is touched or she is asked for a hug (warning, not an attack).',
+    'Does not like hugs: bares teeth — a grumble-hug visual protest when her side is touched or she is asked for a hug (warning, not an attack; no bark).',
     'Awkward howl attempt — hesitant and slightly off, not a full song.',
   ],
 }

@@ -44,9 +44,12 @@ describe('suggestClipPrompt', () => {
     })
 
     expect(rileyHug).toMatch(/bares her teeth/i)
-    expect(rileyHug).toMatch(/growl/i)
+    expect(rileyHug).toMatch(/grumble-hug/i)
+    expect(rileyHug).toMatch(/visual protest/i)
     expect(rileyHug).toMatch(/black huskita/i)
+    expect(rileyHug).not.toMatch(/growl-show-teeth/i)
     expect(murphyHug).toMatch(/loves hugs/i)
+    expect(murphyHug).toMatch(/melts in/i)
     expect(murphyHug).toMatch(/chest scratch/i)
     expect(murphyHug).toMatch(/nose tilted up/i)
     expect(murphyHug).toMatch(/other huskita/i)
@@ -62,7 +65,7 @@ describe('suggestClipPrompt', () => {
       personality: MURPHY_PERSONALITY,
       intentId: 'treat',
       intentDescription: 'Treat / chicken',
-      slotLabel: 'Excited, mouth open',
+      slotLabel: 'Eager treat interest',
       hasSourcePhoto: true,
       framing,
     })
@@ -147,19 +150,30 @@ describe('suggestClipPrompt', () => {
       personality: RILEY_PERSONALITY,
       intentId: 'treat',
       intentDescription: 'Treat / chicken',
-      slotLabel: 'Excited, mouth open',
+      slotLabel: 'Eager treat interest',
     })
 
     for (const prompt of [name, come, treat]) {
       expect(prompt).toMatch(/AUDIO \(read first\)/)
+      expect(prompt).toMatch(/Silence preferred/)
+      expect(prompt).toMatch(/no bark/i)
+      expect(prompt).toMatch(/no whine/i)
+      expect(prompt).toMatch(/faint breath/)
+      expect(prompt).toMatch(/soft paw on rug/)
       expect(prompt).toMatch(/no dialogue/i)
       expect(prompt).toMatch(/no talking/i)
       expect(prompt).toMatch(/NOT a howl clip/)
       expect(prompt).toMatch(/no howling/i)
       expect(prompt).toMatch(/no bay/i)
+      expect(prompt).toMatch(/mouth closed/i)
+      expect(prompt).toMatch(/ears, eyes, head/)
       expect(prompt.match(/no dialogue/gi)?.length).toBeGreaterThanOrEqual(2)
       expect(prompt).not.toMatch(/Sings and howls well/)
       expect(prompt).not.toMatch(/Awkward howl attempt/)
+      expect(prompt).not.toMatch(/soft dog sounds/i)
+      expect(prompt).not.toMatch(/quiet pant/i)
+      expect(prompt).not.toMatch(/tiny whine/i)
+      expect(prompt).not.toMatch(/soft pant\/huff\/whine/i)
     }
 
     expect(name).toMatch(/ears perk and eye contact only/i)
@@ -189,12 +203,29 @@ describe('suggestClipPrompt', () => {
     expect(howl).toMatch(/no dialogue/i)
     expect(howl).toMatch(/no talking/i)
     expect(howl).not.toMatch(/NOT a howl clip/)
+    expect(howl).not.toMatch(/Silence preferred/)
+    expect(howl).not.toMatch(/soft dog sounds/i)
     expect(howl.match(/no dialogue/gi)?.length).toBeGreaterThanOrEqual(2)
 
     expect(hug).toMatch(/NOT a howl clip/)
-    expect(hug).toMatch(/growl-show-teeth/)
+    expect(hug).toMatch(/Silence preferred/)
+    expect(hug).toMatch(/visual protest/)
+    expect(hug).toMatch(/no bark/)
+    expect(hug).not.toMatch(/growl-show-teeth/)
     expect(hug).toMatch(/not a howl/)
     expect(hug).toMatch(/no talking/i)
+  })
+
+  it('rewrites leftover mouth-open slot labels on non-howl intents', () => {
+    const prompt = suggestClipPrompt({
+      dogName: 'Murphy',
+      personality: MURPHY_PERSONALITY,
+      intentId: 'treat',
+      intentDescription: 'Treat / chicken',
+      slotLabel: 'Excited, mouth open',
+    })
+    expect(prompt).toMatch(/mouth closed/i)
+    expect(prompt).not.toMatch(/mouth open/i)
   })
 
   it('allows howl when slot notes explicitly say responds to a howl', () => {
