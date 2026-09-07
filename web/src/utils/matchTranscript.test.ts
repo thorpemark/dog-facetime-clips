@@ -54,6 +54,11 @@ describe('matchTranscript', () => {
     expect(matchTranscript('I know', names)?.bucketId).not.toBe('no')
   })
 
+  it('matches hug and howl paraphrases', () => {
+    expect(matchTranscript('want a hug', names)?.bucketId).toBe('hug')
+    expect(matchTranscript('sing it', names)?.bucketId).toBe('howl')
+  })
+
   it('scores every catalog bucket without throwing', () => {
     for (const bucket of REACTION_CATALOG) {
       const phrase = bucket.phrases[0]?.replace('{dogName}', 'Murphy').replace(

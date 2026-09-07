@@ -71,6 +71,20 @@
       "clipFileName": "reactions/quiet/quiet_01.mp4",
       "priority": 4,
       "description": "Quiet (future)"
+    },
+    {
+      "id": "hug",
+      "phrases": ["hug", "hugs", "want a hug", "give me a hug", "cuddle", "snuggle"],
+      "clipFileName": "reactions/hug/hug_01.mp4",
+      "priority": 8,
+      "description": "Hug / cuddle"
+    },
+    {
+      "id": "howl",
+      "phrases": ["howl", "sing", "sing it", "aroo", "speak"],
+      "clipFileName": "reactions/howl/howl_01.mp4",
+      "priority": 7,
+      "description": "Howl / sing"
     }
   ]
 }

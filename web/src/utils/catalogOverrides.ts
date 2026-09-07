@@ -1,5 +1,5 @@
 import type { ReactionBucket, WeightedClip } from '../data/reactionCatalog'
-import { REACTION_CATALOG } from '../data/reactionCatalog'
+import { catalogForDogName } from './clipStudioCatalog'
 
 export const WEIGHT_OVERRIDE_STORAGE_KEY = 'dog-facetime-clips.catalogWeightOverrides'
 
@@ -56,11 +56,13 @@ export function applyWeightOverrides(
 }
 
 export function getEffectiveCatalog(
-  overrides: WeightOverrides = readWeightOverrides(),
+  overrides?: WeightOverrides,
+  dogName?: string,
 ): ReactionBucket[] {
-  return REACTION_CATALOG.map((bucket) => ({
+  const resolved = overrides ?? readWeightOverrides()
+  return catalogForDogName(dogName).map((bucket) => ({
     ...bucket,
-    clips: applyWeightOverrides(bucket.clips, bucket.id, overrides),
+    clips: applyWeightOverrides(bucket.clips, bucket.id, resolved),
   }))
 }
 

@@ -28,6 +28,7 @@ const CROSSFADE_MS = 400
 interface UseMediaPlaybackOptions {
   crossfadeIntervalMs: number
   idleAnimationMs: number
+  dogName?: string
 }
 
 function emptyPhotoSource(): PhotoSource {
@@ -56,7 +57,7 @@ export function useMediaPlayback(
     idleAnimationMs: 12_000,
   },
 ) {
-  const { crossfadeIntervalMs, idleAnimationMs } = options
+  const { crossfadeIntervalMs, idleAnimationMs, dogName } = options
   const usePhotos = photos.length > 0
 
   const primaryRef = useRef<HTMLVideoElement>(null)
@@ -342,7 +343,7 @@ export function useMediaPlayback(
   const playVideoReaction = useCallback(
     (clipId: string, onComplete: () => void) => {
       if (isPlayingReactionRef.current) return
-      const catalog = getEffectiveCatalog()
+      const catalog = getEffectiveCatalog(undefined, dogName)
       const bucket = catalog.find((item) => item.id === clipId)
       const picked = bucket
         ? pickWeightedClip(bucket, { excludeLast: true, clips: bucket.clips })
@@ -389,7 +390,7 @@ export function useMediaPlayback(
         },
       })
     },
-    [crossfadeTo, finishReactionToIdle, rulesConfig],
+    [crossfadeTo, dogName, finishReactionToIdle, rulesConfig],
   )
 
   const playReaction = useCallback(

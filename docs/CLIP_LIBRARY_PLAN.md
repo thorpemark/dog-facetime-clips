@@ -54,6 +54,8 @@ Each **bucket** is a semantic category with many synonymous **phrases** and seve
 | `here` | "here", "over here", "this way" | Look toward camera |
 | `play` | "play", "ball", "fetch" | Bouncy (future) |
 | `quiet` | "quiet", "shh", "settle" | Calm down (future) |
+| `hug` | "hug", "cuddle" | Murphy: loves hug / neck offer. Riley: bares teeth, growls |
+| `howl` | "howl", "sing" | Murphy: full song. Riley: awkward attempt |
 
 Buckets are extensible. **`{dogName}`** and **`{ownerName}`** placeholders expand at runtime from memorial profile data.
 
@@ -124,15 +126,25 @@ Wire point: `useKeywordSpotter` → `matchTranscript` → `onMatch(bucketId)` �
 
 ---
 
-## How to add a phrase or clip
+## How to add a phrase, clip, or dog
 
-1. Drop a portrait H.264 MP4 in `web/public/clips/reactions/{bucket}/{bucket}_{nn}.mp4` (or keep the placeholder until the real render exists).
-2. Open `web/src/data/reactionCatalog.ts` and append `{ path, weight, label }` on that bucket. Weights are relative.
-3. Add lowercase seed `phrases` for keyword fallback; extend `semanticHints` with paraphrases you want the meaning matcher to catch (“get over here”, “want some chicken”).
-4. Reload `/catalog` — the table and “Try a phrase” tester read the catalog directly.
-5. Optional: copy the same phrases into `web/public/keyword_rules.json` if you still want the static JSON in sync (playback does not depend on it).
+**Preferred:** Clip Studio at `/studio` — no code change. See [`CLIP_STUDIO.md`](CLIP_STUDIO.md).
 
-Missing files fail gracefully: playback tries other variants, then returns to idle. The demo ships tiny colored placeholder MP4s so GitHub Pages has *something* to play.
+1. Pick (or add) a dog.
+2. **Add intent** / **Add phrase** / **Add clip variant**.
+3. Upload a source still → frame (portrait + landscape, crop handles, zoom, rotation).
+4. Copy the prompt → generate in Pika / Gemini / Grok → **Attach MP4**.
+5. Optional `generatorUsed` label only (no live APIs).
+
+Seed templates still live in `web/src/data/reactionCatalog.ts` and are copied into Murphy/Riley on first load. Personality-specific hug/howl prompts are in `web/src/data/clipStudioSeed.ts`.
+
+Missing files fail gracefully: playback tries other variants, then returns to idle. The demo ships bright colored placeholder MP4s so GitHub Pages has *something* visible to play.
+
+### Repo-committed clips (optional)
+
+1. Drop a portrait H.264 MP4 in `web/public/clips/reactions/{bucket}/{bucket}_{nn}.mp4`.
+2. Or attach via Studio (IndexedDB in demo mode).
+3. Regenerate placeholders: `bash web/scripts/generate-placeholder-clips.sh`.
 
 ---
 
@@ -253,8 +265,10 @@ Photos remain valid indefinitely in **dog-facetime**; this repo adds clip render
 - [x] `playVideoReaction` uses weighted catalog pick; missing MP4s fall back to idle
 - [x] Catalog is source of truth (`keyword_rules.json` kept in sync as a copy)
 - [x] Multiple idle clip paths with fallback
-- [x] `/catalog` table UI + localStorage weight overrides
+- [x] `/catalog` table UI + phrase tester
 - [x] Closest-match / meaning scorer with confidence threshold
+- [x] Clip Studio (`/studio`) — per-dog slots, photo framing, prompts, attach MP4
+- [x] Bright placeholder clips + call-loop / video reload fixes
 - [ ] `playback_mode` on memorial schema
 - [ ] Supabase clip upload + manifest
 - [ ] iOS catalog sync
@@ -263,9 +277,8 @@ Photos remain valid indefinitely in **dog-facetime**; this repo adds clip render
 
 ## Open questions
 
-1. **Global vs per-dog catalogs:** one Murphy set + one Riley set, or bucket clips tagged by dog and filtered by call target?
-2. **Together calls:** split-screen two idle loops, or composite still?
-3. **Audio:** silent clips vs subtle ambient paw/ collar sounds?
-4. **Clip length cap:** hard max 3s for snappy FaceTime feel?
+1. **Together calls:** split-screen two idle loops, or composite still?
+2. **Audio:** silent clips vs subtle ambient paw/collar sounds?
+3. **Clip length cap:** hard max 3s for snappy FaceTime feel?
 
-Decisions can land during Mark’s clip generation sprint without blocking the scaffold in this repo.
+Per-dog catalogs are implemented in Clip Studio (Murphy / Riley seed + Add dog).

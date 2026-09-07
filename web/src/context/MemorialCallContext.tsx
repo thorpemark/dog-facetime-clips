@@ -19,7 +19,8 @@ import type {
   KeywordRulesConfig,
 } from '../types'
 import { DEFAULT_PROFILE } from '../types'
-import { loadKeywordRules, rulesConfigFromCatalog } from '../utils/keywordRules'
+import { rulesConfigFromCatalog } from '../utils/keywordRules'
+import { subscribeStudio } from '../utils/clipStudioStore'
 import type { TranscriptMatch } from '../utils/matchTranscript'
 
 interface MemorialCallContextValue {
@@ -72,7 +73,7 @@ export function MemorialCallProvider({
   const [isMuted, setIsMuted] = useState(false)
   const [showDebugPanel, setShowDebugPanel] = useState(false)
   const [rulesConfig, setRulesConfig] = useState<KeywordRulesConfig | null>(
-    () => rulesConfigFromCatalog(),
+    () => rulesConfigFromCatalog(profile.dogName),
   )
 
   const cooldownRef = useRef<number | null>(null)
@@ -94,10 +95,19 @@ export function MemorialCallProvider({
   }, [])
 
   const triggerReactionRef = useRef<(clipId: string) => void>(() => {})
-
-  const keywordSpotter = useKeywordSpotter((ruleId) => {
+  const onKeywordMatch = useCallback((ruleId: string) => {
     triggerReactionRef.current(ruleId)
-  })
+  }, [])
+
+  const {
+    lastTranscript,
+    lastMatch,
+    speechSupported,
+    speechError,
+    startListening: startSpotter,
+    stopListening,
+    triggerPhrase,
+  } = useKeywordSpotter(onKeywordMatch)
 
   const {
     speed: kenBurnsSpeed,
@@ -109,7 +119,12 @@ export function MemorialCallProvider({
   const mediaPlayback = useMediaPlayback(photos, rulesConfig, {
     crossfadeIntervalMs,
     idleAnimationMs,
+    dogName: profile.dogName,
   })
+
+  const playReaction = mediaPlayback.playReaction
+  const loadIdle = mediaPlayback.loadIdle
+  const stopPlayback = mediaPlayback.stop
 
   const startListening = useCallback(() => {
     if (
@@ -119,13 +134,9 @@ export function MemorialCallProvider({
     ) {
       return
     }
-    keywordSpotter.startListening(
-      rulesConfig.rules,
-      profile.dogName,
-      profile.ownerName,
-    )
-    setBehaviorState({ type: 'listen' })
-  }, [keywordSpotter, profile.dogName, profile.ownerName, rulesConfig])
+    startSpotter(rulesConfig.rules, profile.dogName, profile.ownerName)
+    setBehaviorState((prev) => (prev.type === 'listen' ? prev : { type: 'listen' }))
+  }, [startSpotter, profile.dogName, profile.ownerName, rulesConfig])
 
   const triggerReaction = useCallback(
     (clipId: string) => {
@@ -134,21 +145,21 @@ export function MemorialCallProvider({
       if (state.type === 'react' || state.type === 'cooldown') return
 
       setBehaviorState({ type: 'react', clipId })
-      keywordSpotter.stopListening()
+      stopListening()
       if ('vibrate' in navigator) navigator.vibrate(30)
 
-      mediaPlayback.playReaction(clipId, enterCooldown)
+      playReaction(clipId, enterCooldown)
     },
-    [enterCooldown, keywordSpotter, mediaPlayback],
+    [enterCooldown, playReaction, stopListening],
   )
 
   triggerReactionRef.current = triggerReaction
 
   useEffect(() => {
-    loadKeywordRules()
-      .then(setRulesConfig)
-      .catch((err) => console.error(err))
-  }, [])
+    const refresh = () => setRulesConfig(rulesConfigFromCatalog(profile.dogName))
+    refresh()
+    return subscribeStudio(refresh)
+  }, [profile.dogName])
 
   useEffect(() => {
     if (behaviorState.type === 'listen' && callPhase === 'active' && !isMuted) {
@@ -170,27 +181,27 @@ export function MemorialCallProvider({
   const acceptCall = useCallback(() => {
     setCallPhase('active')
     setBehaviorState({ type: 'idle' })
-    mediaPlayback.loadIdle()
+    loadIdle()
     startListening()
-  }, [startListening, mediaPlayback])
+  }, [startListening, loadIdle])
 
   const endCall = useCallback(() => {
     setCallPhase('ended')
     setBehaviorState({ type: 'idle' })
-    keywordSpotter.stopListening()
-    mediaPlayback.stop()
+    stopListening()
+    stopPlayback()
     setShowDebugPanel(false)
     if (cooldownRef.current) window.clearTimeout(cooldownRef.current)
-  }, [keywordSpotter, mediaPlayback])
+  }, [stopListening, stopPlayback])
 
   const declineCall = useCallback(() => {
     setCallPhase('home')
     setBehaviorState({ type: 'idle' })
-    keywordSpotter.stopListening()
-    mediaPlayback.stop()
+    stopListening()
+    stopPlayback()
     setShowDebugPanel(false)
     if (cooldownRef.current) window.clearTimeout(cooldownRef.current)
-  }, [keywordSpotter, mediaPlayback])
+  }, [stopListening, stopPlayback])
 
   const returnToIdleAfterEnd = useCallback(() => {
     setCallPhase('home')
@@ -200,13 +211,13 @@ export function MemorialCallProvider({
     setIsMuted((prev) => {
       const next = !prev
       if (next) {
-        keywordSpotter.stopListening()
+        stopListening()
       } else if (callPhaseRef.current === 'active') {
         startListening()
       }
       return next
     })
-  }, [keywordSpotter, startListening])
+  }, [startListening, stopListening])
 
   const value = useMemo<MemorialCallContextValue>(
     () => ({
@@ -217,10 +228,10 @@ export function MemorialCallProvider({
       showDebugPanel,
       setShowDebugPanel,
       rulesConfig,
-      lastTranscript: keywordSpotter.lastTranscript,
-      lastMatch: keywordSpotter.lastMatch,
-      speechSupported: keywordSpotter.speechSupported,
-      speechError: keywordSpotter.speechError,
+      lastTranscript,
+      lastMatch,
+      speechSupported,
+      speechError,
       mediaPlayback,
       kenBurnsSpeed,
       setKenBurnsSpeed,
@@ -231,7 +242,7 @@ export function MemorialCallProvider({
       returnToIdleAfterEnd,
       toggleMute,
       triggerReaction,
-      triggerPhrase: keywordSpotter.triggerPhrase,
+      triggerPhrase,
     }),
     [
       profile,
@@ -240,11 +251,10 @@ export function MemorialCallProvider({
       isMuted,
       showDebugPanel,
       rulesConfig,
-      keywordSpotter.lastTranscript,
-      keywordSpotter.lastMatch,
-      keywordSpotter.speechSupported,
-      keywordSpotter.speechError,
-      keywordSpotter.triggerPhrase,
+      lastTranscript,
+      lastMatch,
+      speechSupported,
+      speechError,
       mediaPlayback,
       kenBurnsSpeed,
       setKenBurnsSpeed,
@@ -255,6 +265,7 @@ export function MemorialCallProvider({
       returnToIdleAfterEnd,
       toggleMute,
       triggerReaction,
+      triggerPhrase,
     ],
   )
 

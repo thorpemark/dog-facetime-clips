@@ -4,13 +4,8 @@ import {
   normalizeClipWeights,
   type ReactionBucket,
 } from '../data/reactionCatalog'
-import {
-  clearWeightOverrides,
-  getEffectiveCatalog,
-  readWeightOverrides,
-  setClipWeightOverride,
-  type WeightOverrides,
-} from '../utils/catalogOverrides'
+import { useClipStudio } from '../hooks/useClipStudio'
+import { dogLibraryToBuckets } from '../utils/clipStudioCatalog'
 import {
   MATCH_CONFIDENCE_THRESHOLD,
   matchTranscript,
@@ -21,17 +16,8 @@ function percentLabel(percent: number): string {
   return `${percent.toFixed(0)}%`
 }
 
-function BucketRow({
-  bucket,
-  overrides,
-  onWeightChange,
-}: {
-  bucket: ReactionBucket
-  overrides: WeightOverrides
-  onWeightChange: (bucketId: string, path: string, weight: number) => void
-}) {
+function BucketRow({ bucket }: { bucket: ReactionBucket }) {
   const weighted = normalizeClipWeights(bucket.clips)
-  const hasOverride = Boolean(overrides[bucket.id] && Object.keys(overrides[bucket.id]).length)
 
   return (
     <article className="catalog-card">
@@ -41,7 +27,6 @@ function BucketRow({
           <p className="catalog-id">
             <code>{bucket.id}</code>
             <span>priority {bucket.priority}</span>
-            {hasOverride && <span className="catalog-override-tag">local weights</span>}
           </p>
         </div>
       </header>
@@ -85,21 +70,7 @@ function BucketRow({
                     {percentLabel(clip.percent)}
                   </div>
                 </td>
-                <td>
-                  <input
-                    type="number"
-                    min={0}
-                    step={5}
-                    className="catalog-weight-input"
-                    value={clip.weight}
-                    aria-label={`Weight for ${clip.label ?? clip.path}`}
-                    onChange={(event) => {
-                      const next = Number(event.target.value)
-                      if (Number.isNaN(next)) return
-                      onWeightChange(bucket.id, clip.path, next)
-                    }}
-                  />
-                </td>
+                <td>{clip.weight}</td>
               </tr>
             ))}
           </tbody>
@@ -110,12 +81,15 @@ function BucketRow({
 }
 
 export function CatalogView() {
-  const [dogName, setDogName] = useState('Murphy')
+  const { state, dispatch, activeDog } = useClipStudio()
   const [ownerName, setOwnerName] = useState('Mark')
   const [phrase, setPhrase] = useState('come here Murph')
-  const [overrides, setOverrides] = useState<WeightOverrides>(() => readWeightOverrides())
 
-  const catalog = useMemo(() => getEffectiveCatalog(overrides), [overrides])
+  const dogName = activeDog?.name ?? 'Murphy'
+  const catalog = useMemo(
+    () => (activeDog ? dogLibraryToBuckets(activeDog) : []),
+    [activeDog],
+  )
 
   const match = useMemo(
     () =>
@@ -137,46 +111,52 @@ export function CatalogView() {
     [catalog, dogName, ownerName, phrase],
   )
 
-  const onWeightChange = (bucketId: string, path: string, weight: number) => {
-    setOverrides(setClipWeightOverride(bucketId, path, weight))
-  }
-
-  const resetWeights = () => {
-    clearWeightOverrides()
-    setOverrides({})
-  }
-
-  const hasAnyOverride = Object.keys(overrides).length > 0
-
   return (
     <div className="screen catalog-screen">
       <div className="catalog-page">
         <header className="catalog-hero">
-          <Link to="/" className="btn-text catalog-back">
-            ← Home
-          </Link>
+          <div className="studio-nav">
+            <Link to="/" className="btn-text catalog-back">
+              ← Home
+            </Link>
+            <Link to="/studio" className="btn-text">
+              Clip Studio
+            </Link>
+            <Link
+              to={`/demo?dog=${encodeURIComponent(dogName)}`}
+              className="btn-text catalog-demo"
+            >
+              Try a sample call →
+            </Link>
+          </div>
           <h1>Reaction catalog</h1>
           <p>
-            Intent buckets map spoken meaning to weighted clip variants. Seed
-            phrases are the keyword fallback; semantic hints power loose matching
-            so “come here Murph” still fires <strong>come</strong>.
-          </p>
-          <p className="catalog-note">
-            Source of truth is <code>web/src/data/reactionCatalog.ts</code>.
-            Weight edits here stay in this browser only (localStorage) for demo
-            tuning.
+            Read-only overview of the per-dog library. Edit intents, phrases,
+            weights, photos, and videos in <strong>Clip Studio</strong>.
           </p>
         </header>
+
+        <div className="studio-dog-tabs" role="tablist" aria-label="Dogs">
+          {state.dogs.map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              role="tab"
+              aria-selected={item.id === activeDog?.id}
+              className={`studio-dog-tab ${item.id === activeDog?.id ? 'active' : ''}`}
+              onClick={() => dispatch({ type: 'selectDog', dogId: item.id })}
+            >
+              {item.name}
+            </button>
+          ))}
+        </div>
 
         <section className="catalog-tester" aria-label="Try a phrase">
           <h2>Try a phrase</h2>
           <div className="catalog-tester-grid">
             <label>
-              Dog name
-              <input
-                value={dogName}
-                onChange={(event) => setDogName(event.target.value)}
-              />
+              Dog
+              <input value={dogName} readOnly />
             </label>
             <label>
               Owner name
@@ -218,14 +198,8 @@ export function CatalogView() {
 
         <div className="catalog-toolbar">
           <p>
-            {catalog.length} intents · weights normalize to probabilities
-            {hasAnyOverride ? ' · local overrides on' : ''}
+            {catalog.length} intents for {dogName} · edit in Clip Studio
           </p>
-          {hasAnyOverride && (
-            <button type="button" className="btn-secondary" onClick={resetWeights}>
-              Reset local weights
-            </button>
-          )}
         </div>
 
         <div className="catalog-table-wrap">
@@ -267,12 +241,7 @@ export function CatalogView() {
 
         <div className="catalog-list">
           {catalog.map((bucket) => (
-            <BucketRow
-              key={bucket.id}
-              bucket={bucket}
-              overrides={overrides}
-              onWeightChange={onWeightChange}
-            />
+            <BucketRow key={bucket.id} bucket={bucket} />
           ))}
         </div>
       </div>

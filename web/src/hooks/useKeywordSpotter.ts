@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { KeywordRule } from '../types'
+import { catalogForDogName } from '../utils/clipStudioCatalog'
 import {
   MATCH_CONFIDENCE_THRESHOLD,
   matchTranscript,
@@ -29,32 +30,32 @@ export function useKeywordSpotter(onMatch: (ruleId: string) => void) {
   const dogNameRef = useRef('')
   const ownerNameRef = useRef('')
   const lastMatchTimeRef = useRef(0)
+  const onMatchRef = useRef(onMatch)
   const matchCooldownMs = 2000
+  onMatchRef.current = onMatch
 
   useEffect(() => {
     setSpeechSupported(getSpeechRecognition() !== null)
   }, [])
 
-  const processTranscript = useCallback(
-    (transcript: string) => {
-      setLastTranscript(transcript)
-      const now = Date.now()
-      if (now - lastMatchTimeRef.current < matchCooldownMs) return
+  const processTranscript = useCallback((transcript: string) => {
+    setLastTranscript(transcript)
+    const now = Date.now()
+    if (now - lastMatchTimeRef.current < matchCooldownMs) return
 
-      const match = matchTranscript(transcript, {
-        dogName: dogNameRef.current,
-        ownerName: ownerNameRef.current,
-      })
-      if (match) {
-        const known = rulesRef.current.some((rule) => rule.id === match.bucketId)
-        if (!known && rulesRef.current.length > 0) return
-        lastMatchTimeRef.current = now
-        setLastMatch(match)
-        onMatch(match.bucketId)
-      }
-    },
-    [onMatch],
-  )
+    const match = matchTranscript(transcript, {
+      dogName: dogNameRef.current,
+      ownerName: ownerNameRef.current,
+      catalog: catalogForDogName(dogNameRef.current),
+    })
+    if (match) {
+      const known = rulesRef.current.some((rule) => rule.id === match.bucketId)
+      if (!known && rulesRef.current.length > 0) return
+      lastMatchTimeRef.current = now
+      setLastMatch(match)
+      onMatchRef.current(match.bucketId)
+    }
+  }, [])
 
   const startRecognition = useCallback(() => {
     const Ctor = getSpeechRecognition()
