@@ -143,7 +143,7 @@ export function defaultSourcePhotoForMode(mode: CallMode): ClipSourcePhoto {
 }
 
 /** Intents that always get the dog’s seed still (idle + key reactions). */
-export const KEY_SEED_INTENT_IDS = ['idle', 'name', 'come', 'hug', 'howl'] as const
+export const KEY_SEED_INTENT_IDS = ['idle', 'name', 'come', 'hug', 'howl', 'unknown'] as const
 
 export function isKeySeedIntent(intentId: string): boolean {
   return (KEY_SEED_INTENT_IDS as readonly string[]).includes(intentId)

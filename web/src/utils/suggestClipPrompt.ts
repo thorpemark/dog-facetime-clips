@@ -246,6 +246,41 @@ function togetherPlayBeat(): string {
   )
 }
 
+function isUnknownLikeIntent(intentId: string): boolean {
+  const intent = normalizeIntent(intentId)
+  return (
+    intent === 'unknown' ||
+    intent === 'confused' ||
+    intent.startsWith('unknown-') ||
+    intent.startsWith('confused-')
+  )
+}
+
+function unknownBeat(dogName: string, personality: DogPersonality): string {
+  const eyes = eyePhrase(personality.eyes)
+  const vibe =
+    personality.eyes === 'goofy'
+      ? 'warm and slightly goofy'
+      : personality.eyes === 'alert'
+        ? 'independent and slightly puzzled'
+        : 'curious and a little unsure'
+  const silent =
+    personality.vocalStyle === 'silent'
+      ? 'Silent “huh?” — face and body only, mouth closed, no bark.'
+      : 'Curious “huh?” face toward the camera.'
+  return (
+    `${dogName} did not understand: a classic curious head-tilt toward the camera, ${vibe}, ${eyes}, ` +
+    `eyes on the phone. ${silent}`
+  )
+}
+
+function togetherUnknownBeat(): string {
+  return (
+    'Together shot: both dogs cock their heads toward the camera as if they did not catch the words — ' +
+    'curious “huh?” faces, eyes on the phone. Keep both dogs in frame. Silent; face and body only.'
+  )
+}
+
 /** Trait-driven hug / howl / play beats. Together-shot (Both) keeps the pair-specific lines. */
 export function personalityBeat(
   dogName: string,
@@ -261,13 +296,17 @@ export function personalityBeat(
   const playLike = isPlayLikeIntent(intentId)
   const allowHowl = options?.allowHowl ?? howlLike
 
+  const unknownLike = isUnknownLikeIntent(intent)
+
   if (dog === 'both' && hugLike) return togetherHugBeat()
   if (dog === 'both' && howlLike && allowHowl) return togetherHowlBeat()
   if (dog === 'both' && playLike) return togetherPlayBeat()
+  if (dog === 'both' && unknownLike) return togetherUnknownBeat()
 
   if (hugLike) return hugBeat(dogName, traits)
   if (howlLike && allowHowl) return howlBeat(dogName, traits)
   if (playLike) return playBeat(dogName, traits)
+  if (unknownLike) return unknownBeat(dogName, traits)
 
   const notes = personalityNotesForIntent(traits, allowHowl)
   const flavor = traitFlavor(traits)
@@ -299,6 +338,8 @@ function intentMotion(input: SuggestPromptInput, allowHowl: boolean, allowPlayHu
       ? 'Play-bow (downward-dog stretch): front low, rear up, expressive body, bright eyes. One short challenge huff/chuff as they drop into the bow — not a bark. Stay in portrait; not a zoomie.'
       : `Play-bow (downward-dog stretch): front low, rear up, expressive body, bright eyes. Stay in portrait; not a zoomie.${silent}`,
     quiet: `Settle and calm: breath slows, eyes soften, a quiet downshift while still facing the camera.${silent}`,
+    unknown: `Classic curious dog head-tilt: ears perk, head cocks to one side as if asking “huh?”, face toward the phone camera. Small, readable, not a command reaction.${silent}`,
+    confused: `Classic curious dog head-tilt: ears perk, head cocks to one side as if asking “huh?”, face toward the phone camera. Small, readable, not a command reaction.${silent}`,
   }
 
   for (const [id, motion] of Object.entries(motions)) {

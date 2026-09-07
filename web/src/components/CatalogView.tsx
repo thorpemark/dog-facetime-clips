@@ -188,14 +188,29 @@ export function CatalogView() {
             </label>
           </div>
           {match ? (
-            <p className="catalog-match-hit">
-              Match: <strong>{match.bucketId}</strong> · {match.method} · score{' '}
-              {match.score.toFixed(2)}
-              {match.matchedPhrase ? ` · “${match.matchedPhrase}”` : ''}
+            <p
+              className={
+                match.method === 'fallback'
+                  ? 'catalog-match-miss'
+                  : 'catalog-match-hit'
+              }
+            >
+              {match.method === 'fallback' ? (
+                <>
+                  No recognized phrase (threshold {MATCH_CONFIDENCE_THRESHOLD}) —
+                  play <strong>{match.bucketId}</strong> head-tilt.
+                </>
+              ) : (
+                <>
+                  Match: <strong>{match.bucketId}</strong> · {match.method} · score{' '}
+                  {match.score.toFixed(2)}
+                  {match.matchedPhrase ? ` · “${match.matchedPhrase}”` : ''}
+                </>
+              )}
             </p>
           ) : (
             <p className="catalog-match-miss">
-              No match (threshold {MATCH_CONFIDENCE_THRESHOLD}) — stay on idle.
+              Type a phrase to test matching.
             </p>
           )}
           <ul className="catalog-rank">

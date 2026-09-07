@@ -23,12 +23,12 @@ stateDiagram-v2
   listen --> react: phrase matches bucket
   react --> cooldown: clip ends
   cooldown --> idle: pause elapsed
-  listen --> listen: no match
+  listen --> react: unknown / no match
 ```
 
 ```
 Transcript ──► normalize ──► match buckets (meaning + keyword, priority tie-break) ──► bucket id
-                                                      │
+                                                      │                              (or `unknown` if below threshold)
                                                       ▼
                                             pickWeightedClip(bucket)
                                                       │
@@ -56,6 +56,7 @@ Each **bucket** is a semantic category with many synonymous **phrases** and seve
 | `quiet` | "quiet", "shh", "settle" | Calm down (future) |
 | `hug` | "hug", "cuddle" | `touch=cuddly`: loves hug / neck offer. `touch=grumble_hug`: bares teeth, silent warning (Riley-style) |
 | `howl` | "howl", "sing" | Murphy: full song. Riley: awkward attempt |
+| `unknown` | *(no seed phrases — catch-all)* | Curious head-tilt / silent “huh?” when speech is not recognized |
 
 Buckets are extensible. **`{dogName}`** and **`{ownerName}`** placeholders expand at runtime from memorial profile data.
 
@@ -75,7 +76,7 @@ The matcher lives in `web/src/utils/matchTranscript.ts` and is wired through `us
 4. **Meaning / similarity (primary for paraphrases):** each bucket is a document of seed phrases + `semanticHints`. The transcript is scored with:
    - token coverage after a small synonym/alias map (`chicken` → treat, `outside` → walk, `c’mere` → come)
    - character n-gram cosine similarity (TF–IDF over the catalog)
-5. **Threshold:** if the best score is below `MATCH_CONFIDENCE_THRESHOLD` (~0.34), stay on idle — no false reaction.
+5. **Threshold:** if the best score is below `MATCH_CONFIDENCE_THRESHOLD` (~0.34), or ranking is empty, play the **`unknown` / `confused` head-tilt** — do not stay on idle and do not pick a random other intent. The catch-all bucket is excluded from scoring so it cannot steal a real match.
 6. **Tie-break:** near-ties use bucket `priority`. Content buckets get a small preference over name/owner.
 
 Call flow:
@@ -267,6 +268,7 @@ Photos remain valid indefinitely in **dog-facetime**; this repo adds clip render
 - [x] Multiple idle clip paths with fallback
 - [x] `/catalog` table UI + phrase tester
 - [x] Closest-match / meaning scorer with confidence threshold
+- [x] `unknown` confused head-tilt catch-all when matching misses (Studio slots + Suggest)
 - [x] Clip Studio (`/studio`) — per-dog slots, photo framing, prompts, attach MP4
 - [x] Bright placeholder clips + call-loop / video reload fixes
 - [ ] `playback_mode` on memorial schema

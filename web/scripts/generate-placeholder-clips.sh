@@ -67,4 +67,7 @@ make_clip "$CLIPS/reactions/hug/hug_02.mp4" "0xff8fab" 1.8
 make_clip "$CLIPS/reactions/howl/howl_01.mp4" "0xc9a227" 1.8
 make_clip "$CLIPS/reactions/howl/howl_02.mp4" "0xd4b84a" 1.8
 
+make_clip "$CLIPS/reactions/unknown/unknown_01.mp4" "0xa0b4c8" 1.8
+make_clip "$CLIPS/reactions/unknown/unknown_02.mp4" "0x90a4b8" 1.8
+
 echo "Wrote bright placeholders under $CLIPS"

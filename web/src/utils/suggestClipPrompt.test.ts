@@ -511,4 +511,58 @@ describe('suggestClipPrompt', () => {
     expect(calmName).not.toMatch(/high, small-dog-pitched/)
     expect(calmName).not.toMatch(/Murphy and Riley are remarkably non-vocal/)
   })
+
+  it('suggests a silence-first confused head-tilt for the unknown catch-all', () => {
+    const murphy = suggestClipPrompt({
+      dogName: 'Murphy',
+      personality: MURPHY_PERSONALITY,
+      intentId: 'unknown',
+      intentDescription: 'Unknown / confused head-tilt',
+      slotLabel: 'Curious head-tilt',
+    })
+    const riley = suggestClipPrompt({
+      dogName: 'Riley',
+      personality: RILEY_PERSONALITY,
+      intentId: 'unknown',
+      intentDescription: 'Unknown / confused head-tilt',
+      slotLabel: 'Confused huh?',
+    })
+    const both = suggestClipPrompt({
+      dogName: 'Both',
+      personality: BOTH_PERSONALITY,
+      intentId: 'unknown',
+      intentDescription: 'Unknown / confused head-tilt',
+      slotLabel: 'Curious head-tilt',
+    })
+
+    for (const prompt of [murphy, riley, both]) {
+      expect(prompt.startsWith('AUDIO (read first):')).toBe(true)
+      expect(prompt).toMatch(/Silence-first/)
+      expect(prompt).toMatch(/Hard ban: bark, howl, whine, growl, music, speech, ambience/)
+      expect(prompt).toMatch(/head-tilt/i)
+      expect(prompt).toMatch(/huh/)
+      expect(prompt).not.toMatch(/Howl\/sing clip/)
+      expect(prompt).not.toMatch(/challenge huff/)
+      expect(prompt).not.toMatch(INVITING_SOUND)
+    }
+
+    expect(murphy).toMatch(/slightly goofy/)
+    expect(riley).toMatch(/slightly puzzled/)
+    expect(both).toMatch(/keep both dogs in frame/i)
+
+    const barker = suggestClipPrompt({
+      dogName: 'Biscuit',
+      personality: defaultPersonality({
+        vocalStyle: 'barks',
+        voiceSize: 'small_high',
+        eyes: 'goofy',
+      }),
+      intentId: 'unknown',
+      intentDescription: 'Unknown / confused head-tilt',
+      slotLabel: 'Curious head-tilt',
+    })
+    expect(barker).toMatch(/head-tilt/i)
+    expect(barker).toMatch(/Barking dog/)
+    expect(barker).not.toMatch(/Silence-first/)
+  })
 })
