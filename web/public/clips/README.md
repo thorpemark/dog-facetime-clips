@@ -17,4 +17,5 @@ Missing files are skipped at playback time.
 | `reactions/treat/` | orange | Treat |
 | `reactions/hug/` | pink | Hug |
 | `reactions/howl/` | gold | Howl / sing |
+| `reactions/unknown/` | cool gray | Unrecognized phrase / confused head-tilt |
 | `react_*.mp4` | matches bucket | Legacy single-file names |

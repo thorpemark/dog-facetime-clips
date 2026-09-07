@@ -1,8 +1,11 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import {
+  isUnknownIntent,
   normalizeClipWeights,
   pickWeightedClip,
+  REACTION_CATALOG,
   resetClipPickHistory,
+  UNKNOWN_INTENT_ID,
   type ReactionBucket,
 } from '../data/reactionCatalog'
 
@@ -25,6 +28,17 @@ const sampleBucket: ReactionBucket = {
     { path: 'c.mp4', weight: 0, label: 'C' },
   ],
 }
+
+describe('unknown catch-all', () => {
+  it('ships a dedicated unknown head-tilt bucket', () => {
+    const unknown = REACTION_CATALOG.find((bucket) => bucket.id === UNKNOWN_INTENT_ID)
+    expect(unknown?.clips.length).toBeGreaterThanOrEqual(2)
+    expect(unknown?.description).toMatch(/head-tilt/i)
+    expect(isUnknownIntent('unknown')).toBe(true)
+    expect(isUnknownIntent('confused')).toBe(true)
+    expect(isUnknownIntent('come')).toBe(false)
+  })
+})
 
 describe('normalizeClipWeights', () => {
   it('converts relative weights to percents', () => {

@@ -1,12 +1,16 @@
 import type { ReactionBucket } from '../data/reactionCatalog'
-import { isNameLikeBucket } from '../data/reactionCatalog'
+import {
+  isNameLikeBucket,
+  isUnknownIntent,
+  REACTION_CATALOG,
+} from '../data/reactionCatalog'
 import { getEffectiveCatalog } from './catalogOverrides'
 
 export const MATCH_CONFIDENCE_THRESHOLD = 0.34
 /** When two buckets are this close, higher `priority` wins. */
 export const MATCH_PRIORITY_TIE_DELTA = 0.08
 
-export type MatchMethod = 'keyword' | 'semantic'
+export type MatchMethod = 'keyword' | 'semantic' | 'fallback'
 
 export interface TranscriptMatch {
   bucketId: string
@@ -329,16 +333,30 @@ function semanticScore(transcript: string, index: BucketIndex): number {
 
 const CONTENT_PREFERENCE = 0.06
 
+function unknownFallback(catalog: ReactionBucket[]): TranscriptMatch | null {
+  const bucket =
+    catalog.find((entry) => isUnknownIntent(entry.id)) ??
+    REACTION_CATALOG.find((entry) => isUnknownIntent(entry.id))
+  if (!bucket) return null
+  return {
+    bucketId: bucket.id,
+    score: 0,
+    method: 'fallback',
+  }
+}
+
 /**
  * Match a spoken/typed transcript to a reaction bucket.
  *
  * 1. Keyword / substring against seed phrases (word-bounded for short tokens)
  * 2. Meaning similarity: token coverage + char n-gram cosine vs phrases+hints
- * 3. Below `threshold` → no match (stay on idle)
+ * 3. Below `threshold` or empty ranking → `unknown` / `confused` head-tilt
+ *    (never stay idle forever, never pick a random other intent)
  * 4. Near-ties broken by bucket `priority`
  *
  * Dog/owner names are stripped before scoring content buckets so
  * "come here Murph" lands on come, not name.
+ * Catch-all unknown/confused buckets are excluded from scoring.
  */
 export function matchTranscript(
   raw: string,
@@ -352,7 +370,8 @@ export function matchTranscript(
   if (!transcript) return null
 
   const stripped = stripNames(transcript, dogName, ownerName)
-  const index = buildIndex(catalog, dogName, ownerName)
+  const matchable = catalog.filter((bucket) => !isUnknownIntent(bucket.id))
+  const index = buildIndex(matchable, dogName, ownerName)
 
   interface Candidate {
     bucketId: string
@@ -398,7 +417,7 @@ export function matchTranscript(
     }
   }
 
-  if (candidates.length === 0) return null
+  if (candidates.length === 0) return unknownFallback(catalog)
 
   const byBucket = new Map<string, Candidate>()
   for (const candidate of candidates) {
@@ -422,7 +441,7 @@ export function matchTranscript(
   })
 
   const best = ranked[0]
-  if (!best || best.score < threshold) return null
+  if (!best || best.score < threshold) return unknownFallback(catalog)
 
   return {
     bucketId: best.bucketId,
@@ -444,7 +463,8 @@ export function rankTranscriptMatches(
   if (!transcript) return []
 
   const stripped = stripNames(transcript, dogName, ownerName)
-  const index = buildIndex(catalog, dogName, ownerName)
+  const matchable = catalog.filter((bucket) => !isUnknownIntent(bucket.id))
+  const index = buildIndex(matchable, dogName, ownerName)
 
   return index
     .map((entry) => {

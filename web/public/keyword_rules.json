@@ -85,6 +85,13 @@
       "clipFileName": "reactions/howl/howl_01.mp4",
       "priority": 7,
       "description": "Howl / sing"
+    },
+    {
+      "id": "unknown",
+      "phrases": [],
+      "clipFileName": "reactions/unknown/unknown_01.mp4",
+      "priority": 0,
+      "description": "Unknown / confused head-tilt"
     }
   ]
 }

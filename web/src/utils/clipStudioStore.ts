@@ -20,6 +20,7 @@ import {
   createDogLibrary,
   createSeedStudioState,
 } from '../data/clipStudioSeed'
+import { isUnknownIntent, UNKNOWN_INTENT_ID } from '../data/reactionCatalog'
 import { normalizePersonality } from './dogPersonality'
 import { publicAssetUrl } from '../lib/urls'
 
@@ -168,10 +169,26 @@ function withNormalizedPersonalities(state: ClipStudioState): ClipStudioState {
   }
 }
 
-/** Fold baked Murphy/Riley/Both photos + personality radios into older localStorage studios. */
+function ensureUnknownIntent(dog: DogLibrary): DogLibrary {
+  if (dog.intents.some((intent) => isUnknownIntent(intent.id))) return dog
+  const seed = createDogLibrary(dog.name, dog.personality, {
+    id: dog.id,
+    defaultPhoto: seedPhotoForDog(dog),
+    avatarPath: dog.avatarPath,
+  })
+  const unknown = seed.intents.find((intent) => intent.id === UNKNOWN_INTENT_ID)
+  if (!unknown) return dog
+  return { ...dog, intents: [...dog.intents, unknown] }
+}
+
+/** Fold baked Murphy/Riley/Both photos + personality radios + unknown intent into older localStorage studios. */
 export function migrateStudioState(state: ClipStudioState): ClipStudioState {
   const revision = state.seedRevision ?? 1
-  if (revision >= 2 && state.dogs.some((dog) => dog.id === 'both')) {
+  const hasBoth = state.dogs.some((dog) => dog.id === 'both')
+  const missingUnknown = state.dogs.some(
+    (dog) => !dog.intents.some((intent) => isUnknownIntent(intent.id)),
+  )
+  if (revision >= 2 && hasBoth && !missingUnknown) {
     return withNormalizedPersonalities(state)
   }
 
@@ -204,10 +221,14 @@ export function migrateStudioState(state: ClipStudioState): ClipStudioState {
     )
   }
 
+  const withUnknown = dogs.map((dog) =>
+    fillMissingSlotPhotos(ensureUnknownIntent(dog), seedPhotoForDog(dog)),
+  )
+
   return withNormalizedPersonalities({
     ...state,
-    dogs,
-    activeDogId: state.activeDogId || dogs[0]?.id || seed.activeDogId,
+    dogs: withUnknown,
+    activeDogId: state.activeDogId || withUnknown[0]?.id || seed.activeDogId,
   })
 }
 

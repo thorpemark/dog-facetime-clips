@@ -29,6 +29,20 @@ export interface ReactionBucket {
   semanticHints?: string
 }
 
+/** Catch-all when phrase/meaning matching finds no good hit. */
+export const UNKNOWN_INTENT_ID = 'unknown'
+
+const UNKNOWN_INTENT_IDS = new Set(['unknown', 'confused'])
+
+export function isUnknownIntent(id: string): boolean {
+  const normalized = id.trim().toLowerCase()
+  return (
+    UNKNOWN_INTENT_IDS.has(normalized) ||
+    normalized.startsWith('unknown-') ||
+    normalized.startsWith('confused-')
+  )
+}
+
 /** Placeholder portrait clips — replace with Murphy/Riley AI renders. */
 export const CLIPS_BASE = 'clips/reactions'
 
@@ -214,6 +228,18 @@ export const REACTION_CATALOG: ReactionBucket[] = [
     description: 'Howl / sing',
     semanticHints:
       'Howl, sing, sing it, aroo, awoo, speak, let me hear you, husky song. Asking the dog to howl or sing — not a walk or a name call.',
+  },
+  {
+    id: UNKNOWN_INTENT_ID,
+    phrases: [],
+    clips: [
+      clip('unknown', 1, 55, 'Curious head-tilt'),
+      clip('unknown', 2, 45, 'Confused huh?'),
+    ],
+    priority: 0,
+    description: 'Unknown / confused head-tilt',
+    semanticHints:
+      'Catch-all when speech or a typed phrase is not recognized. Classic curious dog head-tilt toward the camera — a silent “huh?” — not a random other intent and not staying idle.',
   },
 ]
 

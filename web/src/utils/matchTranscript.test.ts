@@ -39,9 +39,47 @@ describe('matchTranscript', () => {
     expect(matchTranscript('Mark', names)?.bucketId).toBe('owner')
   })
 
-  it('stays idle below the confidence threshold', () => {
-    expect(matchTranscript('the weather is lovely today', names)).toBeNull()
-    expect(matchTranscript('asdf qwerty zxcv', names)).toBeNull()
+  it('falls back to the unknown head-tilt below the confidence threshold', () => {
+    const weather = matchTranscript('the weather is lovely today', names)
+    expect(weather?.bucketId).toBe('unknown')
+    expect(weather?.method).toBe('fallback')
+    const gibberish = matchTranscript('asdf qwerty zxcv', names)
+    expect(gibberish?.bucketId).toBe('unknown')
+    expect(gibberish?.method).toBe('fallback')
+    expect(matchTranscript('   ', names)).toBeNull()
+  })
+
+  it('does not steal recognized phrases for the unknown catch-all', () => {
+    expect(matchTranscript('come here Murph', names)?.bucketId).toBe('come')
+    expect(matchTranscript('want a hug', names)?.bucketId).toBe('hug')
+    expect(matchTranscript('Murphy', names)?.method).not.toBe('fallback')
+  })
+
+  it('uses a per-library confused slot when that is the catch-all id', () => {
+    const catalog = [
+      {
+        id: 'come',
+        phrases: ['come here'],
+        clips: [{ path: 'come.mp4', weight: 100 }],
+        priority: 7,
+      },
+      {
+        id: 'confused',
+        phrases: [],
+        clips: [{ path: 'tilt.mp4', weight: 100 }],
+        priority: 0,
+        description: 'Confused head-tilt',
+      },
+    ]
+    const hit = matchTranscript('purple elephant calculus', {
+      ...names,
+      catalog,
+    })
+    expect(hit?.bucketId).toBe('confused')
+    expect(hit?.method).toBe('fallback')
+    expect(matchTranscript('come here', { ...names, catalog })?.bucketId).toBe(
+      'come',
+    )
   })
 
   it('uses keyword fallback for seed phrases', () => {

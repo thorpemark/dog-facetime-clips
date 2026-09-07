@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { KeywordRule } from '../types'
+import { isUnknownIntent } from '../data/reactionCatalog'
 import { catalogForDogName } from '../utils/clipStudioCatalog'
 import {
   MATCH_CONFIDENCE_THRESHOLD,
@@ -50,7 +51,9 @@ export function useKeywordSpotter(onMatch: (ruleId: string) => void) {
     })
     if (match) {
       const known = rulesRef.current.some((rule) => rule.id === match.bucketId)
-      if (!known && rulesRef.current.length > 0) return
+      const allowUnknown =
+        match.method === 'fallback' || isUnknownIntent(match.bucketId)
+      if (!known && rulesRef.current.length > 0 && !allowUnknown) return
       lastMatchTimeRef.current = now
       setLastMatch(match)
       onMatchRef.current(match.bucketId)

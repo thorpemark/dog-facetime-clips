@@ -18,7 +18,7 @@ Murphy, Riley, and **Both** ship as seed dogs (huskitas) with baked stills in `w
 | **Riley** | `modes/riley.jpg` | Black-and-white huskita, upright ears — the black huskita |
 | **Both** | `modes/both.jpg` | Murphy on the left, Riley on the right |
 
-Those stills are the Studio avatars, the home/demo three-mode picker cards, incoming-call faces, and the default source photo on **idle + name / come / hug / howl** slots. Other slots fall back to the dog-level still until you attach a different one. Reset seed from the bottom of Studio if you want to start over in this browser. Portrait framing is a sensible default — refine crops in Studio.
+Those stills are the Studio avatars, the home/demo three-mode picker cards, incoming-call faces, and the default source photo on **idle + name / come / hug / howl / unknown** slots. Other slots fall back to the dog-level still until you attach a different one. Reset seed from the bottom of Studio if you want to start over in this browser. Portrait framing is a sensible default — refine crops in Studio.
 
 ## Add an intent (bucket)
 
@@ -27,6 +27,8 @@ Those stills are the Studio avatars, the home/demo three-mode picker cards, inco
 3. Expand the intent to edit clip slots.
 
 Intent ids are slugs (`belly-rub`). You do **not** edit TypeScript unions for each new intent.
+
+Seed libraries include an **`unknown`** catch-all (confused head-tilt). The matcher plays it when a spoken or typed phrase is not recognized — it does not stay on idle and does not pick a random other intent. Murphy, Riley, and Both each have their own slots + Suggest prompt (silence-first). Attach the MP4s here the same way as any other intent.
 
 ## Add a phrase
 
@@ -53,7 +55,7 @@ This is the main generation loop. It is fully offline in the browser.
 1. Pick a slot that still needs a video. Add and frame a source still (portrait FaceTime crop).
 2. Click **Suggest prompt**. The composer fills the textarea from:
    - dog name + breed notes (huskita / Husky × Akita). **Riley = black huskita**; **Murphy = the other huskita** (keep them distinct; do not swap coats).
-   - intent (treat, hug, howl, come, …)
+   - intent (treat, hug, howl, come, unknown head-tilt, …)
    - seed **Personality** radios (not dog-name ifs). Murphy and Riley ship silent / dry / huskita defaults; Murphy is goofy + cuddly, Riley is alert + grumble-hug. Changing radios changes Suggest. See trait table below.
    - **Play:** downward-dog play-bow (front low, rear up) plus one short sneeze-like challenge huff — not a bark (intent exception even for silent dogs)
    - this slot’s label + optional slot notes
@@ -95,7 +97,7 @@ Seed profiles:
 
 - **Murphy:** silent, large/low voice size (for howl exception), normal energy, goofy eyes, dry mouth, cuddly.
 - **Riley:** silent, medium voice size, normal energy, alert eyes, dry mouth, grumble-hug.
-- **Both** (together memorial): silent; hug/howl/play still use the pair-specific together-shot lines (Murphy leans in, Riley wary; Murphy sings, Riley awkward howl).
+- **Both** (together memorial): silent; hug/howl/play/unknown still use the pair-specific together-shot lines (Murphy leans in, Riley wary; Murphy sings, Riley awkward howl; both head-tilt when a phrase is not recognized).
 
 Freeform notes (first line = breed) still layer on. Howl-quality notes such as “sings and howls well” or “awkward howl attempt” are included **only** on howl/sing intents so a name clip cannot pick up “sings and howls well.”
 
@@ -126,6 +128,7 @@ Intent exceptions (still no music or ambience; apply even when vocalStyle is sil
 Other rules:
 
 - **Name, come, here, owner, attention, eye-contact, perk-up:** ears perk + eye contact only. Closed mouth.
+- **Unknown / confused:** classic curious head-tilt toward the camera. AUDIO follows vocalStyle (silence-first for silent dogs — no bark or music). Seed stills are attached on Murphy, Riley, and Both so you can Suggest → Copy → attach.
 - **grumble_hug** may show teeth (silent warning face). That is still **not** a growl or a howl.
 - Howl-quality notes are **omitted** from non-howl prompts.
 

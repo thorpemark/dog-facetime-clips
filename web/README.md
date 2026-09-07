@@ -180,7 +180,7 @@ Inspect the live table at **`/catalog`** (also linked from the landing page). Yo
 `public/keyword_rules.json` is a static copy kept for compatibility. Playback no longer depends on a single `clipFileName` per rule.
 
 - `{dogName}` and `{ownerName}` are replaced from the memorial profile.
-- Higher **priority** wins near-ties. If the best score is below the confidence threshold, the call stays on idle.
+- Higher **priority** wins near-ties. If the best score is below the confidence threshold, the call plays the **`unknown`** confused head-tilt (not idle, not a random other intent).
 - Missing MP4s skip to another variant, then idle.
 
 ## Replacing Placeholder Clips

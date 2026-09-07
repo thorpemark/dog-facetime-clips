@@ -6,6 +6,7 @@ import {
   isKeySeedIntent,
   modePhotoUrl,
 } from './callModes'
+import { STUDIO_SEED_REVISION } from './clipStudioSeed'
 import { migrateStudioState } from '../utils/clipStudioStore'
 import type { ClipStudioState } from '../types/clipStudio'
 
@@ -29,6 +30,7 @@ describe('call modes', () => {
   it('marks idle and key reaction intents for seed stills', () => {
     expect(isKeySeedIntent('idle')).toBe(true)
     expect(isKeySeedIntent('name')).toBe(true)
+    expect(isKeySeedIntent('unknown')).toBe(true)
     expect(isKeySeedIntent('treat')).toBe(false)
   })
 })
@@ -74,7 +76,7 @@ describe('studio seed migration', () => {
     }
 
     const next = migrateStudioState(legacy)
-    expect(next.seedRevision).toBe(3)
+    expect(next.seedRevision).toBe(STUDIO_SEED_REVISION)
     expect(next.dogs.some((dog) => dog.id === 'both')).toBe(true)
     const murphy = next.dogs.find((dog) => dog.id === 'murphy')
     expect(murphy?.defaultPhoto?.publicPath).toBe('modes/murphy.jpg')
@@ -86,5 +88,10 @@ describe('studio seed migration', () => {
     expect(next.dogs.find((dog) => dog.id === 'riley')?.personality.touch).toBe(
       'grumble_hug',
     )
+    expect(murphy?.intents.some((intent) => intent.id === 'unknown')).toBe(true)
+    expect(
+      murphy?.intents.find((intent) => intent.id === 'unknown')?.clipSlots[0]
+        ?.sourcePhoto?.publicPath,
+    ).toBe('modes/murphy.jpg')
   })
 })

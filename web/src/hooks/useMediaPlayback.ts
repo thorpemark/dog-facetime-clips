@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { KeywordRulesConfig } from '../types'
 import type { MotionPreset } from '../types/memorial'
-import { IDLE_CLIP_PATHS, pickWeightedClip } from '../data/reactionCatalog'
+import { IDLE_CLIP_PATHS, pickWeightedClip, REACTION_CATALOG } from '../data/reactionCatalog'
 import { getEffectiveCatalog } from '../utils/catalogOverrides'
 import { clipUrl } from '../utils/keywordRules'
 import { loadVideoWithFallback, uniqueUrls } from '../utils/videoSource'
@@ -344,7 +344,9 @@ export function useMediaPlayback(
     (clipId: string, onComplete: () => void) => {
       if (isPlayingReactionRef.current) return
       const catalog = getEffectiveCatalog(undefined, dogName)
-      const bucket = catalog.find((item) => item.id === clipId)
+      const bucket =
+        catalog.find((item) => item.id === clipId) ??
+        REACTION_CATALOG.find((item) => item.id === clipId)
       const picked = bucket
         ? pickWeightedClip(bucket, { excludeLast: true, clips: bucket.clips })
         : undefined

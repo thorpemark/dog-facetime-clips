@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { createEmptyClipSlot, createEmptyIntent, createSeedStudioState } from './clipStudioSeed'
+import {
+  STUDIO_SEED_REVISION,
+  createEmptyClipSlot,
+  createEmptyIntent,
+  createSeedStudioState,
+} from './clipStudioSeed'
 import { dogLibraryToBuckets } from '../utils/clipStudioCatalog'
 import { slugifyIntent } from '../utils/clipStudioMedia'
 import {
@@ -132,6 +137,17 @@ describe('seed modes and photos', () => {
     expect(both?.intents.find((intent) => intent.id === 'idle')?.clipSlots[0]?.sourcePhoto?.publicPath).toBe(
       'modes/both.jpg',
     )
+
+    for (const dog of [murphy, riley, both]) {
+      const unknown = dog?.intents.find((intent) => intent.id === 'unknown')
+      expect(unknown?.description).toMatch(/head-tilt/i)
+      expect(unknown?.clipSlots.length).toBeGreaterThanOrEqual(2)
+      expect(unknown?.clipSlots[0]?.sourcePhoto?.publicPath).toBe(
+        dog?.defaultPhoto?.publicPath,
+      )
+      expect(unknown?.clipSlots[0]?.prompt).toMatch(/head-tilt/i)
+      expect(unknown?.clipSlots[0]?.prompt).toMatch(/Silence-first/)
+    }
   })
 })
 
@@ -181,7 +197,9 @@ describe('seed personality', () => {
     const buckets = dogLibraryToBuckets(seed.dogs[0])
     expect(buckets.some((bucket) => bucket.id === 'hug')).toBe(true)
     expect(buckets.some((bucket) => bucket.id === 'howl')).toBe(true)
+    expect(buckets.some((bucket) => bucket.id === 'unknown')).toBe(true)
     expect(buckets.find((bucket) => bucket.id === 'come')?.clips.length).toBeGreaterThan(0)
+    expect(buckets.find((bucket) => bucket.id === 'unknown')?.clips.length).toBeGreaterThan(0)
   })
 })
 
@@ -207,6 +225,28 @@ describe('migrateStudioState personality radios', () => {
     expect(migrated.dogs[0].personality.vocalStyle).toBe('silent')
     expect(migrated.dogs[0].personality.touch).toBe('cuddly')
     expect(migrated.dogs[0].personality.eyes).toBe('goofy')
-    expect(migrated.seedRevision).toBe(3)
+    expect(migrated.seedRevision).toBe(STUDIO_SEED_REVISION)
+  })
+
+  it('adds the unknown head-tilt intent to a personality-era library that lacks it', () => {
+    const seed = createSeedStudioState()
+    const withoutUnknown = {
+      ...seed,
+      seedRevision: 3,
+      dogs: seed.dogs.map((dog) => ({
+        ...dog,
+        intents: dog.intents.filter((intent) => intent.id !== 'unknown'),
+      })),
+    }
+    const migrated = migrateStudioState(withoutUnknown)
+    expect(migrated.seedRevision).toBe(STUDIO_SEED_REVISION)
+    for (const dog of migrated.dogs) {
+      const unknown = dog.intents.find((intent) => intent.id === 'unknown')
+      expect(unknown).toBeDefined()
+      expect(unknown?.clipSlots.length).toBeGreaterThanOrEqual(1)
+    }
+    expect(migrated.dogs.find((dog) => dog.id === 'murphy')?.personality.vocalStyle).toBe(
+      'silent',
+    )
   })
 })
