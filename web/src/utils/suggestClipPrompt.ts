@@ -180,7 +180,22 @@ function clipArcLines(): string[] {
 
 function breedLine(dogName: string, personality: DogPersonality): string {
   const breed = personality.breed.trim() || 'huskita (Husky × Akita mix)'
-  return `${dogName} is a ${breed}. Keep this mix — do not morph into a pure Husky, pure Akita, or another breed.`
+  const look = lookLine(dogName)
+  const mix = `Keep this mix — do not morph into a pure Husky, pure Akita, or another breed.`
+  if (look) return `${look} ${dogName} is a ${breed}. ${mix}`
+  return `${dogName} is a ${breed}. ${mix}`
+}
+
+/** Seed identity: Riley is the black huskita; Murphy is the other dog. */
+function lookLine(dogName: string): string {
+  const dog = dogKey(dogName)
+  if (dog === 'riley') {
+    return 'Riley is the black huskita. Keep her black coat, face, and markings. She is not Murphy.'
+  }
+  if (dog === 'murphy') {
+    return 'Murphy is the other huskita — not Riley (Riley is the black huskita). Keep his identity, coat, and face distinct from Riley. Do not turn him into the black huskita.'
+  }
+  return ''
 }
 
 const NO_DIALOGUE =

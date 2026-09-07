@@ -40,9 +40,12 @@ describe('suggestClipPrompt', () => {
 
     expect(rileyHug).toMatch(/bares her teeth/i)
     expect(rileyHug).toMatch(/growl/i)
+    expect(rileyHug).toMatch(/black huskita/i)
     expect(murphyHug).toMatch(/loves hugs/i)
     expect(murphyHug).toMatch(/chest scratch/i)
     expect(murphyHug).toMatch(/nose tilted up/i)
+    expect(murphyHug).toMatch(/other huskita/i)
+    expect(murphyHug).toMatch(/not Riley/i)
     expect(rileyHowl).toMatch(/awkward/i)
     expect(murphyHowl).toMatch(/howls well/i)
     expect(murphyHowl).toMatch(/strong, committed sing/i)

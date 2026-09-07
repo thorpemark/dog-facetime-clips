@@ -10,7 +10,9 @@ Demo persistence uses **localStorage** (library JSON) and **IndexedDB** (photos/
 2. Type a name in **New dog name** → **Add dog**.
 3. Edit the personality notes (first line = breed; following lines = character). Suggest prompt and new clip slots pick this up.
 
-Murphy and Riley ship as seed dogs (huskitas). Reset seed from the bottom of Studio if you want to start over in this browser.
+Murphy and Riley ship as seed dogs (huskitas). **Riley is the black huskita.** **Murphy is the other dog** (not Riley). Reset seed from the bottom of Studio if you want to start over in this browser.
+
+Call / Studio UI will have **three modes: Murphy, Riley, and both**. A mode image is forthcoming; it does not block prompt work.
 
 ## Add an intent (bucket)
 
@@ -44,7 +46,7 @@ This is the main generation loop. It is fully offline in the browser.
 
 1. Pick a slot that still needs a video. Add and frame a source still (portrait FaceTime crop).
 2. Click **Suggest prompt**. The composer fills the textarea from:
-   - dog name + breed notes (huskita / Husky × Akita)
+   - dog name + breed notes (huskita / Husky × Akita). **Riley = black huskita**; **Murphy = the other huskita** (keep them distinct; do not swap coats).
    - intent (treat, hug, howl, come, …)
    - seed personality, including:
      - **Riley hug:** bares teeth / soft growl when her side is touched or she is asked for a hug (warning, not an attack)
