@@ -12,8 +12,9 @@ function photoLayerWrapperStyle(
 }
 
 export function DualMediaView() {
-  const { mediaPlayback } = useMemorialCall()
+  const { mediaPlayback, profile } = useMemorialCall()
   const displayOrientation = useDisplayOrientation()
+  const idleStillUrl = profile.avatarUrl
   const {
     mode,
     primaryRef,
@@ -75,6 +76,14 @@ export function DualMediaView() {
 
   return (
     <div className="dual-video">
+      {idleStillUrl && (
+        <img
+          className={`call-idle-still${profile.dogName.toLowerCase() === 'both' ? ' call-idle-still--wide' : ''}`}
+          src={idleStillUrl}
+          alt=""
+          aria-hidden
+        />
+      )}
       <video
         ref={primaryRef}
         className="video-layer"

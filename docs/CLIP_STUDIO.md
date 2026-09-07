@@ -64,4 +64,4 @@ Weights are relative (40/30/30 ≡ 4/3/3). Playback picks with `pickWeightedClip
 | `/demo` | Three-mode picker (Murphy / Riley / Both) |
 | `/demo?dog=Riley` | Sample call using that dog’s library (no memorial photos → clip mode) |
 
-Playback and matching read the Studio library for the active dog name (Murphy / Riley / Both / whatever you added). Demo calls keep **clip mode** (`photoUrls` empty) so placeholder / attached MP4s still play; the mode photos are avatars and Studio seed stills only.
+Playback and matching read the Studio library for the active dog name (Murphy / Riley / Both / whatever you added). Demo calls keep **clip mode** (`photoUrls` empty) so placeholder / attached MP4s still play. The mode photo is also used as an idle still behind the video so the dog is visible if a clip file is missing.
