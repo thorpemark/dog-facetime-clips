@@ -49,6 +49,24 @@ export function allowsHowlVocalization(input: SuggestPromptInput): boolean {
   return isHowlLikeIntent(input.intentId, input.intentDescription)
 }
 
+/** Play / play-fight / play-bow buckets (and slug variants like play-2). */
+export function isPlayLikeIntent(intentId: string, intentDescription = ''): boolean {
+  const intent = normalizeIntent(intentId)
+  if (intent === 'play' || intent.startsWith('play-') || intent.includes('playbow') || intent.includes('play-bow')) {
+    return true
+  }
+  if (intent.includes('playfight') || intent.includes('play-fight')) return true
+  const desc = intentDescription.trim().toLowerCase()
+  if (!desc) return false
+  return /\bplay[-\s]?bow\b|\bplay[-\s]?fight\b|\bwant to play\b|\bcome play\b/.test(desc)
+}
+
+/** Play-only: one short challenge huff. Does not unlock howl or other vocals. */
+export function allowsPlayHuff(input: SuggestPromptInput): boolean {
+  if (allowsHowlVocalization(input)) return false
+  return isPlayLikeIntent(input.intentId, input.intentDescription)
+}
+
 function isAttentionStyleIntent(input: SuggestPromptInput): boolean {
   const intent = normalizeIntent(input.intentId)
   if (
@@ -80,11 +98,20 @@ function personalityNotesForIntent(personality: DogPersonality, allowHowl: boole
   return notes.filter((note) => !/\b(howl|sing|aroo|awoo|bay|bark|growl|whine)\b/i.test(note)).join(' ')
 }
 
-function audioBlock(dogName: string, allowHowl: boolean): string {
-  if (allowHowl) {
+function audioBlock(
+  dogName: string,
+  options: { allowHowl: boolean; allowPlayHuff: boolean },
+): string {
+  if (options.allowHowl) {
     return (
-      'AUDIO (read first): Howl/sing clip — the only vocal exception. A brief dog howl or husky song is allowed. ' +
+      'AUDIO (read first): Howl/sing clip — a brief dog howl or husky song is allowed. ' +
       'Hard ban: bark, speech, talking, music, ambience. No human words.'
+    )
+  }
+  if (options.allowPlayHuff) {
+    return (
+      'AUDIO (read first): Play clip — one short challenge huff only (sneeze-like chuff; the common way dogs ask to play-fight). ' +
+      'Not a bark. Hard ban: bark, howl, music, speech, ambience.'
     )
   }
   const marks = isMarksDog(dogName)
@@ -108,6 +135,7 @@ export function personalityBeat(
   const intent = normalizeIntent(intentId)
   const hugLike = isHugLikeIntent(intent)
   const howlLike = isHowlLikeIntent(intentId)
+  const playLike = isPlayLikeIntent(intentId)
   const allowHowl = options?.allowHowl ?? howlLike
 
   if (dog === 'riley' && hugLike) {
@@ -141,15 +169,30 @@ export function personalityBeat(
       'Together shot: Murphy sings a full husky howl; Riley attempts an awkward weaker howl beside him. Same kitchen-rug framing, both faces toward camera.'
     )
   }
+  if (dog === 'riley' && playLike) {
+    return (
+      'Riley asks to play-fight with a downward-dog play-bow: front low, rear up, expressive body, one short sneeze-like challenge huff — not a bark.'
+    )
+  }
+  if (dog === 'murphy' && playLike) {
+    return (
+      'Murphy asks to play-fight with a downward-dog play-bow: front low, rear up, expressive body, one short sneeze-like challenge huff — not a bark.'
+    )
+  }
+  if (dog === 'both' && playLike) {
+    return (
+      'Together shot: both drop into play-bows (front low, rear up), expressive bodies. One short challenge huff/chuff to invite play-fight — not a bark. Keep both dogs in frame.'
+    )
+  }
 
   return personalityNotesForIntent(personality, allowHowl)
 }
 
-function intentMotion(input: SuggestPromptInput, allowHowl: boolean): string {
+function intentMotion(input: SuggestPromptInput, allowHowl: boolean, allowPlayHuff: boolean): string {
   const intent = normalizeIntent(input.intentId)
   const variant = input.slotLabel.trim()
   const variantBit = variant ? ` Variant beat: ${variant}.` : ''
-  const silent = allowHowl ? '' : ' Mouth closed. Face and body only.'
+  const silent = allowHowl || allowPlayHuff ? '' : ' Mouth closed. Face and body only.'
 
   const motions: Record<string, string> = {
     treat: `Ears perk, eyes lock on an implied treat, slight eager lean, maybe a brief lick — food-interest while looking at the phone camera.${silent}`,
@@ -164,7 +207,9 @@ function intentMotion(input: SuggestPromptInput, allowHowl: boolean): string {
     good: `Happy praise reaction: soft proud eyes, a pleased wriggle or tail energy, relaxed expression.${silent}`,
     walk: `Alert walk excitement: ears up, bright eyes, a little body energy as if the leash or door was mentioned. Stay in frame.${silent}`,
     no: `Correction beat: ears back, pause, a guilty or settling expression. Small, readable, not cowering out of frame.${silent}`,
-    play: `Play energy: bouncy, play-bow hint, bright eyes. Keep it a short portrait reaction, not a full zoomie.${silent}`,
+    play: allowPlayHuff
+      ? 'Play-bow (downward-dog stretch): front low, rear up, expressive body, bright eyes. One short challenge huff/chuff as they drop into the bow — not a bark. Stay in portrait; not a zoomie.'
+      : `Play-bow (downward-dog stretch): front low, rear up, expressive body, bright eyes. Stay in portrait; not a zoomie.${silent}`,
     quiet: `Settle and calm: breath slows, eyes soften, a quiet downshift while still facing the camera.${silent}`,
   }
 
@@ -228,12 +273,13 @@ export function suggestClipPrompt(input: SuggestPromptInput): string {
   const intentId = input.intentId.trim() || 'reaction'
   const intentDescription = input.intentDescription.trim() || intentId
   const allowHowl = allowsHowlVocalization(input)
+  const allowPlayHuff = allowsPlayHuff(input)
   const beat = personalityBeat(dogName, intentId, input.personality, { allowHowl })
-  const motion = intentMotion(input, allowHowl)
+  const motion = intentMotion(input, allowHowl, allowPlayHuff)
   const notes = input.userNotes?.trim()
 
   const lines = [
-    audioBlock(dogName, allowHowl),
+    audioBlock(dogName, { allowHowl, allowPlayHuff }),
     'Grok Imagine image-to-video, 6s, 9:16. One continuous shot: reaction peaks in the first ~2–3 seconds, then return to a calm FaceTime idle and hold. Same dog, same framing — no zoom, no pan, no cut, no morph.',
     'Natural lighting, no text, no extra animals.',
     breedLine(dogName, input.personality),

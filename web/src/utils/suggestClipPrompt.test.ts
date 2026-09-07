@@ -203,7 +203,6 @@ describe('suggestClipPrompt', () => {
 
     expect(howl.startsWith('AUDIO (read first):')).toBe(true)
     expect(howl).toMatch(/howl\/sing clip/i)
-    expect(howl).toMatch(/only vocal exception/i)
     expect(howl).toMatch(/dog howl/i)
     expect(howl).toMatch(/howls well/i)
     expect(howl).toMatch(/no human words/i)
@@ -259,6 +258,57 @@ describe('suggestClipPrompt', () => {
     expect(howl).toMatch(/kitchen-rug/i)
   })
 
+  it('uses a play-bow plus one challenge huff on play intents only', () => {
+    const play = suggestClipPrompt({
+      dogName: 'Murphy',
+      personality: MURPHY_PERSONALITY,
+      intentId: 'play',
+      intentDescription: 'Play / play-bow',
+      slotLabel: 'Play-bow (front low, rear up)',
+    })
+    const rileyPlay = suggestClipPrompt({
+      dogName: 'Riley',
+      personality: RILEY_PERSONALITY,
+      intentId: 'play',
+      intentDescription: 'Play / play-bow',
+      slotLabel: 'Challenge huff / play-bow',
+    })
+    const bothPlay = suggestClipPrompt({
+      dogName: 'Both',
+      personality: BOTH_PERSONALITY,
+      intentId: 'play',
+      intentDescription: 'Play / play-bow',
+      slotLabel: 'Together play-bow',
+    })
+    const name = suggestClipPrompt({
+      dogName: 'Murphy',
+      personality: MURPHY_PERSONALITY,
+      intentId: 'name',
+      intentDescription: 'Dog name',
+      slotLabel: 'Perk up / eye contact',
+    })
+
+    expect(play.startsWith('AUDIO (read first):')).toBe(true)
+    expect(play).toMatch(/Play clip/)
+    expect(play).toMatch(/one short challenge huff/i)
+    expect(play).toMatch(/sneeze-like chuff/i)
+    expect(play).toMatch(/Not a bark/)
+    expect(play).toMatch(/Hard ban: bark, howl, music, speech, ambience/)
+    expect(play).toMatch(/play-bow/i)
+    expect(play).toMatch(/front low, rear up/)
+    expect(play).toMatch(/downward-dog/)
+    expect(play).not.toMatch(/Silence-first/)
+    expect(play).not.toMatch(/Howl\/sing clip/)
+    expect(play).not.toMatch(INVITING_SOUND)
+
+    expect(rileyPlay).toMatch(/Riley asks to play-fight/)
+    expect(rileyPlay).toMatch(/challenge huff/)
+    expect(bothPlay).toMatch(/both drop into play-bows/i)
+    expect(name).toMatch(/Silence-first/)
+    expect(name).not.toMatch(/challenge huff/)
+    expect(name).not.toMatch(/play-bow/)
+  })
+
   it('matches seed studio prompts for hug / howl personality phrases', () => {
     const seed = createSeedStudioState()
     const murphy = seed.dogs.find((dog) => dog.id === 'murphy')
@@ -268,6 +318,12 @@ describe('suggestClipPrompt', () => {
     )
     expect(riley?.intents.find((intent) => intent.id === 'hug')?.clipSlots[0]?.prompt).toMatch(
       /bares her teeth/i,
+    )
+    expect(murphy?.intents.find((intent) => intent.id === 'play')?.clipSlots[0]?.prompt).toMatch(
+      /play-bow/i,
+    )
+    expect(murphy?.intents.find((intent) => intent.id === 'play')?.phrases).toEqual(
+      expect.arrayContaining(['want to play', 'do you want to play', 'play', 'play fight', 'come play']),
     )
   })
 })
