@@ -16,7 +16,7 @@ A gentle memorial experience that simulates FaceTiming a beloved dog who has pas
 | **Sharing** | Supabase memorial links | Same UX target; clip assets per memorial (planned) |
 | **Status** | Production memorial sharing | v1 scaffold — see [`docs/CLIP_LIBRARY_PLAN.md`](docs/CLIP_LIBRARY_PLAN.md) |
 
-**Next steps for Mark:** generate portrait reaction clips (Runway/Kling/etc.), drop them on the placeholder paths in `web/src/data/reactionCatalog.ts`, and tune phrases / weights (or use `/catalog` for local demo weights). Ken Burns photo mode stays in code as fallback until dual-mode is complete.
+**Next steps for Mark:** open **Clip Studio** (`/studio`), pick Murphy or Riley, frame source photos, copy prompts into Pika / Gemini / Grok, and attach MP4s. See [`docs/CLIP_STUDIO.md`](docs/CLIP_STUDIO.md). Ken Burns photo mode stays as fallback until dual-mode is complete.
 
 ---
 
@@ -59,8 +59,9 @@ See the sections below for iOS-specific details (clips, keywords, CI).
 |------|---------|
 | **`web/`** | **Run now** — Vite + React web app for Safari/Chrome (PC, iPhone, iPad) |
 | **`docs/CLIP_LIBRARY_PLAN.md`** | Architecture for clip buckets, phrase matching, storage, migration |
-| **`web/src/data/reactionCatalog.ts`** | Weighted reaction buckets, phrases, semantic hints |
-| **`web/src/utils/matchTranscript.ts`** | Meaning + keyword matcher |
+| **`docs/CLIP_STUDIO.md`** | How to add a dog / intent / phrase / clip; external generation workflow |
+| **`web/src/data/reactionCatalog.ts`** | Shared seed buckets (fallback + first-load template) |
+| **`web/src/data/clipStudioSeed.ts`** | Murphy / Riley personality libraries |
 | **`MemorialCall/`** | Native iOS app — requires Mac + Xcode |
 | **`.github/workflows/deploy-web.yml`** | Builds & deploys `web/` to GitHub Pages |
 
@@ -68,7 +69,8 @@ See the sections below for iOS-specific details (clips, keywords, CI).
 
 - Create personal memorials with 1–3 call targets (Dog A, Dog B, Together)
 - Upload photos; crossfading Ken Burns playback during calls *(legacy still mode — kept until clip dual-mode ships)*
-- **Clip-library direction:** idle loop + meaning-matched prerendered reactions (`reactionCatalog.ts`, `/catalog`)
+- **Clip Studio** (`/studio`) — per-dog intents, phrases, photo framing, prompts, attach MP4s
+- **Clip-library direction:** idle loop + meaning-matched prerendered reactions (`/catalog` overview)
 - **Call-screen photo controls** — Side-drawer Ken Burns speed (saved in browser), swipe or tap prev/next between photos
 - **Portrait crop framing** — Drag a portrait frame on create/edit photos; zoom out for together shots
 - Share links for family (`/m/:shareId`) — no account needed
@@ -198,12 +200,12 @@ Download artifacts from GitHub → **Actions** → select run → **Artifacts**.
 
 ## TODO / Next Steps (clips fork)
 
-- [ ] Wire `reactionCatalog.ts` into playback (random clip per bucket)
+- [x] Weighted catalog + meaning match + `/catalog`
+- [x] Clip Studio (`/studio`) — per-dog intents/phrases/slots, photo framing, attach MP4
 - [ ] Dual mode: Ken Burns photos **or** clip library per memorial
-- [ ] Idle video clip rotation (multiple idle loops)
 - [ ] Supabase Storage bucket for per-memorial clip sets
-- [ ] Generate Murphy/Riley portrait reactions (Runway, Kling, etc.)
-- [ ] Phrase tuning + fuzzy closest-match fallback
+- [ ] Generate Murphy/Riley portrait reactions (Pika / Gemini / Grok) and attach in Studio
+- [ ] iOS catalog sync
 - [ ] Porcupine wake-word integration (iOS) for faster keyword detection
 - [ ] Custom ringtone / memorial sound
 

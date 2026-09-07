@@ -1,6 +1,10 @@
 /**
  * Load a video from a list of URLs; skip missing/broken files.
  * Returns a cancel function.
+ *
+ * Reloading the same cached URL after a reaction may not fire `canplay`
+ * again — listen for `loadeddata`, clear src before reassign, and finish
+ * synchronously when readyState already has data.
  */
 export function loadVideoWithFallback(
   video: HTMLVideoElement,
@@ -14,25 +18,31 @@ export function loadVideoWithFallback(
   let index = 0
   let cancelled = false
   let waiting = false
+  let settled = false
 
-  const onCanPlay = () => {
-    if (cancelled || !waiting) return
+  const finishReady = () => {
+    if (cancelled || settled || !waiting) return
     waiting = false
+    settled = true
     video.removeEventListener('canplay', onCanPlay)
+    video.removeEventListener('loadeddata', onCanPlay)
     video.removeEventListener('error', onError)
     options.onReady()
   }
 
+  const onCanPlay = () => finishReady()
+
   const onError = () => {
-    if (cancelled || !waiting) return
+    if (cancelled || settled || !waiting) return
     waiting = false
     tryNext()
   }
 
   const tryNext = () => {
-    if (cancelled) return
+    if (cancelled || settled) return
     if (index >= urls.length) {
       video.removeEventListener('canplay', onCanPlay)
+      video.removeEventListener('loadeddata', onCanPlay)
       video.removeEventListener('error', onError)
       options.onFail()
       return
@@ -41,11 +51,17 @@ export function loadVideoWithFallback(
     index += 1
     waiting = true
     video.loop = options.loop
+    video.pause()
+    video.removeAttribute('src')
     video.src = url
     video.load()
+    if (video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) {
+      finishReady()
+    }
   }
 
   video.addEventListener('canplay', onCanPlay)
+  video.addEventListener('loadeddata', onCanPlay)
   video.addEventListener('error', onError)
   tryNext()
 
@@ -53,6 +69,7 @@ export function loadVideoWithFallback(
     cancelled = true
     waiting = false
     video.removeEventListener('canplay', onCanPlay)
+    video.removeEventListener('loadeddata', onCanPlay)
     video.removeEventListener('error', onError)
   }
 }

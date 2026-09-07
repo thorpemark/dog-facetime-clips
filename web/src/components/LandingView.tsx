@@ -44,8 +44,12 @@ export function LandingView() {
           </p>
         </div>
 
-        <Link to="/create" className="btn-call">
-          <span className="btn-icon">✨</span>
+        <Link to="/studio" className="btn-call">
+          <span className="btn-icon">🎬</span>
+          Clip Studio
+        </Link>
+
+        <Link to="/create" className="btn-text landing-my-link">
           Create a Memorial
         </Link>
 
@@ -55,6 +59,10 @@ export function LandingView() {
 
         <Link to="/catalog" className="btn-text landing-catalog-link">
           Reaction catalog (intents → clips)
+        </Link>
+
+        <Link to="/demo" className="btn-text landing-demo-link">
+          Try a sample call (clip demo)
         </Link>
 
         <div className="open-link-section">

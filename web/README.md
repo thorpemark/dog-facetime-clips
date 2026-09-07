@@ -68,8 +68,10 @@ Magic links redirect to `https://thorpemark.github.io/dog-facetime-clips/` (site
 
 | Path | Purpose |
 |------|---------|
-| `/` | Home — create a memorial, open a link, sign in |
-| `/catalog` | Reaction catalog — intents, phrases, weighted clips, phrase tester |
+| `/` | Home — Clip Studio, memorial create, open a link, sign in |
+| `/studio` | Clip Studio — per-dog intents, phrases, photo framing, prompts, attach MP4s |
+| `/catalog` | Reaction catalog — read-only table + phrase tester |
+| `/demo` | Sample clip-mode call (`?dog=Riley` to pick a library) |
 | `/create` | Step-by-step memorial creation |
 | `/my` | My memorials — list owned memorials, sign in |
 | `/m/:shareId` | Public share — pick who to call, start FaceTime UI |

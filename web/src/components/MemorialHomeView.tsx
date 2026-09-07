@@ -44,6 +44,10 @@ export function MemorialHomeView({
           Start Memorial Call
         </button>
 
+        <Link to="/studio" className="btn-text">
+          Clip Studio
+        </Link>
+
         <Link to="/catalog" className="btn-text">
           Reaction catalog
         </Link>

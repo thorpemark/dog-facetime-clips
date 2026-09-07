@@ -1,11 +1,20 @@
 # Placeholder clips
 
-Tiny colored portrait MP4s so GitHub Pages and local demo have something to play.
-Replace with Murphy/Riley AI renders using the same paths registered in
-`web/src/data/reactionCatalog.ts`. Missing files are skipped at playback time.
+Bright colored portrait MP4s (360×640) so GitHub Pages and local demo have something
+visible on the dark call UI. Regenerate with:
 
-| Path | Meaning |
-|------|---------|
-| `idle.mp4`, `idle/idle_01.mp4`, `idle/idle_02.mp4` | Calm loop |
-| `reactions/{bucket}/{bucket}_{nn}.mp4` | Weighted reaction variants |
-| `react_*.mp4` | Legacy single-file names |
+```bash
+bash web/scripts/generate-placeholder-clips.sh
+```
+
+Replace with Murphy/Riley AI renders (same paths, or attach via Clip Studio).
+Missing files are skipped at playback time.
+
+| Path | Color (approx) | Meaning |
+|------|----------------|---------|
+| `idle*.mp4` | slate blue | Calm loop |
+| `reactions/come/` | green | Come here |
+| `reactions/treat/` | orange | Treat |
+| `reactions/hug/` | pink | Hug |
+| `reactions/howl/` | gold | Howl / sing |
+| `react_*.mp4` | matches bucket | Legacy single-file names |

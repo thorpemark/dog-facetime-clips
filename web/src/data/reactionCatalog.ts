@@ -1,26 +1,15 @@
 /**
- * Reaction clip catalog for the dog-facetime-clips product line.
+ * Shared seed reaction catalog (fallback + Clip Studio first-load template).
  *
- * Each bucket is an intent: seed phrases, semantic hint text, and weighted clip
- * variants. Playback picks with `pickWeightedClip`; matching uses
- * `matchTranscript` (meaning similarity + keyword fallback).
+ * Intents are free-form strings — add a new one in Clip Studio (`/studio`)
+ * without changing this file. This module remains the baked demo fallback
+ * and the template copied into Murphy/Riley seed libraries.
  *
- * Add a clip: drop an MP4 under public/clips/reactions/{bucket}/ and append a
- * `{ path, weight, label }` entry here. Weights are relative (40/30/30 and
- * 4/3/3 are equivalent). Add a phrase: push a lowercase seed onto `phrases`.
+ * Playback picks with `pickWeightedClip`; matching uses `matchTranscript`.
  */
 
-export type ReactionBucketId =
-  | 'name'
-  | 'come'
-  | 'here'
-  | 'good'
-  | 'treat'
-  | 'walk'
-  | 'no'
-  | 'owner'
-  | 'play'
-  | 'quiet'
+/** Free-form intent id. New phrases/dogs/intents do not require a code change. */
+export type ReactionBucketId = string
 
 export interface WeightedClip {
   path: string
@@ -201,6 +190,30 @@ export const REACTION_CATALOG: ReactionBucket[] = [
     description: 'Quiet (future)',
     semanticHints:
       'Quiet, shh, shush, settle, calm down, easy, relax, lie down, settle down, that’s enough barking. Asking the dog to be still and calm.',
+  },
+  {
+    id: 'hug',
+    phrases: ['hug', 'hugs', 'want a hug', 'give me a hug', 'cuddle', 'snuggle'],
+    clips: [
+      clip('hug', 1, 55, 'Hug reaction'),
+      clip('hug', 2, 45, 'Side-touch reaction'),
+    ],
+    priority: 8,
+    description: 'Hug / cuddle',
+    semanticHints:
+      'Hug, hugs, want a hug, give me a hug, cuddle, snuggle, squeeze, come here for a hug. Asking for or giving a hug — distinct from come-here or praise.',
+  },
+  {
+    id: 'howl',
+    phrases: ['howl', 'sing', 'sing it', 'aroo', 'speak'],
+    clips: [
+      clip('howl', 1, 55, 'Howl / sing'),
+      clip('howl', 2, 45, 'Howl attempt'),
+    ],
+    priority: 7,
+    description: 'Howl / sing',
+    semanticHints:
+      'Howl, sing, sing it, aroo, awoo, speak, let me hear you, husky song. Asking the dog to howl or sing — not a walk or a name call.',
   },
 ]
 

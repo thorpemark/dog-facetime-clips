@@ -54,8 +54,8 @@ export function bucketToKeywordRule(bucket: ReactionBucket): KeywordRule {
 }
 
 /** Catalog is the source of truth; keyword_rules.json remains a static fallback copy. */
-export function rulesConfigFromCatalog(): KeywordRulesConfig {
-  const catalog = getEffectiveCatalog()
+export function rulesConfigFromCatalog(dogName?: string): KeywordRulesConfig {
+  const catalog = getEffectiveCatalog(undefined, dogName)
   return {
     version: 2,
     idleClip: IDLE_CLIP_PATHS[2] ?? IDLE_CLIP_PATHS[0] ?? 'idle.mp4',
@@ -82,6 +82,14 @@ export async function loadKeywordRules(): Promise<KeywordRulesConfig> {
 }
 
 export function clipUrl(fileName: string): string {
+  if (
+    fileName.startsWith('blob:') ||
+    fileName.startsWith('data:') ||
+    fileName.startsWith('http://') ||
+    fileName.startsWith('https://')
+  ) {
+    return fileName
+  }
   const path = fileName.startsWith('clips/') ? fileName : `clips/${fileName}`
   return `${import.meta.env.BASE_URL}${path}`
 }

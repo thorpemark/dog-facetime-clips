@@ -119,6 +119,21 @@ const WORD_ALIASES: Record<string, string> = {
   "don't": 'no',
   stop: 'no',
   nope: 'no',
+  hug: 'hug',
+  hugs: 'hug',
+  hugging: 'hug',
+  cuddle: 'hug',
+  cuddles: 'hug',
+  snuggle: 'hug',
+  squeeze: 'hug',
+  howl: 'howl',
+  howls: 'howl',
+  howling: 'howl',
+  sing: 'howl',
+  sings: 'howl',
+  song: 'howl',
+  aroo: 'howl',
+  awoo: 'howl',
 }
 
 function escapeRegExp(value: string): string {
