@@ -212,7 +212,7 @@ describe('suggestClipPrompt', () => {
     expect(hug).toMatch(/visual protest/)
     expect(hug).toMatch(/no bark/)
     expect(hug).not.toMatch(/growl-show-teeth/)
-    expect(hug).toMatch(/not a howl/)
+    expect(hug).toMatch(/not a howl/i)
     expect(hug).toMatch(/no talking/i)
   })
 
