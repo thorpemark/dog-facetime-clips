@@ -59,6 +59,14 @@ describe('matchTranscript', () => {
     expect(matchTranscript('sing it', names)?.bucketId).toBe('howl')
   })
 
+  it('matches play invitations to the play-bow bucket', () => {
+    expect(matchTranscript('want to play', names)?.bucketId).toBe('play')
+    expect(matchTranscript('do you want to play', names)?.bucketId).toBe('play')
+    expect(matchTranscript('play', names)?.bucketId).toBe('play')
+    expect(matchTranscript('play fight', names)?.bucketId).toBe('play')
+    expect(matchTranscript('come play', names)?.bucketId).toBe('play')
+  })
+
   it('scores every catalog bucket without throwing', () => {
     for (const bucket of REACTION_CATALOG) {
       const phrase = bucket.phrases[0]?.replace('{dogName}', 'Murphy').replace(

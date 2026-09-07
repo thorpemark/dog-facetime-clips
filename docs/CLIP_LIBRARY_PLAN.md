@@ -52,7 +52,7 @@ Each **bucket** is a semantic category with many synonymous **phrases** and seve
 | `no` | "no", "no no", "stop that" | Ears back, pause |
 | `owner` | `{ownerName}`, "Mark" | Recognition, lean in |
 | `here` | "here", "over here", "this way" | Look toward camera |
-| `play` | "play", "ball", "fetch" | Bouncy (future) |
+| `play` | "want to play", "do you want to play", "play", "play fight", "come play" | Play-bow (front low, rear up) + one challenge huff |
 | `quiet` | "quiet", "shh", "settle" | Calm down (future) |
 | `hug` | "hug", "cuddle" | Murphy: loves hug / neck offer. Riley: bares teeth, growls |
 | `howl` | "howl", "sing" | Murphy: full song. Riley: awkward attempt |

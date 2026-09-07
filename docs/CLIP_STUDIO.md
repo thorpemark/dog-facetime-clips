@@ -55,32 +55,46 @@ This is the main generation loop. It is fully offline in the browser.
    - dog name + breed notes (huskita / Husky × Akita). **Riley = black huskita**; **Murphy = the other huskita** (keep them distinct; do not swap coats).
    - intent (treat, hug, howl, come, …)
    - seed personality, including:
-     - **Riley hug:** bares teeth / soft growl when her side is touched or she is asked for a hug (warning, not an attack)
-     - **Murphy hug:** loves the hug, chest scratch, nose up offering his neck
-     - **Murphy howl:** strong, confident sing
-     - **Riley howl:** awkward, weak howl attempt
+     - **Murphy & Riley:** remarkably **non-vocal**; they express via face and body
+     - **Riley hug:** silent warning face — bares teeth when her side is touched or she is asked for a hug (not an attack). No growl sound.
+     - **Murphy hug:** loves the hug, chest scratch, nose up offering his neck, mouth closed
+     - **Murphy howl:** strong, confident sing (howl/sing vocal exception)
+     - **Riley howl:** awkward, weak howl attempt (howl/sing vocal exception)
+     - **Play:** downward-dog play-bow (front low, rear up) plus one short sneeze-like challenge huff — not a bark
    - this slot’s label + optional slot notes
    - framing context when a photo is attached (portrait FaceTime, keep identity)
-   - a **6 second** Grok Imagine arc: start near calm idle from the still → reaction peaks in the first ~2–3s → smoothly return to calm FaceTime idle (soft blinks, subtle breathing, looking toward camera) and hold through the end. Same dog, same framing, no zoom / cut / morph.
-   - **audio / mouth rules** (stated at the top of the prompt and repeated at the end): the dog never speaks, talks, or mouths English. Howling is howl-only (see below).
+   - a **6s** Grok Imagine arc: reaction peaks in the first ~2–3s → return to calm FaceTime idle and hold. Same dog, same framing, no zoom / cut / morph.
+   - **AUDIO first** (silence-first by default — see below). Prompts stay short.
 3. **Copy** (toast confirms). Paste into **Grok Imagine** as an **image-to-video** prompt, with the framed still as the source image.
-4. In Grok Imagine, length options are **6 / 10 / 15s** (there is no 3–4s). Use **6s**, **9:16 portrait**, H.264 MP4, usually silent. Reject morphing / breed drift / extra dogs / talking dogs / clips that keep reacting until the last frame.
-5. **Attach MP4** back on the same slot.
+4. In Grok Imagine, length options are **6 / 10 / 15s** (there is no 3–4s). Use **6s**, **9:16 portrait**, H.264 MP4. Reject morphing / breed drift / extra dogs / talking dogs / clips that keep reacting until the last frame.
+5. **Attach MP4** back on the same slot. If Grok still adds bark, music, or other audio, **strip the audio before attaching** — post mute is normal.
 
 You can edit the prompt after Suggest, then Copy again. Suggest again to rebuild from the current dog / intent / notes / framing.
 
-### Howl-only vocalization
+### AUDIO first — silence-first (howl/sing and play-huff excepted)
 
-Grok Imagine will invent a howl or talking-dog mouth if the prompt is vague. Suggest prompt is strict:
+Murphy and Riley are remarkably **non-vocal**. They express via face and body (closed mouth, ear/eye/weight shifts), not sound. Grok Imagine will still invent a bark, howl, soundtrack, or talking-dog mouth if the prompt invites it — so Suggest puts **AUDIO first** and stays short.
 
-- **Never:** dialogue, human speech, talking, English words, lip-sync talking.
-- **Howl / bay / sing / long open-mouth vocal:** only for **howl** or **sing** intents (or a slot note that explicitly says `responds to a howl`).
-- **Name, come, here, owner, attention, eye-contact, perk-up:** ears perk + eye contact only. The prompt says **does not howl**.
-- **Treat, walk, good dog, hug, play, idle, and everything else that is not howl/sing:** no howl, no bay, no singing. Soft dog sounds only (quiet pant, soft huff, tiny whine) or silence. Mouth mostly closed.
-- **Riley hug** may show teeth and a soft growl. That is still **not** a howl.
+Default AUDIO block (every slot that is not howl/sing or play):
+
+- **Silence-first.**
+- **Hard ban:** bark, howl, whine, growl, music, speech, ambience.
+- **Optional only:** faint breath, soft paw on rug.
+- **Mouth closed.** Face and body motion only.
+- Do **not** say “soft dog sounds”, “pant/huff/whine”, or other language that invites sound.
+
+Exceptions (still no bark, music, speech, or ambience):
+
+- **Howl / sing intents:** a brief dog howl or husky song. Slot notes such as “responds to a howl” do **not** unlock vocalization on a name / come / hug / treat clip.
+- **Play intents only:** one short **challenge huff** (sneeze-like chuff — the common way dogs ask to play-fight). Motion is a **play-bow / downward-dog stretch** (front low, rear up). Not a bark.
+
+Other rules:
+
+- **Name, come, here, owner, attention, eye-contact, perk-up:** ears perk + eye contact only. Closed mouth.
+- **Riley hug** may show teeth (silent warning face). That is still **not** a growl or a howl.
 - Murphy/Riley personality lines about howling are **omitted** from non-howl prompts so a name clip cannot pick up “sings and howls well.”
 
-Reject keepers where the dog talks, howls on a non-howl slot, or holds a howl-gape.
+Reject keepers where the dog talks, barks, howls on a non-howl slot, or holds a howl-gape. If a keeper is visually good but Grok added bark/music/ambience, **strip audio before attaching** — post mute is normal. A play keeper may keep **one** short challenge huff; strip anything else.
 
 ### SuperGrok vs an API key
 
@@ -92,7 +106,7 @@ Clip Studio does **not** call Grok from GitHub Pages. In-app **Generate with Gro
 
 1. Frame the source still in Studio so the crop matches the FaceTime portrait (and landscape if you care about desktop).
 2. Suggest prompt → Copy. Keep camera distance consistent across a dog.
-3. Image-to-video in Grok Imagine (or Pika / Gemini). Grok Imagine: **6s** (not 3–4s), **9:16 portrait**, H.264 MP4, usually silent. The suggested prompt already asks for react-then-return-to-idle so the extra seconds stay as a loopable FaceTime hold.
+3. Image-to-video in Grok Imagine (or Pika / Gemini). Grok Imagine: **6s** (not 3–4s), **9:16 portrait**, H.264 MP4. The suggested prompt is silence-first (howl/sing or one play-bow challenge huff excepted) and asks for react-then-return-to-idle so the extra seconds stay as a loopable FaceTime hold. If Grok still adds bark/music, strip audio before attaching — post mute is normal.
 4. Reject morphing / identity drift. Attach the keeper, or mark **needs redo**.
 5. Optional: later commit keepers under `web/public/clips/reactions/{intent}/{intent}_{nn}.mp4` for GitHub Pages.
 

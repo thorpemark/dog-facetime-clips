@@ -169,15 +169,15 @@ export const REACTION_CATALOG: ReactionBucket[] = [
   },
   {
     id: 'play',
-    phrases: ['play', 'ball', 'fetch', 'want to play'],
+    phrases: ['want to play', 'do you want to play', 'play', 'play fight', 'come play'],
     clips: [
-      clip('play', 1, 55, 'Bouncy'),
-      clip('play', 2, 45, 'Play bow energy'),
+      clip('play', 1, 55, 'Play-bow (front low, rear up)'),
+      clip('play', 2, 45, 'Challenge huff / play-bow'),
     ],
     priority: 5,
-    description: 'Play (future)',
+    description: 'Play / play-bow',
     semanticHints:
-      'Play, ball, fetch, want to play, toy, tug, let’s play, get the ball, playtime. Invitation to play, not a walk or a treat.',
+      'Want to play, do you want to play, play, play fight, come play, let’s play, playtime, ball, fetch, toy, tug. Invitation to play-fight: downward-dog play-bow (front low, rear up) plus one short challenge huff — not a walk, treat, or bark.',
   },
   {
     id: 'quiet',
