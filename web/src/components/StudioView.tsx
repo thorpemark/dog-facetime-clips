@@ -8,7 +8,8 @@ import {
   createEmptyIntent,
 } from '../data/clipStudioSeed'
 import { slugifyIntent } from '../utils/clipStudioMedia'
-import { resetStudioToSeed } from '../utils/clipStudioStore'
+import { resetStudioToSeed, sourcePhotoDisplayUrl } from '../utils/clipStudioStore'
+import { publicAssetUrl } from '../lib/urls'
 import type { DogPersonality } from '../types/clipStudio'
 
 const GENERIC_PERSONALITY: DogPersonality = {
@@ -98,6 +99,17 @@ export function StudioView() {
               className={`studio-dog-tab ${item.id === dog.id ? 'active' : ''}`}
               onClick={() => dispatch({ type: 'selectDog', dogId: item.id })}
             >
+              {(item.defaultPhoto || item.avatarPath) && (
+                <img
+                  className="studio-dog-avatar"
+                  src={
+                    item.defaultPhoto
+                      ? sourcePhotoDisplayUrl(item.defaultPhoto)
+                      : publicAssetUrl(item.avatarPath ?? '')
+                  }
+                  alt=""
+                />
+              )}
               {item.name}
             </button>
           ))}
@@ -342,8 +354,8 @@ export function StudioView() {
                           onAttachPhoto={(file) =>
                             attachPhoto(dog.id, intent.id, slot, file)
                           }
-                          onSaveFraming={(framing) =>
-                            saveFraming(dog.id, intent.id, slot, framing)
+                          onSaveFraming={(framing, fallbackPhoto) =>
+                            saveFraming(dog.id, intent.id, slot, framing, fallbackPhoto)
                           }
                           onAttachVideo={(file) =>
                             attachVideo(dog.id, intent.id, slot, file)
@@ -411,7 +423,7 @@ export function StudioView() {
             onClick={() => {
                 if (
                 window.confirm(
-                  'Reset all studio dogs in this browser to the baked Murphy/Riley seed?',
+                  'Reset all studio dogs in this browser to the baked Murphy / Riley / Both seed?',
                 )
               ) {
                 resetStudioToSeed()

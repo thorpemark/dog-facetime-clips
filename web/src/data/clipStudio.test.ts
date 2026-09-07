@@ -105,6 +105,35 @@ describe('applyStudioAction', () => {
   })
 })
 
+describe('seed modes and photos', () => {
+  it('ships Murphy, Riley, and Both with baked stills', () => {
+    const seed = createSeedStudioState()
+    expect(seed.dogs.map((dog) => dog.id)).toEqual(['murphy', 'riley', 'both'])
+    const murphy = seed.dogs.find((dog) => dog.id === 'murphy')
+    const riley = seed.dogs.find((dog) => dog.id === 'riley')
+    const both = seed.dogs.find((dog) => dog.id === 'both')
+    expect(murphy?.defaultPhoto?.publicPath).toBe('modes/murphy.jpg')
+    expect(riley?.defaultPhoto?.publicPath).toBe('modes/riley.jpg')
+    expect(both?.defaultPhoto?.publicPath).toBe('modes/both.jpg')
+    expect(murphy?.defaultPhoto?.url).toMatch(/modes\/murphy\.jpg$/)
+    expect(riley?.defaultPhoto?.url).toMatch(/modes\/riley\.jpg$/)
+
+    const murphyIdle = murphy?.intents.find((intent) => intent.id === 'idle')
+    const murphyName = murphy?.intents.find((intent) => intent.id === 'name')
+    const murphyTreat = murphy?.intents.find((intent) => intent.id === 'treat')
+    expect(murphyIdle?.clipSlots[0]?.sourcePhoto?.publicPath).toBe('modes/murphy.jpg')
+    expect(murphyName?.clipSlots[0]?.sourcePhoto?.publicPath).toBe('modes/murphy.jpg')
+    expect(murphyTreat?.clipSlots[0]?.sourcePhoto).toBeNull()
+
+    expect(riley?.intents.find((intent) => intent.id === 'hug')?.clipSlots[0]?.sourcePhoto?.publicPath).toBe(
+      'modes/riley.jpg',
+    )
+    expect(both?.intents.find((intent) => intent.id === 'idle')?.clipSlots[0]?.sourcePhoto?.publicPath).toBe(
+      'modes/both.jpg',
+    )
+  })
+})
+
 describe('seed personality', () => {
   it('bakes Riley hug / howl and Murphy hug / howl into prompts', () => {
     const seed = createSeedStudioState()

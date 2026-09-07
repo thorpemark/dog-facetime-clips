@@ -16,7 +16,17 @@ A gentle memorial experience that simulates FaceTiming a beloved dog who has pas
 | **Sharing** | Supabase memorial links | Same UX target; clip assets per memorial (planned) |
 | **Status** | Production memorial sharing | v1 scaffold — see [`docs/CLIP_LIBRARY_PLAN.md`](docs/CLIP_LIBRARY_PLAN.md) |
 
-**Next steps for Mark:** open **Clip Studio** (`/studio`), pick Murphy or Riley, frame source photos, copy prompts into Pika / Gemini / Grok, and attach MP4s. See [`docs/CLIP_STUDIO.md`](docs/CLIP_STUDIO.md). Ken Burns photo mode stays as fallback until dual-mode is complete.
+**Next steps for Mark:** from home, pick **Murphy / Riley / Both** (photos are preloaded), or open **Clip Studio** (`/studio`) to refine framing, copy prompts into Pika / Gemini / Grok, and attach MP4s. See [`docs/CLIP_STUDIO.md`](docs/CLIP_STUDIO.md). Ken Burns photo mode stays as fallback until dual-mode is complete.
+
+### Three call modes
+
+| Mode | Photo | Notes |
+|------|-------|-------|
+| **Murphy** | [`web/public/modes/murphy.jpg`](web/public/modes/murphy.jpg) | Tan/ginger huskita, folded ears |
+| **Riley** | [`web/public/modes/riley.jpg`](web/public/modes/riley.jpg) | Black-and-white huskita, upright ears |
+| **Both** | [`web/public/modes/both.jpg`](web/public/modes/both.jpg) | Murphy left, Riley right — shared memorial |
+
+These stills are the picker / Studio avatars and the default Clip Studio source photo (idle + key reaction slots). Demo calls stay on clip playback.
 
 ---
 
@@ -61,13 +71,15 @@ See the sections below for iOS-specific details (clips, keywords, CI).
 | **`docs/CLIP_LIBRARY_PLAN.md`** | Architecture for clip buckets, phrase matching, storage, migration |
 | **`docs/CLIP_STUDIO.md`** | How to add a dog / intent / phrase / clip; external generation workflow |
 | **`web/src/data/reactionCatalog.ts`** | Shared seed buckets (fallback + first-load template) |
-| **`web/src/data/clipStudioSeed.ts`** | Murphy / Riley personality libraries |
+| **`web/src/data/clipStudioSeed.ts`** | Murphy / Riley / Both personality libraries + seed stills |
+| **`web/src/data/callModes.ts`** | Three-mode picker metadata (who is which photo) |
+| **`web/public/modes/`** | Murphy / Riley / Both stills |
 | **`MemorialCall/`** | Native iOS app — requires Mac + Xcode |
 | **`.github/workflows/deploy-web.yml`** | Builds & deploys `web/` to GitHub Pages |
 
 ## Web App Features
 
-- Create personal memorials with 1–3 call targets (Dog A, Dog B, Together)
+- Home / demo **three-mode picker**: Murphy, Riley, or Both, with preloaded stills
 - Upload photos; crossfading Ken Burns playback during calls *(legacy still mode — kept until clip dual-mode ships)*
 - **Clip Studio** (`/studio`) — per-dog intents, phrases, photo framing, prompts, attach MP4s
 - **Clip-library direction:** idle loop + meaning-matched prerendered reactions (`/catalog` overview)
@@ -204,7 +216,8 @@ Download artifacts from GitHub → **Actions** → select run → **Artifacts**.
 - [x] Clip Studio (`/studio`) — per-dog intents/phrases/slots, photo framing, attach MP4
 - [ ] Dual mode: Ken Burns photos **or** clip library per memorial
 - [ ] Supabase Storage bucket for per-memorial clip sets
-- [ ] Generate Murphy/Riley portrait reactions (Pika / Gemini / Grok) and attach in Studio
+- [x] Preload Murphy / Riley / Both stills into picker, Studio, and seed slots
+- [ ] Generate Murphy/Riley/Both portrait reactions (Pika / Gemini / Grok) and attach in Studio
 - [ ] iOS catalog sync
 - [ ] Porcupine wake-word integration (iOS) for faster keyword detection
 - [ ] Custom ringtone / memorial sound

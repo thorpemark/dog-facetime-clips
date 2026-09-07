@@ -10,10 +10,12 @@ export type KnownGenerator = (typeof GENERATOR_LABELS)[number]
 
 export interface ClipSourcePhoto {
   id: string
-  /** Object URL or data URL for the editor / thumb. */
+  /** Object URL, data URL, or resolved public URL for the editor / thumb. */
   url: string
   /** IndexedDB key when persisted (demo mode). */
   blobKey?: string
+  /** Path under `web/public/` for baked seed stills (e.g. `modes/murphy.jpg`). */
+  publicPath?: string
   framing: DualFraming
 }
 
@@ -60,10 +62,16 @@ export interface DogLibrary {
   name: string
   personality: DogPersonality
   intents: IntentBucket[]
+  /** Public path used for Studio / picker avatars. */
+  avatarPath?: string
+  /** Dog-level still used when a slot has no photo yet. */
+  defaultPhoto?: ClipSourcePhoto | null
 }
 
 export interface ClipStudioState {
   version: 1
+  /** Bumped when baked seed dogs/photos change so existing browsers pick them up. */
+  seedRevision?: number
   activeDogId: string
   dogs: DogLibrary[]
 }

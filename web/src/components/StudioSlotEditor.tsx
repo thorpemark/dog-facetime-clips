@@ -1,8 +1,9 @@
 import { useRef, useState } from 'react'
-import type { ClipSlot, DogLibrary, IntentBucket } from '../types/clipStudio'
+import type { ClipSlot, ClipSourcePhoto, DogLibrary, IntentBucket } from '../types/clipStudio'
 import { GENERATOR_LABELS } from '../types/clipStudio'
 import type { DualFraming } from '../utils/focalPoint'
 import { playbackPathForSlot } from '../utils/clipStudioCatalog'
+import { resolveSourcePhoto } from '../utils/clipStudioStore'
 import { normalizeClipWeights } from '../data/reactionCatalog'
 import { PhotoFocalEditor } from './PhotoFocalEditor'
 
@@ -19,7 +20,7 @@ interface StudioSlotEditorProps {
   slot: ClipSlot
   onPatch: (patch: Partial<ClipSlot>) => void
   onAttachPhoto: (file: File) => Promise<void>
-  onSaveFraming: (framing: DualFraming) => void
+  onSaveFraming: (framing: DualFraming, fallbackPhoto?: ClipSourcePhoto | null) => void
   onAttachVideo: (file: File) => Promise<void>
   onClearPhoto: () => Promise<void>
   onNeedsRedo: () => void
@@ -44,6 +45,8 @@ export function StudioSlotEditor({
   const [busy, setBusy] = useState(false)
   const [copied, setCopied] = useState(false)
 
+  const resolvedPhoto = resolveSourcePhoto(slot, dog)
+  const usingDogDefault = !slot.sourcePhoto && Boolean(resolvedPhoto)
   const previewVideo = playbackPathForSlot(slot)
   const chance = normalizeClipWeights(intent.clipSlots.map((item) => ({
     path: item.id,
@@ -63,8 +66,10 @@ export function StudioSlotEditor({
   return (
     <article className={`studio-slot studio-slot--${slot.status}`}>
       <header className="studio-slot-header">
-        <span className={`studio-status studio-status--${slot.status}`}>
-          {STATUS_LABEL[slot.status]}
+        <span className={`studio-status studio-status--${usingDogDefault && slot.status === 'empty' ? 'photo_ready' : slot.status}`}>
+          {usingDogDefault && slot.status === 'empty'
+            ? 'Dog default still'
+            : STATUS_LABEL[slot.status]}
         </span>
         <input
           className="studio-slot-label"
@@ -79,14 +84,19 @@ export function StudioSlotEditor({
 
       <div className="studio-slot-media">
         <div className="studio-slot-photo">
-          {slot.sourcePhoto?.url ? (
+          {resolvedPhoto?.url ? (
             <button
               type="button"
               className="studio-thumb-btn"
-              onClick={() => setFramingOpen(true)}
+              onClick={() => {
+                if (!slot.sourcePhoto && resolvedPhoto) {
+                  onPatch({ sourcePhoto: resolvedPhoto, status: 'photo_ready' })
+                }
+                setFramingOpen(true)
+              }}
               aria-label="Edit photo framing"
             >
-              <img src={slot.sourcePhoto.url} alt="" />
+              <img src={resolvedPhoto.url} alt="" />
               <span className="photo-focus-badge custom">⊕</span>
             </button>
           ) : (
@@ -115,9 +125,21 @@ export function StudioSlotEditor({
               })
             }}
           />
-          {slot.sourcePhoto && (
+          {resolvedPhoto && (
             <div className="studio-slot-photo-actions">
-              <button type="button" className="btn-text" onClick={() => setFramingOpen(true)}>
+              {usingDogDefault && (
+                <span className="studio-default-photo-note">Dog default still</span>
+              )}
+              <button
+                type="button"
+                className="btn-text"
+                onClick={() => {
+                  if (!slot.sourcePhoto && resolvedPhoto) {
+                    onPatch({ sourcePhoto: resolvedPhoto, status: 'photo_ready' })
+                  }
+                  setFramingOpen(true)
+                }}
+              >
                 Frame
               </button>
               <button
@@ -127,9 +149,11 @@ export function StudioSlotEditor({
               >
                 Replace photo
               </button>
-              <button type="button" className="btn-text danger" onClick={() => void onClearPhoto()}>
-                Remove photo
-              </button>
+              {slot.sourcePhoto && (
+                <button type="button" className="btn-text danger" onClick={() => void onClearPhoto()}>
+                  Remove photo
+                </button>
+              )}
             </div>
           )}
         </div>
@@ -253,12 +277,13 @@ export function StudioSlotEditor({
         {dog.name} · {intent.description}
       </p>
 
-      {framingOpen && slot.sourcePhoto?.url && (
+      {framingOpen && resolvedPhoto?.url && (
         <PhotoFocalEditor
-          imageUrl={slot.sourcePhoto.url}
-          initialFraming={slot.sourcePhoto.framing}
+          imageUrl={resolvedPhoto.url}
+          initialFraming={resolvedPhoto.framing}
+          preferWideFrame={dog.name.toLowerCase() === 'both'}
           onSave={(framing) => {
-            onSaveFraming(framing)
+            onSaveFraming(framing, resolvedPhoto)
             setFramingOpen(false)
           }}
           onClose={() => setFramingOpen(false)}

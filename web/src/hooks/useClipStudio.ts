@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import type { DualFraming } from '../utils/focalPoint'
-import type { ClipSlot, ClipStudioState } from '../types/clipStudio'
+import type { ClipSlot, ClipSourcePhoto, ClipStudioState } from '../types/clipStudio'
 import { generateId } from '../lib/ids'
 import {
   compressImageFile,
@@ -73,15 +73,23 @@ export function useClipStudio() {
   )
 
   const saveFraming = useCallback(
-    (dogId: string, intentId: string, slot: ClipSlot, framing: DualFraming) => {
-      if (!slot.sourcePhoto) return
+    (
+      dogId: string,
+      intentId: string,
+      slot: ClipSlot,
+      framing: DualFraming,
+      fallbackPhoto?: ClipSourcePhoto | null,
+    ) => {
+      const base = slot.sourcePhoto ?? fallbackPhoto
+      if (!base) return
       dispatchStudio({
         type: 'updateSlot',
         dogId,
         intentId,
         slotId: slot.id,
         patch: {
-          sourcePhoto: { ...slot.sourcePhoto, framing },
+          sourcePhoto: { ...base, framing },
+          status: slot.status === 'needs_redo' ? 'needs_redo' : 'photo_ready',
         },
       })
     },
