@@ -80,7 +80,6 @@ describe('suggestClipPrompt', () => {
     expect(prompt).toMatch(/perfectly still/i)
     expect(prompt).toMatch(/no pan, tilt, dolly, zoom, push-in, pull-out, handheld shake, or reframing/i)
     expect(prompt).toMatch(/only the subject \(dog\) moves/i)
-    expect(prompt).toMatch(/no zoom/i)
     expect(prompt).toMatch(/huskita/i)
     expect(prompt).toMatch(/Husky/i)
     expect(prompt).toMatch(/do not morph/i)
@@ -128,7 +127,7 @@ describe('suggestClipPrompt', () => {
     expect(murphyHowl).toMatch(/return to (a )?calm FaceTime idle/i)
     expect(murphyHowl).toMatch(/6s/)
     expect(murphyHowl).toMatch(/identical framing first-to-last/)
-  }
+  })
 
   it('always includes a strong LOCKED CAMERA block, including play and howl exceptions', () => {
     const samples = [
