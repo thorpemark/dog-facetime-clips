@@ -52,9 +52,10 @@ This is the main generation loop. It is fully offline in the browser.
      - **Murphy howl:** strong, confident sing
      - **Riley howl:** awkward, weak howl attempt
    - this slot’s label + optional slot notes
-   - framing context when a photo is attached (portrait FaceTime, 2–3s, keep identity)
+   - framing context when a photo is attached (portrait FaceTime, keep identity)
+   - a **6 second** Grok Imagine arc: start near calm idle from the still → reaction peaks in the first ~2–3s → smoothly return to calm FaceTime idle (soft blinks, subtle breathing, looking toward camera) and hold through the end. Same dog, same framing, no zoom / cut / morph.
 3. **Copy** (toast confirms). Paste into **Grok Imagine** as an **image-to-video** prompt, with the framed still as the source image.
-4. Target ~2–3s, portrait ~9:16, H.264 MP4, usually silent. Reject morphing / breed drift / extra dogs.
+4. In Grok Imagine, length options are **6 / 10 / 15s** (there is no 3–4s). Use **6s**, **9:16 portrait**, H.264 MP4, usually silent. Reject morphing / breed drift / extra dogs / clips that keep reacting until the last frame.
 5. **Attach MP4** back on the same slot.
 
 You can edit the prompt after Suggest, then Copy again. Suggest again to rebuild from the current dog / intent / notes / framing.
@@ -69,7 +70,7 @@ Clip Studio does **not** call Grok from GitHub Pages. In-app **Generate with Gro
 
 1. Frame the source still in Studio so the crop matches the FaceTime portrait (and landscape if you care about desktop).
 2. Suggest prompt → Copy. Keep camera distance consistent across a dog.
-3. Image-to-video in Grok Imagine (or Pika / Gemini). Target ~2–3s, portrait ~9:16, H.264 MP4, usually silent.
+3. Image-to-video in Grok Imagine (or Pika / Gemini). Grok Imagine: **6s** (not 3–4s), **9:16 portrait**, H.264 MP4, usually silent. The suggested prompt already asks for react-then-return-to-idle so the extra seconds stay as a loopable FaceTime hold.
 4. Reject morphing / identity drift. Attach the keeper, or mark **needs redo**.
 5. Optional: later commit keepers under `web/public/clips/reactions/{intent}/{intent}_{nn}.mp4` for GitHub Pages.
 

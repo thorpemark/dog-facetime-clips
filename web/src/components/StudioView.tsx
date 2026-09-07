@@ -80,7 +80,7 @@ export function StudioView() {
             Manage reaction videos per dog. Add intents, phrases, and clip
             variants without changing code. Generation happens outside the app:
             frame a source photo, Suggest prompt, Copy, paste into Grok Imagine
-            (or Pika), then attach the MP4.
+            (6s · 9:16, or Pika), then attach the MP4.
           </p>
           <p className="catalog-note">
             Demo persistence is local to this browser (localStorage + IndexedDB).

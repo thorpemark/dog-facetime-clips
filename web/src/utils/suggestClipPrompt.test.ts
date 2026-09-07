@@ -61,7 +61,11 @@ describe('suggestClipPrompt', () => {
 
     expect(prompt).toMatch(/Grok Imagine/i)
     expect(prompt).toMatch(/image-to-video/i)
-    expect(prompt).toMatch(/2–3 second/i)
+    expect(prompt).toMatch(/6 second/i)
+    expect(prompt).toMatch(/9:16/)
+    expect(prompt).toMatch(/return to (a )?calm FaceTime idle/i)
+    expect(prompt).toMatch(/peaks in the first ~2–3 seconds/i)
+    expect(prompt).toMatch(/no zoom/i)
     expect(prompt).toMatch(/huskita/i)
     expect(prompt).toMatch(/Husky/i)
     expect(prompt).toMatch(/do not morph/i)
@@ -69,6 +73,30 @@ describe('suggestClipPrompt', () => {
     expect(prompt).toMatch(/treat/i)
     expect(prompt).toMatch(/attached source still/i)
     expect(prompt).toMatch(/tighter face-forward/i)
+  })
+
+  it('bakes react-then-idle into hug and howl personality variants', () => {
+    const rileyHug = suggestClipPrompt({
+      dogName: 'Riley',
+      personality: RILEY_PERSONALITY,
+      intentId: 'hug',
+      intentDescription: 'Hug / cuddle',
+      slotLabel: 'Side-touch reaction',
+    })
+    const murphyHowl = suggestClipPrompt({
+      dogName: 'Murphy',
+      personality: MURPHY_PERSONALITY,
+      intentId: 'howl',
+      intentDescription: 'Howl / sing',
+      slotLabel: 'Howl / sing',
+    })
+
+    expect(rileyHug).toMatch(/bares her teeth/i)
+    expect(rileyHug).toMatch(/returns to a calm FaceTime idle/i)
+    expect(rileyHug).toMatch(/hold/i)
+    expect(murphyHowl).toMatch(/howls well/i)
+    expect(murphyHowl).toMatch(/returns to a calm FaceTime idle/i)
+    expect(murphyHowl).toMatch(/6 second/i)
   })
 
   it('includes slot notes and generic personality when there is no dog-specific beat', () => {

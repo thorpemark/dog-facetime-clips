@@ -88,7 +88,7 @@ export function StudioSlotEditor({
     try {
       await navigator.clipboard.writeText(text)
       setCopied(true)
-      showToast('Copied — paste into Grok Imagine')
+      showToast('Copied — paste into Grok Imagine (6s · 9:16)')
       window.setTimeout(() => setCopied(false), 1800)
     } catch {
       promptRef.current?.select()
@@ -215,7 +215,7 @@ export function StudioSlotEditor({
       <div className={`studio-prompt-panel${justSuggested ? ' studio-prompt-panel--fresh' : ''}`}>
         {needsVideo && (
           <p className="studio-suggest-cta">
-            Needs a video — Suggest prompt, Copy, paste into Grok Imagine.
+            Needs a video — Suggest prompt, Copy, paste into Grok Imagine (6s · 9:16).
           </p>
         )}
         <label className="studio-field">
@@ -251,8 +251,8 @@ export function StudioSlotEditor({
             {copied ? 'Copied' : 'Copy'}
           </button>
           <span className="studio-prompt-hint">
-            Paste into Grok Imagine image-to-video (or Pika). Then attach the MP4 here. Re-suggest
-            anytime; you can edit the prompt after.
+            Paste into Grok Imagine image-to-video, 6s · 9:16 portrait (or Pika). Then attach the
+            MP4 here. Re-suggest anytime; you can edit the prompt after.
           </span>
         </div>
         {toast && (

@@ -34,22 +34,22 @@ export function personalityBeat(
 
   if (dog === 'riley' && hugLike) {
     return (
-      'Riley does not enjoy hugs: when her side is touched or she is asked for a hug she bares her teeth and growls — a characteristic warning, not an attack. Ears back, lips curled, wary eyes, a soft growl. Keep it a warning, not a lunge.'
+      'Riley does not enjoy hugs: when her side is touched or she is asked for a hug she bares her teeth and growls — a characteristic warning, not an attack. Ears back, lips curled, wary eyes, a soft growl. Keep it a warning, not a lunge. Peak that warning in the first ~2–3 seconds, then lips and ears ease; she returns to a calm FaceTime idle looking at the camera and holds it through the end of the clip.'
     )
   }
   if (dog === 'murphy' && hugLike) {
     return (
-      'Murphy loves hugs: leans in, offers his neck with nose tilted up, enjoys a chest scratch, soft happy eyes, relaxed mouth.'
+      'Murphy loves hugs: leans in, offers his neck with nose tilted up, enjoys a chest scratch, soft happy eyes, relaxed mouth. Peak that affection in the first ~2–3 seconds, then he settles back to a calm happy FaceTime idle (looking toward camera, soft blinks, subtle breathing) and holds it through the end of the clip.'
     )
   }
   if (dog === 'riley' && howlLike) {
     return (
-      'Riley attempts to howl but it is awkward — hesitant, slightly off, mouth half-open, looking unsure; a cute failed howl rather than a full song. Weak, brief, slightly embarrassed attempt.'
+      'Riley attempts to howl but it is awkward — hesitant, slightly off, mouth half-open, looking unsure; a cute failed howl rather than a full song. Weak, brief, slightly embarrassed attempt. Peak the awkward howl in the first ~2–3 seconds, then her mouth closes and she returns to a calm FaceTime idle looking at the camera, holding that idle through the end of the clip.'
     )
   }
   if (dog === 'murphy' && howlLike) {
     return (
-      'Murphy sings and howls well — head lifted, mouth open in a full confident howl/song, musical husky voice. Strong, committed sing.'
+      'Murphy sings and howls well — head lifted, mouth open in a full confident howl/song, musical husky voice. Strong, committed sing. Peak the howl in the first ~2–3 seconds, then his head lowers, mouth closes, and he returns to a calm FaceTime idle (soft blinks, subtle breathing, looking toward camera) and holds it through the end of the clip.'
     )
   }
 
@@ -96,9 +96,20 @@ function framingLine(input: SuggestPromptInput): string {
     : 'chest-up portrait FaceTime crop'
 
   if (input.hasSourcePhoto) {
-    return `Use the attached source still as frame 1 and honor the ${crop}. Keep camera distance consistent (phone at chest height). Do not reframe into a landscape or wide shot.`
+    return `Use the attached source still as frame 1 and honor the ${crop}. Locked 9:16 portrait, phone at chest height. Same framing for the whole 6s — no zoom, no pan, no cut, no morph.`
   }
-  return `Portrait FaceTime framing (~9:16), phone at chest height, ${crop}. If a still is attached, use it as frame 1.`
+  return `Locked 9:16 portrait FaceTime framing, phone at chest height, ${crop}. If a still is attached, use it as frame 1. Same framing for the whole 6s — no zoom, no pan, no cut, no morph.`
+}
+
+/** Shared 6s Grok Imagine arc: idle → peak reaction → return to idle and hold. */
+function clipArcLines(): string[] {
+  return [
+    'Grok Imagine image-to-video: 6 second silent clip, 9:16 portrait. (Grok Imagine length choices are 6 / 10 / 15s — choose 6s.)',
+    'Arc — react then return to idle. One continuous shot: same dog, same framing, no zoom, no cut, no morph.',
+    '1. Start near calm FaceTime idle from the source still: looking toward the phone camera, soft blinks, subtle breathing.',
+    '2. Reaction peaks in the first ~2–3 seconds (Motion / Personality below). Keep it FaceTime-scale and fully in frame.',
+    '3. Smoothly return to a calm FaceTime idle (soft blinks, subtle breathing, looking toward camera) and hold that idle through the end of the 6-second clip. Do not freeze-frame; keep tiny live motion. Do not keep reacting until the last frame.',
+  ]
 }
 
 function breedLine(dogName: string, personality: DogPersonality): string {
@@ -121,15 +132,15 @@ export function suggestClipPrompt(input: SuggestPromptInput): string {
 
   const lines = [
     'Image-to-video prompt for Grok Imagine (also works in Pika / similar tools).',
-    'Short 2–3 second silent clip. One continuous motion, no cuts, no morphing.',
-    'Portrait FaceTime-style reaction, dog looking toward the phone camera, natural lighting, no text, no subtitles, no extra animals.',
+    ...clipArcLines(),
+    'Natural lighting, no text, no subtitles, no extra animals.',
     breedLine(dogName, input.personality),
     beat ? `Personality: ${beat}` : '',
     `Intent (${intentId}): ${intentDescription}.`,
-    `Motion: ${motion}`,
+    `Motion (the peak in the first ~2–3 seconds, then return to idle): ${motion}`,
     notes ? `Director notes for this slot: ${notes}` : '',
     framingLine(input),
-    'Preserve exact identity, face, coat, and markings from the source still. Reject breed morphing and identity drift.',
+    'Preserve exact identity, face, coat, and markings from the source still. Same dog throughout. Reject breed morphing, identity drift, zooms, and cuts.',
   ]
 
   return lines
