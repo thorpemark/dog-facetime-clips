@@ -1,5 +1,11 @@
-import type { DogPersonality } from '../types/clipStudio'
+import type { DogPersonality, VocalStyle, VoiceSize } from '../types/clipStudio'
 import type { DualFraming } from './focalPoint'
+import {
+  energyMotionPhrase,
+  eyePhrase,
+  normalizePersonality,
+  voiceSizePitch,
+} from './dogPersonality'
 
 export interface SuggestPromptInput {
   dogName: string
@@ -25,11 +31,6 @@ function haystackOf(input: Pick<SuggestPromptInput, 'intentId' | 'intentDescript
   return [input.intentId, input.intentDescription, input.slotLabel, input.userNotes ?? '']
     .join(' ')
     .toLowerCase()
-}
-
-function isMarksDog(dogName: string): boolean {
-  const dog = dogKey(dogName)
-  return dog === 'murphy' || dog === 'riley' || dog === 'both'
 }
 
 /** Howl / sing buckets (and slug variants like howl-2). */
@@ -98,39 +99,161 @@ function personalityNotesForIntent(personality: DogPersonality, allowHowl: boole
   return notes.filter((note) => !/\b(howl|sing|aroo|awoo|bay|bark|growl|whine)\b/i.test(note)).join(' ')
 }
 
+function voiceSizeBit(size: VoiceSize): string {
+  return voiceSizePitch(size)
+}
+
 function audioBlock(
-  dogName: string,
+  personality: DogPersonality,
   options: { allowHowl: boolean; allowPlayHuff: boolean },
 ): string {
+  const pitch = voiceSizeBit(personality.voiceSize)
+  const style: VocalStyle = personality.vocalStyle
+
   if (options.allowHowl) {
+    const sized = style === 'silent' ? 'dog howl or husky song' : `${pitch} dog howl or husky song`
     return (
-      'AUDIO (read first): Howl/sing clip — a brief dog howl or husky song is allowed. ' +
+      `AUDIO (read first): Howl/sing clip — a brief ${sized} is allowed. ` +
       'Hard ban: bark, speech, talking, music, ambience. No human words.'
     )
   }
+
   if (options.allowPlayHuff) {
     return (
       'AUDIO (read first): Play clip — one short challenge huff only (sneeze-like chuff; the common way dogs ask to play-fight). ' +
       'Not a bark. Hard ban: bark, howl, music, speech, ambience.'
     )
   }
-  const marks = isMarksDog(dogName)
-    ? ' Murphy and Riley are remarkably non-vocal; they express via face and body.'
-    : ''
+
+  if (style === 'soft') {
+    return (
+      'AUDIO (read first): Soft-vocal. Faint whine or breath is ok. ' +
+      'Hard ban: bark, howl, growl, music, speech, ambience. Keep it very quiet. No soundtrack.'
+    )
+  }
+
+  if (style === 'barks') {
+    return (
+      `AUDIO (read first): Barking dog — brief ${pitch} barks are allowed. ` +
+      'Hard ban: howl, music, speech, talking, ambience.'
+    )
+  }
+
+  if (style === 'howler') {
+    return (
+      `AUDIO (read first): Howler — a brief ${pitch} howl or aroo is allowed as this dog's voice. ` +
+      'Hard ban: bark, music, speech, talking, ambience.'
+    )
+  }
+
+  if (style === 'talker') {
+    return (
+      'AUDIO (read first): Talker (experimental): a few clear English words may be spoken — labeled experimental; keep it brief and on-character. ' +
+      'Hard ban: music, ambience, cartoon overacting. Not a song.'
+    )
+  }
+
   return (
     'AUDIO (read first): Silence-first. Hard ban: bark, howl, whine, growl, music, speech, ambience. ' +
-    'Optional only: faint breath, soft paw on rug. Mouth closed. Express via face and body, not sound.' +
-    marks
+    'Optional only: faint breath, soft paw on rug. Mouth closed. Express via face and body, not sound. ' +
+    'remarkably non-vocal.'
   )
 }
 
-/** Riley / Murphy hug + howl beats — always used when the dog + intent match. */
+function mouthBit(personality: DogPersonality, closed: boolean): string {
+  if (personality.mouth === 'slobberer') {
+    return closed
+      ? 'a little slobber is ok; mouth mostly closed'
+      : 'a little slobber/drool is ok'
+  }
+  return closed ? 'mouth closed, dry muzzle' : 'dry muzzle'
+}
+
+function hugBeat(dogName: string, personality: DogPersonality): string {
+  const eyes = eyePhrase(personality.eyes)
+  if (personality.touch === 'grumble_hug') {
+    return (
+      `${dogName} does not enjoy hugs: silent warning face — bares teeth, ears back, lips curled, ${eyes}. ` +
+      `Not an attack, not a lunge. Mouth closed except enough to show teeth. Face and body only; no growl sound. ` +
+      `${mouthBit(personality, true)}.`
+    )
+  }
+  return (
+    `${dogName} loves hugs: leans in, offers the neck with nose tilted up, enjoys a chest scratch, ${eyes}, ` +
+    `${mouthBit(personality, true)}.`
+  )
+}
+
+function howlBeat(dogName: string, personality: DogPersonality): string {
+  const notes = personality.notes.join(' ')
+  const pitch = voiceSizeBit(personality.voiceSize)
+  if (/\b(awkward|weak|hesitant|failed|embarrassed)\b/i.test(notes)) {
+    return (
+      `${dogName} attempts to howl but it is awkward — hesitant, slightly off, mouth half-open, looking unsure; ` +
+      'a cute failed howl rather than a full song. Weak, brief, slightly embarrassed attempt.'
+    )
+  }
+  if (/\b(howls well|sings and howls|confident|full (musical )?husky howl)\b/i.test(notes)) {
+    return (
+      `${dogName} sings and howls well — head lifted, mouth open in a full confident howl/song. Strong, committed sing.`
+    )
+  }
+  if (personality.vocalStyle === 'howler' || personality.energy === 'hyper') {
+    return `${dogName} howls with commitment — head lifted, mouth open in a full ${pitch} howl/song.`
+  }
+  if (personality.vocalStyle === 'soft' || personality.energy === 'calm') {
+    return `${dogName} offers a brief, hesitant ${pitch} howl — quiet and a little unsure.`
+  }
+  return `${dogName} lifts into a brief ${pitch} howl/sing, then returns to quiet.`
+}
+
+function playBeat(dogName: string, personality: DogPersonality): string {
+  const energy = energyMotionPhrase(personality.energy)
+  const energyBit = energy ? ` ${energy}` : ''
+  return (
+    `${dogName} asks to play-fight with a downward-dog play-bow: front low, rear up, expressive body, ` +
+    `one short sneeze-like challenge huff — not a bark.${energyBit}`
+  )
+}
+
+function traitFlavor(personality: DogPersonality): string {
+  const parts = [eyePhrase(personality.eyes)]
+  if (personality.energy === 'calm') parts.push('slow, calm energy')
+  if (personality.energy === 'hyper') parts.push('hyperactive energy')
+  if (personality.mouth === 'slobberer') parts.push('a slobberer')
+  else parts.push('dry muzzle')
+  return parts.join(', ')
+}
+
+function togetherHugBeat(): string {
+  return (
+    'Together shot: Murphy leans in and offers his neck; Riley is wary and may bare teeth if her side is touched — ' +
+    'keep both dogs in frame. Silent warning / affection via face and body only.'
+  )
+}
+
+function togetherHowlBeat(): string {
+  return (
+    'Together shot: Murphy sings a full husky howl; Riley attempts an awkward weaker howl beside him. ' +
+    'Same kitchen-rug framing, both faces toward camera.'
+  )
+}
+
+function togetherPlayBeat(): string {
+  return (
+    'Together shot: both drop into play-bows (front low, rear up), expressive bodies. ' +
+    'One short challenge huff/chuff to invite play-fight — not a bark. Keep both dogs in frame.'
+  )
+}
+
+/** Trait-driven hug / howl / play beats. Together-shot (Both) keeps the pair-specific lines. */
 export function personalityBeat(
   dogName: string,
   intentId: string,
   personality: DogPersonality,
   options?: { allowHowl?: boolean },
 ): string {
+  const traits = normalizePersonality(personality)
   const dog = dogKey(dogName)
   const intent = normalizeIntent(intentId)
   const hugLike = isHugLikeIntent(intent)
@@ -138,61 +261,26 @@ export function personalityBeat(
   const playLike = isPlayLikeIntent(intentId)
   const allowHowl = options?.allowHowl ?? howlLike
 
-  if (dog === 'riley' && hugLike) {
-    return (
-      'Riley does not enjoy hugs: silent warning face — bares her teeth, ears back, lips curled, wary eyes. ' +
-      'Not an attack, not a lunge. Mouth closed except enough to show teeth. Face and body only; no growl sound.'
-    )
-  }
-  if (dog === 'murphy' && hugLike) {
-    return (
-      'Murphy loves hugs: leans in, offers his neck with nose tilted up, enjoys a chest scratch, soft happy eyes, mouth closed.'
-    )
-  }
-  if (dog === 'riley' && howlLike && allowHowl) {
-    return (
-      'Riley attempts to howl but it is awkward — hesitant, slightly off, mouth half-open, looking unsure; a cute failed howl rather than a full song. Weak, brief, slightly embarrassed attempt.'
-    )
-  }
-  if (dog === 'murphy' && howlLike && allowHowl) {
-    return (
-      'Murphy sings and howls well — head lifted, mouth open in a full confident howl/song. Strong, committed sing.'
-    )
-  }
-  if (dog === 'both' && hugLike) {
-    return (
-      'Together shot: Murphy leans in and offers his neck; Riley is wary and may bare teeth if her side is touched — keep both dogs in frame. Silent warning / affection via face and body only.'
-    )
-  }
-  if (dog === 'both' && howlLike && allowHowl) {
-    return (
-      'Together shot: Murphy sings a full husky howl; Riley attempts an awkward weaker howl beside him. Same kitchen-rug framing, both faces toward camera.'
-    )
-  }
-  if (dog === 'riley' && playLike) {
-    return (
-      'Riley asks to play-fight with a downward-dog play-bow: front low, rear up, expressive body, one short sneeze-like challenge huff — not a bark.'
-    )
-  }
-  if (dog === 'murphy' && playLike) {
-    return (
-      'Murphy asks to play-fight with a downward-dog play-bow: front low, rear up, expressive body, one short sneeze-like challenge huff — not a bark.'
-    )
-  }
-  if (dog === 'both' && playLike) {
-    return (
-      'Together shot: both drop into play-bows (front low, rear up), expressive bodies. One short challenge huff/chuff to invite play-fight — not a bark. Keep both dogs in frame.'
-    )
-  }
+  if (dog === 'both' && hugLike) return togetherHugBeat()
+  if (dog === 'both' && howlLike && allowHowl) return togetherHowlBeat()
+  if (dog === 'both' && playLike) return togetherPlayBeat()
 
-  return personalityNotesForIntent(personality, allowHowl)
+  if (hugLike) return hugBeat(dogName, traits)
+  if (howlLike && allowHowl) return howlBeat(dogName, traits)
+  if (playLike) return playBeat(dogName, traits)
+
+  const notes = personalityNotesForIntent(traits, allowHowl)
+  const flavor = traitFlavor(traits)
+  return [flavor, notes].filter(Boolean).join(' ')
 }
 
-function intentMotion(input: SuggestPromptInput, allowHowl: boolean, allowPlayHuff: boolean): string {
+function intentMotion(input: SuggestPromptInput, allowHowl: boolean, allowPlayHuff: boolean, personality: DogPersonality): string {
   const intent = normalizeIntent(input.intentId)
   const variant = input.slotLabel.trim()
   const variantBit = variant ? ` Variant beat: ${variant}.` : ''
   const silent = allowHowl || allowPlayHuff ? '' : ' Mouth closed. Face and body only.'
+  const energy = energyMotionPhrase(personality.energy)
+  const energyBit = energy ? ` ${energy}` : ''
 
   const motions: Record<string, string> = {
     treat: `Ears perk, eyes lock on an implied treat, slight eager lean, maybe a brief lick — food-interest while looking at the phone camera.${silent}`,
@@ -215,16 +303,16 @@ function intentMotion(input: SuggestPromptInput, allowHowl: boolean, allowPlayHu
 
   for (const [id, motion] of Object.entries(motions)) {
     if (intent === id || intent.startsWith(`${id}-`)) {
-      return `${motion}${variantBit}`
+      return `${motion}${energyBit}${variantBit}`
     }
   }
 
   if (isAttentionStyleIntent(input)) {
-    return `Ears perk and eye contact only while looking toward the phone camera.${silent}${variantBit}`
+    return `Ears perk and eye contact only while looking toward the phone camera.${silent}${energyBit}${variantBit}`
   }
 
   const description = input.intentDescription.trim() || input.intentId
-  return `A short, readable “${description}” reaction while looking toward the phone camera.${silent}${variantBit}`
+  return `A short, readable “${description}” reaction while looking toward the phone camera.${silent}${energyBit}${variantBit}`
 }
 
 /** Always included: camera must stay still so idle playback does not need a framing reset. */
@@ -282,18 +370,19 @@ export function suggestClipPrompt(input: SuggestPromptInput): string {
   const dogName = input.dogName.trim() || 'the dog'
   const intentId = input.intentId.trim() || 'reaction'
   const intentDescription = input.intentDescription.trim() || intentId
+  const personality = normalizePersonality(input.personality)
   const allowHowl = allowsHowlVocalization(input)
   const allowPlayHuff = allowsPlayHuff(input)
-  const beat = personalityBeat(dogName, intentId, input.personality, { allowHowl })
-  const motion = intentMotion(input, allowHowl, allowPlayHuff)
+  const beat = personalityBeat(dogName, intentId, personality, { allowHowl })
+  const motion = intentMotion(input, allowHowl, allowPlayHuff, personality)
   const notes = input.userNotes?.trim()
 
   const lines = [
-    audioBlock(dogName, { allowHowl, allowPlayHuff }),
+    audioBlock(personality, { allowHowl, allowPlayHuff }),
     lockedCameraBlock(),
     'Grok Imagine image-to-video, 6s, 9:16. One continuous shot: reaction peaks in the first ~2–3 seconds, then return to a calm FaceTime idle and hold. Camera stays perfectly still; only the dog moves. Same crop first-to-last — no cut, no morph.',
     'Natural lighting, no text, no extra animals.',
-    breedLine(dogName, input.personality),
+    breedLine(dogName, personality),
     beat ? `Personality: ${beat}` : '',
     `Intent (${intentId}): ${intentDescription}. Motion: ${motion}`,
     notes ? `Director notes for this slot: ${notes}` : '',

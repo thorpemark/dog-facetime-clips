@@ -10,12 +10,8 @@ import {
 import { slugifyIntent } from '../utils/clipStudioMedia'
 import { resetStudioToSeed, sourcePhotoDisplayUrl } from '../utils/clipStudioStore'
 import { publicAssetUrl } from '../lib/urls'
-import type { DogPersonality } from '../types/clipStudio'
-
-const GENERIC_PERSONALITY: DogPersonality = {
-  breed: 'huskita (Husky × Akita mix)',
-  notes: ['Edit these notes so new clip prompts stay on-character.'],
-}
+import { defaultPersonality } from '../utils/dogPersonality'
+import { StudioPersonalityPanel } from './StudioPersonalityPanel'
 
 export function StudioView() {
   const {
@@ -97,7 +93,10 @@ export function StudioView() {
               role="tab"
               aria-selected={item.id === dog.id}
               className={`studio-dog-tab ${item.id === dog.id ? 'active' : ''}`}
-              onClick={() => dispatch({ type: 'selectDog', dogId: item.id })}
+              onClick={() => {
+                setPersonalityDraft(null)
+                dispatch({ type: 'selectDog', dogId: item.id })
+              }}
             >
               {(item.defaultPhoto || item.avatarPath) && (
                 <img
@@ -119,9 +118,10 @@ export function StudioView() {
               event.preventDefault()
               const name = newDogName.trim()
               if (!name) return
-              const created = createDogLibrary(name, GENERIC_PERSONALITY)
+              const created = createDogLibrary(name, defaultPersonality())
               dispatch({ type: 'addDog', dog: created })
               setNewDogName('')
+              setPersonalityDraft(null)
             }}
           >
             <input
@@ -136,31 +136,28 @@ export function StudioView() {
           </form>
         </div>
 
-        <section className="studio-personality">
-          <h2>{dog.name}</h2>
-          <label className="studio-field">
-            Personality (baked into new prompts)
-            <textarea
-              rows={4}
-              value={personalityText}
-              onChange={(event) => setPersonalityDraft(event.target.value)}
-              onBlur={() => {
-                const lines = personalityText
-                  .split('\n')
-                  .map((line) => line.trim())
-                  .filter(Boolean)
-                const breed = lines[0] ?? dog.personality.breed
-                const notes = lines.slice(1)
-                dispatch({
-                  type: 'updateDog',
-                  dogId: dog.id,
-                  patch: { personality: { breed, notes } },
-                })
-                setPersonalityDraft(null)
-              }}
-            />
-          </label>
-        </section>
+        <StudioPersonalityPanel
+          dogId={dog.id}
+          dogName={dog.name}
+          personality={dog.personality}
+          notesDraft={personalityText}
+          onNotesDraftChange={setPersonalityDraft}
+          onNotesCommit={(breed, notes) => {
+            dispatch({
+              type: 'updateDog',
+              dogId: dog.id,
+              patch: { personality: { ...dog.personality, breed, notes } },
+            })
+            setPersonalityDraft(null)
+          }}
+          onTraitsChange={(patch) =>
+            dispatch({
+              type: 'updateDog',
+              dogId: dog.id,
+              patch: { personality: { ...dog.personality, ...patch } },
+            })
+          }
+        />
 
         <form
           className="studio-add-intent"

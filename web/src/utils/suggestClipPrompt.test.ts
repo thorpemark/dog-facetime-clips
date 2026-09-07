@@ -5,6 +5,7 @@ import {
   RILEY_PERSONALITY,
   createSeedStudioState,
 } from '../data/clipStudioSeed'
+import { defaultPersonality } from './dogPersonality'
 import { suggestClipPrompt } from './suggestClipPrompt'
 
 const framing = {
@@ -45,7 +46,7 @@ describe('suggestClipPrompt', () => {
       slotLabel: 'Howl / sing',
     })
 
-    expect(rileyHug).toMatch(/bares her teeth/i)
+    expect(rileyHug).toMatch(/bares (her )?teeth/i)
     expect(rileyHug).toMatch(/silent warning/i)
     expect(rileyHug).toMatch(/no growl sound/i)
     expect(rileyHug).toMatch(/black huskita/i)
@@ -119,7 +120,7 @@ describe('suggestClipPrompt', () => {
       slotLabel: 'Howl / sing',
     })
 
-    expect(rileyHug).toMatch(/bares her teeth/i)
+    expect(rileyHug).toMatch(/bares (her )?teeth/i)
     expect(rileyHug).toMatch(/return to (a )?calm FaceTime idle/i)
     expect(rileyHug).toMatch(/hold/i)
     expect(rileyHug).toMatch(/Camera stays perfectly still; only the dog moves/)
@@ -184,10 +185,9 @@ describe('suggestClipPrompt', () => {
   it('includes slot notes and generic personality when there is no dog-specific beat', () => {
     const prompt = suggestClipPrompt({
       dogName: 'Biscuit',
-      personality: {
-        breed: 'huskita (Husky × Akita mix)',
+      personality: defaultPersonality({
         notes: ['Goofy and food-motivated.'],
-      },
+      }),
       intentId: 'come',
       intentDescription: 'Come here',
       slotLabel: 'Eager lean in',
@@ -270,7 +270,7 @@ describe('suggestClipPrompt', () => {
 
     expect(hug.startsWith('AUDIO (read first):')).toBe(true)
     expect(hug).toMatch(/Silence-first/)
-    expect(hug).toMatch(/bares her teeth/)
+    expect(hug).toMatch(/bares (her )?teeth/)
     expect(hug).toMatch(/no growl sound/)
     expect(hug).toMatch(/Mouth closed/)
     expect(hug).not.toMatch(INVITING_SOUND)
@@ -375,7 +375,7 @@ describe('suggestClipPrompt', () => {
       /loves hugs/i,
     )
     expect(riley?.intents.find((intent) => intent.id === 'hug')?.clipSlots[0]?.prompt).toMatch(
-      /bares her teeth/i,
+      /bares (her )?teeth/i,
     )
     expect(murphy?.intents.find((intent) => intent.id === 'play')?.clipSlots[0]?.prompt).toMatch(
       /play-bow/i,
@@ -383,5 +383,132 @@ describe('suggestClipPrompt', () => {
     expect(murphy?.intents.find((intent) => intent.id === 'play')?.phrases).toEqual(
       expect.arrayContaining(['want to play', 'do you want to play', 'play', 'play fight', 'come play']),
     )
+  })
+
+  it('builds AUDIO and personality from traits, not dog-name ifs', () => {
+    const barker = defaultPersonality({
+      vocalStyle: 'barks',
+      voiceSize: 'small_high',
+      energy: 'hyper',
+      eyes: 'soft_sad',
+      mouth: 'slobberer',
+      touch: 'cuddly',
+      notes: ['Food-motivated terrier mix.'],
+    })
+    const howler = defaultPersonality({
+      vocalStyle: 'howler',
+      voiceSize: 'large_low',
+      energy: 'calm',
+      eyes: 'alert',
+      touch: 'grumble_hug',
+    })
+    const talker = defaultPersonality({
+      vocalStyle: 'talker',
+      voiceSize: 'medium',
+      energy: 'normal',
+    })
+    const soft = defaultPersonality({
+      vocalStyle: 'soft',
+      voiceSize: 'small_high',
+    })
+
+    const barkName = suggestClipPrompt({
+      dogName: 'Biscuit',
+      personality: barker,
+      intentId: 'name',
+      intentDescription: 'Dog name',
+      slotLabel: 'Perk up',
+    })
+    const barkHug = suggestClipPrompt({
+      dogName: 'Biscuit',
+      personality: barker,
+      intentId: 'hug',
+      intentDescription: 'Hug / cuddle',
+      slotLabel: 'Hug',
+    })
+    const howlTreat = suggestClipPrompt({
+      dogName: 'Noodle',
+      personality: howler,
+      intentId: 'treat',
+      intentDescription: 'Treat / chicken',
+      slotLabel: 'Food interest',
+    })
+    const howlHug = suggestClipPrompt({
+      dogName: 'Noodle',
+      personality: howler,
+      intentId: 'hug',
+      intentDescription: 'Hug / cuddle',
+      slotLabel: 'Side-touch',
+    })
+    const talkName = suggestClipPrompt({
+      dogName: 'Echo',
+      personality: talker,
+      intentId: 'name',
+      intentDescription: 'Dog name',
+      slotLabel: 'Perk up',
+    })
+    const softName = suggestClipPrompt({
+      dogName: 'Moth',
+      personality: soft,
+      intentId: 'come',
+      intentDescription: 'Come here',
+      slotLabel: 'Eager lean',
+    })
+    const silentHowl = suggestClipPrompt({
+      dogName: 'Biscuit',
+      personality: defaultPersonality({ vocalStyle: 'silent', voiceSize: 'small_high' }),
+      intentId: 'howl',
+      intentDescription: 'Howl / sing',
+      slotLabel: 'Howl',
+    })
+    const silentPlay = suggestClipPrompt({
+      dogName: 'Biscuit',
+      personality: defaultPersonality({ vocalStyle: 'silent' }),
+      intentId: 'play',
+      intentDescription: 'Play / play-bow',
+      slotLabel: 'Play-bow',
+    })
+    const calmName = suggestClipPrompt({
+      dogName: 'Biscuit',
+      personality: defaultPersonality({ vocalStyle: 'silent', energy: 'calm' }),
+      intentId: 'name',
+      intentDescription: 'Dog name',
+      slotLabel: 'Perk up',
+    })
+
+    expect(barkName).toMatch(/Barking dog/)
+    expect(barkName).toMatch(/high, small-dog-pitched barks/)
+    expect(barkName).not.toMatch(/Silence-first/)
+    expect(barkName).toMatch(/hyperactive/)
+    expect(barkName).toMatch(/soft, slightly sad eyes/)
+    expect(barkName).toMatch(/slobberer/)
+    expect(barkHug).toMatch(/loves hugs/i)
+    expect(barkHug).toMatch(/chest scratch/i)
+
+    expect(howlTreat).toMatch(/Howler/)
+    expect(howlTreat).toMatch(/low, large-dog howl/)
+    expect(howlTreat).not.toMatch(/Silence-first/)
+    expect(howlHug).toMatch(/bares (her )?teeth/)
+    expect(howlHug).toMatch(/no growl sound/)
+    expect(howlHug).not.toMatch(/loves hugs/i)
+
+    expect(talkName).toMatch(/Talker \(experimental\)/)
+    expect(talkName).toMatch(/English words/)
+    expect(talkName).not.toMatch(/Silence-first/)
+
+    expect(softName).toMatch(/Soft-vocal/)
+    expect(softName).toMatch(/Faint whine or breath/)
+    expect(softName).not.toMatch(/Silence-first/)
+    expect(softName).not.toMatch(/Barking dog/)
+
+    expect(silentHowl).toMatch(/Howl\/sing clip/)
+    expect(silentHowl).not.toMatch(/Silence-first/)
+    expect(silentPlay).toMatch(/one short challenge huff/i)
+    expect(silentPlay).not.toMatch(/Silence-first/)
+
+    expect(calmName).toMatch(/Silence-first/)
+    expect(calmName).toMatch(/Slow, calm, unhurried/)
+    expect(calmName).not.toMatch(/high, small-dog-pitched/)
+    expect(calmName).not.toMatch(/Murphy and Riley are remarkably non-vocal/)
   })
 })

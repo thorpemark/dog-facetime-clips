@@ -20,6 +20,7 @@ import {
   createDogLibrary,
   createSeedStudioState,
 } from '../data/clipStudioSeed'
+import { normalizePersonality } from './dogPersonality'
 import { publicAssetUrl } from '../lib/urls'
 
 export const STUDIO_STORAGE_KEY = 'dog-facetime-clips.studio.v1'
@@ -156,11 +157,22 @@ function personalityForSeedId(id: string) {
   return MURPHY_PERSONALITY
 }
 
-/** Fold baked Murphy/Riley/Both photos into older localStorage studios. */
+function withNormalizedPersonalities(state: ClipStudioState): ClipStudioState {
+  return {
+    ...state,
+    dogs: state.dogs.map((dog) => ({
+      ...dog,
+      personality: normalizePersonality(dog.personality, dog.id, dog.name),
+    })),
+    seedRevision: STUDIO_SEED_REVISION,
+  }
+}
+
+/** Fold baked Murphy/Riley/Both photos + personality radios into older localStorage studios. */
 export function migrateStudioState(state: ClipStudioState): ClipStudioState {
   const revision = state.seedRevision ?? 1
-  if (revision >= STUDIO_SEED_REVISION && state.dogs.some((dog) => dog.id === 'both')) {
-    return state
+  if (revision >= 2 && state.dogs.some((dog) => dog.id === 'both')) {
+    return withNormalizedPersonalities(state)
   }
 
   const seed = createSeedStudioState()
@@ -192,12 +204,11 @@ export function migrateStudioState(state: ClipStudioState): ClipStudioState {
     )
   }
 
-  return {
+  return withNormalizedPersonalities({
     ...state,
     dogs,
-    seedRevision: STUDIO_SEED_REVISION,
     activeDogId: state.activeDogId || dogs[0]?.id || seed.activeDogId,
-  }
+  })
 }
 
 export function getStudioState(): ClipStudioState {
@@ -313,7 +324,11 @@ export function applyStudioAction(
       return mapDog(state, action.dogId, (dog) => ({
         ...dog,
         ...action.patch,
-        personality: action.patch.personality ?? dog.personality,
+        personality: normalizePersonality(
+          action.patch.personality ?? dog.personality,
+          dog.id,
+          action.patch.name ?? dog.name,
+        ),
       }))
     case 'removeDog': {
       const dogs = state.dogs.filter((dog) => dog.id !== action.dogId)
