@@ -251,8 +251,8 @@ export function StudioSlotEditor({
             {copied ? 'Copied' : 'Copy'}
           </button>
           <span className="studio-prompt-hint">
-            Paste into Grok Imagine image-to-video, 6s · 9:16 portrait (or Pika). Then attach the
-            MP4 here. Re-suggest anytime; you can edit the prompt after.
+            Paste into Grok Imagine image-to-video, 6s · 9:16. Howling only on howl/sing slots; no
+            talking dogs. Then attach the MP4. Re-suggest anytime.
           </span>
         </div>
         {toast && (

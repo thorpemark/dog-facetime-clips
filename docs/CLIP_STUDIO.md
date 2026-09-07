@@ -54,11 +54,25 @@ This is the main generation loop. It is fully offline in the browser.
    - this slot’s label + optional slot notes
    - framing context when a photo is attached (portrait FaceTime, keep identity)
    - a **6 second** Grok Imagine arc: start near calm idle from the still → reaction peaks in the first ~2–3s → smoothly return to calm FaceTime idle (soft blinks, subtle breathing, looking toward camera) and hold through the end. Same dog, same framing, no zoom / cut / morph.
+   - **audio / mouth rules** (stated at the top of the prompt and repeated at the end): the dog never speaks, talks, or mouths English. Howling is howl-only (see below).
 3. **Copy** (toast confirms). Paste into **Grok Imagine** as an **image-to-video** prompt, with the framed still as the source image.
-4. In Grok Imagine, length options are **6 / 10 / 15s** (there is no 3–4s). Use **6s**, **9:16 portrait**, H.264 MP4, usually silent. Reject morphing / breed drift / extra dogs / clips that keep reacting until the last frame.
+4. In Grok Imagine, length options are **6 / 10 / 15s** (there is no 3–4s). Use **6s**, **9:16 portrait**, H.264 MP4, usually silent. Reject morphing / breed drift / extra dogs / talking dogs / clips that keep reacting until the last frame.
 5. **Attach MP4** back on the same slot.
 
 You can edit the prompt after Suggest, then Copy again. Suggest again to rebuild from the current dog / intent / notes / framing.
+
+### Howl-only vocalization
+
+Grok Imagine will invent a howl or talking-dog mouth if the prompt is vague. Suggest prompt is strict:
+
+- **Never:** dialogue, human speech, talking, English words, lip-sync talking.
+- **Howl / bay / sing / long open-mouth vocal:** only for **howl** or **sing** intents (or a slot note that explicitly says `responds to a howl`).
+- **Name, come, here, owner, attention, eye-contact, perk-up:** ears perk + eye contact only. The prompt says **does not howl**.
+- **Treat, walk, good dog, hug, play, idle, and everything else that is not howl/sing:** no howl, no bay, no singing. Soft dog sounds only (quiet pant, soft huff, tiny whine) or silence. Mouth mostly closed.
+- **Riley hug** may show teeth and a soft growl. That is still **not** a howl.
+- Murphy/Riley personality lines about howling are **omitted** from non-howl prompts so a name clip cannot pick up “sings and howls well.”
+
+Reject keepers where the dog talks, howls on a non-howl slot, or holds a howl-gape.
 
 ### SuperGrok vs an API key
 

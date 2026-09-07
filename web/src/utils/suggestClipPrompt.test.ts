@@ -119,6 +119,89 @@ describe('suggestClipPrompt', () => {
     expect(prompt).toMatch(/lean toward the camera/i)
   })
 
+  it('forbids speech and howling on name / come / treat, and repeats the rule', () => {
+    const name = suggestClipPrompt({
+      dogName: 'Murphy',
+      personality: MURPHY_PERSONALITY,
+      intentId: 'name',
+      intentDescription: 'Dog name',
+      slotLabel: 'Perk up / eye contact',
+    })
+    const come = suggestClipPrompt({
+      dogName: 'Murphy',
+      personality: MURPHY_PERSONALITY,
+      intentId: 'come',
+      intentDescription: 'Come here',
+      slotLabel: 'Eager lean in',
+    })
+    const treat = suggestClipPrompt({
+      dogName: 'Riley',
+      personality: RILEY_PERSONALITY,
+      intentId: 'treat',
+      intentDescription: 'Treat / chicken',
+      slotLabel: 'Excited, mouth open',
+    })
+
+    for (const prompt of [name, come, treat]) {
+      expect(prompt).toMatch(/AUDIO \(read first\)/)
+      expect(prompt).toMatch(/no dialogue/i)
+      expect(prompt).toMatch(/no talking/i)
+      expect(prompt).toMatch(/NOT a howl clip/)
+      expect(prompt).toMatch(/no howling/i)
+      expect(prompt).toMatch(/no bay/i)
+      expect(prompt.match(/no dialogue/gi)?.length).toBeGreaterThanOrEqual(2)
+      expect(prompt).not.toMatch(/Sings and howls well/)
+      expect(prompt).not.toMatch(/Awkward howl attempt/)
+    }
+
+    expect(name).toMatch(/ears perk and eye contact only/i)
+    expect(name).toMatch(/does not howl/i)
+    expect(come).toMatch(/does not howl/i)
+  })
+
+  it('allows dog howl only on howl/sing intents, still forbids talking', () => {
+    const howl = suggestClipPrompt({
+      dogName: 'Murphy',
+      personality: MURPHY_PERSONALITY,
+      intentId: 'howl',
+      intentDescription: 'Howl / sing',
+      slotLabel: 'Howl / sing',
+    })
+    const hug = suggestClipPrompt({
+      dogName: 'Riley',
+      personality: RILEY_PERSONALITY,
+      intentId: 'hug',
+      intentDescription: 'Hug / cuddle',
+      slotLabel: 'Side-touch reaction',
+    })
+
+    expect(howl).toMatch(/howl\/sing clip/i)
+    expect(howl).toMatch(/dog howl/i)
+    expect(howl).toMatch(/howls well/i)
+    expect(howl).toMatch(/no dialogue/i)
+    expect(howl).toMatch(/no talking/i)
+    expect(howl).not.toMatch(/NOT a howl clip/)
+    expect(howl.match(/no dialogue/gi)?.length).toBeGreaterThanOrEqual(2)
+
+    expect(hug).toMatch(/NOT a howl clip/)
+    expect(hug).toMatch(/growl-show-teeth/)
+    expect(hug).toMatch(/not a howl/)
+    expect(hug).toMatch(/no talking/i)
+  })
+
+  it('allows howl when slot notes explicitly say responds to a howl', () => {
+    const prompt = suggestClipPrompt({
+      dogName: 'Murphy',
+      personality: MURPHY_PERSONALITY,
+      intentId: 'come',
+      intentDescription: 'Come here',
+      slotLabel: 'Eager lean in',
+      userNotes: 'responds to a howl from the other room',
+    })
+    expect(prompt).toMatch(/Howl\/sing clip/i)
+    expect(prompt).not.toMatch(/NOT a howl clip/)
+  })
+
   it('matches seed studio prompts for hug / howl personality phrases', () => {
     const seed = createSeedStudioState()
     const murphy = seed.dogs.find((dog) => dog.id === 'murphy')
