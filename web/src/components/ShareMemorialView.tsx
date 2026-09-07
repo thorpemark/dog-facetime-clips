@@ -98,20 +98,35 @@ export function ShareMemorialView() {
           <p className="picker-prompt">Who would you like to call?</p>
 
           <div className="picker-grid">
-            {memorial.targets.map((target) => (
+            {memorial.targets.map((target) => {
+              const thumb = target.media[0]
+              return (
               <button
                 key={target.id}
                 type="button"
                 className="picker-card"
                 onClick={() => setSelectedTarget(target)}
               >
-                <span className="picker-emoji">{targetEmoji(target)}</span>
+                {thumb ? (
+                  <span className="mode-picker-thumb">
+                    <img
+                      src={thumb.publicUrl}
+                      alt=""
+                      style={{
+                        objectPosition: `${(thumb.focalX ?? 0.5) * 100}% ${(thumb.focalY ?? 0.5) * 100}%`,
+                      }}
+                    />
+                  </span>
+                ) : (
+                  <span className="picker-emoji">{targetEmoji(target)}</span>
+                )}
                 <span className="picker-name">{targetLabel(target)}</span>
                 <span className="picker-meta">
                   {target.media.length} photo{target.media.length !== 1 ? 's' : ''}
                 </span>
               </button>
-            ))}
+              )
+            })}
           </div>
 
           <label className="owner-name-input">

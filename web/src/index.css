@@ -160,6 +160,17 @@ button {
   text-align: center;
 }
 
+.home-avatar {
+  width: 132px;
+  height: 132px;
+  border-radius: 50%;
+  object-fit: cover;
+  object-position: 50% 32%;
+  display: block;
+  margin: 0 auto;
+  border: 3px solid rgba(255, 255, 255, 0.18);
+}
+
 .home-hero h1 {
   font-size: 2rem;
   font-weight: 700;
@@ -225,7 +236,15 @@ button {
   place-items: center;
   font-size: 3.5rem;
   margin-bottom: 16px;
+  overflow: hidden;
   transition: transform 1.2s ease-in-out;
+}
+
+.incoming-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: 50% 32%;
 }
 
 .incoming-avatar.pulse {
@@ -312,6 +331,21 @@ button {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  z-index: 1;
+}
+
+.call-idle-still {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: 50% 32%;
+  z-index: 0;
+}
+
+.call-idle-still--wide {
+  object-position: 50% 58%;
 }
 
 .call-overlay {
@@ -1279,6 +1313,56 @@ button {
   background: rgba(255, 255, 255, 0.14);
 }
 
+.mode-picker {
+  width: 100%;
+  max-width: 420px;
+}
+
+.mode-picker-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.mode-picker-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 10px 14px 10px 10px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 16px;
+  text-align: left;
+  transition: background 0.15s;
+}
+
+.mode-picker-card:active {
+  background: rgba(255, 255, 255, 0.14);
+}
+
+.mode-picker-thumb {
+  width: 72px;
+  height: 72px;
+  border-radius: 14px;
+  overflow: hidden;
+  flex-shrink: 0;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.mode-picker-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.mode-picker-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
 .picker-emoji {
   font-size: 2rem;
 }
@@ -2097,11 +2181,22 @@ button {
 }
 
 .studio-dog-tab {
-  padding: 8px 14px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 14px 6px 6px;
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.06);
   border: 1px solid rgba(255, 255, 255, 0.1);
   font-weight: 600;
+}
+
+.studio-dog-avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  object-fit: cover;
+  object-position: 50% 28%;
 }
 
 .studio-dog-tab.active {
@@ -2338,6 +2433,11 @@ button {
   background: rgba(255, 255, 255, 0.04);
   color: rgba(255, 255, 255, 0.5);
   font-size: 0.85rem;
+}
+
+.studio-default-photo-note {
+  font-size: 0.72rem;
+  color: rgba(255, 255, 255, 0.5);
 }
 
 .studio-placeholder-note,

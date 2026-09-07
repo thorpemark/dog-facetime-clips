@@ -1,12 +1,26 @@
 import type {
   ClipSlot,
   ClipSlotStatus,
+  ClipSourcePhoto,
   ClipStudioState,
   DogLibrary,
   IntentBucket,
   StudioAction,
 } from '../types/clipStudio'
-import { createSeedStudioState } from '../data/clipStudioSeed'
+import {
+  CALL_MODES,
+  defaultSourcePhotoForMode,
+  isKeySeedIntent,
+} from '../data/callModes'
+import {
+  BOTH_PERSONALITY,
+  MURPHY_PERSONALITY,
+  RILEY_PERSONALITY,
+  STUDIO_SEED_REVISION,
+  createDogLibrary,
+  createSeedStudioState,
+} from '../data/clipStudioSeed'
+import { publicAssetUrl } from '../lib/urls'
 
 export const STUDIO_STORAGE_KEY = 'dog-facetime-clips.studio.v1'
 
@@ -38,16 +52,45 @@ function notify(): void {
   for (const listener of listeners) listener()
 }
 
+function rehydratePhoto(photo: ClipSourcePhoto | null | undefined): ClipSourcePhoto | null {
+  if (!photo) return null
+  if (photo.publicPath && !photo.url) {
+    return { ...photo, url: publicAssetUrl(photo.publicPath) }
+  }
+  if (photo.publicPath) {
+    return { ...photo, url: publicAssetUrl(photo.publicPath) }
+  }
+  return photo
+}
+
+function rehydratePublicPhotos(state: ClipStudioState): ClipStudioState {
+  const next = cloneState(state)
+  for (const dog of next.dogs) {
+    dog.defaultPhoto = rehydratePhoto(dog.defaultPhoto)
+    for (const intent of dog.intents) {
+      for (const slot of intent.clipSlots) {
+        if (slot.sourcePhoto) slot.sourcePhoto = rehydratePhoto(slot.sourcePhoto)
+      }
+    }
+  }
+  return next
+}
+
 function persist(state: ClipStudioState): void {
   if (!canUseStorage()) return
   try {
     const serializable = cloneState(state)
     for (const dog of serializable.dogs) {
+      if (dog.defaultPhoto?.publicPath) {
+        dog.defaultPhoto.url = publicAssetUrl(dog.defaultPhoto.publicPath)
+      }
       for (const intent of dog.intents) {
         for (const slot of intent.clipSlots) {
           if (slot.sourcePhoto) {
             if (slot.sourcePhoto.blobKey) {
               slot.sourcePhoto.url = ''
+            } else if (slot.sourcePhoto.publicPath) {
+              slot.sourcePhoto.url = publicAssetUrl(slot.sourcePhoto.publicPath)
             }
           }
           if (slot.resultVideo) {
@@ -75,9 +118,96 @@ function readStored(): ClipStudioState | null {
   }
 }
 
+function seedPhotoForDog(dog: DogLibrary): ClipSourcePhoto | null {
+  if (dog.defaultPhoto) return structuredClone(dog.defaultPhoto)
+  const mode = CALL_MODES.find(
+    (item) => item.id === dog.id || item.dogName.toLowerCase() === dog.name.toLowerCase(),
+  )
+  return mode ? defaultSourcePhotoForMode(mode) : null
+}
+
+function fillMissingSlotPhotos(dog: DogLibrary, defaultPhoto: ClipSourcePhoto | null): DogLibrary {
+  if (!defaultPhoto) return dog
+  return {
+    ...dog,
+    defaultPhoto: dog.defaultPhoto ?? structuredClone(defaultPhoto),
+    avatarPath: dog.avatarPath ?? defaultPhoto.publicPath,
+    intents: dog.intents.map((intent) => ({
+      ...intent,
+      clipSlots: intent.clipSlots.map((slot) => {
+        if (slot.sourcePhoto) return slot
+        if (!isKeySeedIntent(intent.id)) return slot
+        return {
+          ...slot,
+          sourcePhoto: {
+            ...structuredClone(defaultPhoto),
+            id: `${defaultPhoto.id}-${slot.id}`,
+          },
+          status: slot.status === 'needs_redo' ? 'needs_redo' : 'photo_ready',
+        }
+      }),
+    })),
+  }
+}
+
+function personalityForSeedId(id: string) {
+  if (id === 'riley') return RILEY_PERSONALITY
+  if (id === 'both') return BOTH_PERSONALITY
+  return MURPHY_PERSONALITY
+}
+
+/** Fold baked Murphy/Riley/Both photos into older localStorage studios. */
+export function migrateStudioState(state: ClipStudioState): ClipStudioState {
+  const revision = state.seedRevision ?? 1
+  if (revision >= STUDIO_SEED_REVISION && state.dogs.some((dog) => dog.id === 'both')) {
+    return state
+  }
+
+  const seed = createSeedStudioState()
+  const dogs = state.dogs.map((dog) => fillMissingSlotPhotos(dog, seedPhotoForDog(dog)))
+
+  for (const seedDog of seed.dogs) {
+    const exists = dogs.some(
+      (dog) =>
+        dog.id === seedDog.id || dog.name.toLowerCase() === seedDog.name.toLowerCase(),
+    )
+    if (!exists) {
+      dogs.push(seedDog)
+    }
+  }
+
+  for (const mode of CALL_MODES) {
+    const exists = dogs.some(
+      (dog) =>
+        dog.id === mode.id || dog.name.toLowerCase() === mode.dogName.toLowerCase(),
+    )
+    if (exists) continue
+    const photo = defaultSourcePhotoForMode(mode)
+    dogs.push(
+      createDogLibrary(mode.dogName, personalityForSeedId(mode.id), {
+        id: mode.id,
+        defaultPhoto: photo,
+        avatarPath: mode.photoPath,
+      }),
+    )
+  }
+
+  return {
+    ...state,
+    dogs,
+    seedRevision: STUDIO_SEED_REVISION,
+    activeDogId: state.activeDogId || dogs[0]?.id || seed.activeDogId,
+  }
+}
+
 export function getStudioState(): ClipStudioState {
   if (!memory) {
-    memory = readStored() ?? createSeedStudioState()
+    const stored = readStored()
+    const next = rehydratePublicPhotos(
+      stored ? migrateStudioState(stored) : createSeedStudioState(),
+    )
+    memory = next
+    if (stored) persist(next)
   }
   return memory
 }
@@ -115,13 +245,44 @@ function mapIntent(
   }
 }
 
+export function sourcePhotoDisplayUrl(photo: ClipSourcePhoto | null | undefined): string {
+  if (!photo) return ''
+  if (
+    photo.url &&
+    (photo.url.startsWith('blob:') ||
+      photo.url.startsWith('data:') ||
+      photo.url.startsWith('http://') ||
+      photo.url.startsWith('https://'))
+  ) {
+    return photo.url
+  }
+  if (photo.publicPath) return publicAssetUrl(photo.publicPath)
+  return photo.url ?? ''
+}
+
+export function resolveSourcePhoto(
+  slot: ClipSlot,
+  dog?: DogLibrary,
+): ClipSourcePhoto | null {
+  const attached = slot.sourcePhoto
+  if (attached && (attached.url || attached.publicPath || attached.blobKey)) {
+    return { ...attached, url: sourcePhotoDisplayUrl(attached) }
+  }
+  if (dog?.defaultPhoto) {
+    return { ...dog.defaultPhoto, url: sourcePhotoDisplayUrl(dog.defaultPhoto) }
+  }
+  return null
+}
+
 export function deriveSlotStatus(slot: ClipSlot): ClipSlotStatus {
   if (slot.status === 'needs_redo') return 'needs_redo'
   const hasUserVideo =
     slot.resultVideo?.origin === 'user' &&
     Boolean(slot.resultVideo.objectUrl || slot.resultVideo.blobKey || slot.resultVideo.path)
   if (hasUserVideo) return 'video_attached'
-  if (slot.sourcePhoto) return 'photo_ready'
+  if (slot.sourcePhoto?.url || slot.sourcePhoto?.publicPath || slot.sourcePhoto?.blobKey) {
+    return 'photo_ready'
+  }
   return 'empty'
 }
 

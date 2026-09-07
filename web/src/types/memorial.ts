@@ -65,6 +65,8 @@ export interface CallSessionProfile {
   memorialNote: string
   memorialTitle: string
   targetKind: CallTargetKind
+  /** Incoming / home avatar (usually the first still). */
+  avatarUrl?: string
   photoUrls: string[]
   /** Per-photo framing aligned with photoUrls. */
   photoFocalPoints?: Array<{

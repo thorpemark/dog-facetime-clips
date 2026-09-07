@@ -10,9 +10,15 @@ Demo persistence uses **localStorage** (library JSON) and **IndexedDB** (photos/
 2. Type a name in **New dog name** → **Add dog**.
 3. Edit the personality notes (first line = breed; following lines = character). Suggest prompt and new clip slots pick this up.
 
-Murphy and Riley ship as seed dogs (huskitas). **Riley is the black huskita.** **Murphy is the other dog** (not Riley). Reset seed from the bottom of Studio if you want to start over in this browser.
+Murphy, Riley, and **Both** ship as seed dogs (huskitas) with baked stills in `web/public/modes/`. **Riley is the black huskita.** **Murphy is the other dog** (not Riley).
 
-Call / Studio UI will have **three modes: Murphy, Riley, and both**. A mode image is forthcoming; it does not block prompt work.
+| Mode | Photo | Who |
+|------|-------|-----|
+| **Murphy** | `modes/murphy.jpg` | Tan/ginger huskita, folded ears — the other dog, not Riley |
+| **Riley** | `modes/riley.jpg` | Black-and-white huskita, upright ears — the black huskita |
+| **Both** | `modes/both.jpg` | Murphy on the left, Riley on the right |
+
+Those stills are the Studio avatars, the home/demo three-mode picker cards, incoming-call faces, and the default source photo on **idle + name / come / hug / howl** slots. Other slots fall back to the dog-level still until you attach a different one. Reset seed from the bottom of Studio if you want to start over in this browser. Portrait framing is a sensible default — refine crops in Studio.
 
 ## Add an intent (bucket)
 
@@ -98,6 +104,7 @@ Weights are relative (40/30/30 ≡ 4/3/3). Playback picks with `pickWeightedClip
 |------|------|
 | `/studio` | Editor (dogs, intents, phrases, photos, framing, prompts, videos) |
 | `/catalog` | Read-only table + phrase tester for the selected dog |
+| `/demo` | Three-mode picker (Murphy / Riley / Both) |
 | `/demo?dog=Riley` | Sample call using that dog’s library (no memorial photos → clip mode) |
 
-Playback and matching read the Studio library for the active dog name (Murphy / Riley / whatever you added).
+Playback and matching read the Studio library for the active dog name (Murphy / Riley / Both / whatever you added). Demo calls keep **clip mode** (`photoUrls` empty) so placeholder / attached MP4s still play. The mode photo is also used as an idle still behind the video so the dog is visible if a clip file is missing.

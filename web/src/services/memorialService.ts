@@ -809,5 +809,6 @@ export function memorialToCallProfile(
     targetKind: target.kind,
     photoUrls,
     photoFocalPoints,
+    avatarUrl: photoUrls[0],
   }
 }

@@ -10,7 +10,7 @@ This document describes the **dog-facetime-clips** product direction: FaceTime-s
 4. **React:** map transcript → **reaction bucket** (meaning + keyword) → **weighted random clip** → crossfade playback → return to idle.
 5. **Not** live generative video in the call — only seamless playback of prerendered MP4s.
 
-Murphy / Riley are the first dogs; buckets and phrases should feel natural for how Mark talks to them. **Riley is the black huskita.** **Murphy is the other dog.** Playback UI will have three modes — Murphy, Riley, and both (mode image forthcoming).
+Murphy, Riley, and **Both** are the first modes. **Riley is the black huskita.** **Murphy is the other dog.** Stills live in `web/public/modes/` (`murphy.jpg` tan/folded ears, `riley.jpg` black-and-white/upright ears, `both.jpg` Murphy left + Riley right). Buckets and phrases should feel natural for how Mark talks to them.
 
 ---
 
@@ -133,10 +133,10 @@ Wire point: `useKeywordSpotter` → `matchTranscript` → `onMatch(bucketId)` �
 1. Pick (or add) a dog.
 2. **Add intent** / **Add phrase** / **Add clip variant**.
 3. Upload a source still → frame (portrait + landscape, crop handles, zoom, rotation).
-4. Copy the prompt → generate in Pika / Gemini / Grok → **Attach MP4**.
+4. **Suggest prompt** → **Copy** → generate in Grok Imagine (6s · 9:16) / Pika / Gemini → **Attach MP4**.
 5. Optional `generatorUsed` label only (no live APIs).
 
-Seed templates still live in `web/src/data/reactionCatalog.ts` and are copied into Murphy/Riley on first load. Personality-specific hug/howl prompts are in `web/src/data/clipStudioSeed.ts`.
+Seed templates still live in `web/src/data/reactionCatalog.ts` and are copied into Murphy / Riley / Both on first load. Personality-specific hug/howl prompts are composed by `web/src/utils/suggestClipPrompt.ts`.
 
 Missing files fail gracefully: playback tries other variants, then returns to idle. The demo ships bright colored placeholder MP4s so GitHub Pages has *something* visible to play.
 
@@ -281,4 +281,4 @@ Photos remain valid indefinitely in **dog-facetime**; this repo adds clip render
 2. **Audio:** silent clips vs subtle ambient paw/collar sounds?
 3. **Clip length cap:** hard max 3s for snappy FaceTime feel?
 
-Per-dog catalogs are implemented in Clip Studio (Murphy / Riley seed + Add dog).
+Per-dog catalogs are implemented in Clip Studio (Murphy / Riley / Both seed + Add dog).

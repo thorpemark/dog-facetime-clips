@@ -5,6 +5,8 @@ import {
   type ReactionBucket,
 } from '../data/reactionCatalog'
 import { useClipStudio } from '../hooks/useClipStudio'
+import { sourcePhotoDisplayUrl } from '../utils/clipStudioStore'
+import { publicAssetUrl } from '../lib/urls'
 import { dogLibraryToBuckets } from '../utils/clipStudioCatalog'
 import {
   MATCH_CONFIDENCE_THRESHOLD,
@@ -146,6 +148,17 @@ export function CatalogView() {
               className={`studio-dog-tab ${item.id === activeDog?.id ? 'active' : ''}`}
               onClick={() => dispatch({ type: 'selectDog', dogId: item.id })}
             >
+              {(item.defaultPhoto || item.avatarPath) && (
+                <img
+                  className="studio-dog-avatar"
+                  src={
+                    item.defaultPhoto
+                      ? sourcePhotoDisplayUrl(item.defaultPhoto)
+                      : publicAssetUrl(item.avatarPath ?? '')
+                  }
+                  alt=""
+                />
+              )}
               {item.name}
             </button>
           ))}

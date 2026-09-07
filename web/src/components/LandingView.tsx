@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { AppHeader } from './AppHeader'
 import { DemoModeBanner } from './DemoModeBanner'
+import { ModePicker } from './ModePicker'
 
 export function LandingView() {
   const navigate = useNavigate()
@@ -43,6 +44,11 @@ export function LandingView() {
             link with family — no account needed to call.
           </p>
         </div>
+
+        <ModePicker
+          title="Who would you like to call?"
+          onSelect={(mode) => navigate(`/demo?dog=${encodeURIComponent(mode.dogName)}`)}
+        />
 
         <Link to="/studio" className="btn-call">
           <span className="btn-icon">🎬</span>

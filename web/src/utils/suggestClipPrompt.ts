@@ -109,6 +109,16 @@ export function personalityBeat(
       'Murphy sings and howls well — head lifted, mouth open in a full confident howl/song, musical husky voice. Strong, committed sing. Peak the howl in the first ~2–3 seconds, then his head lowers, mouth closes, and he returns to a calm FaceTime idle (soft blinks, subtle breathing, looking toward camera) and holds it through the end of the clip. Dog howl/sing is allowed; he still does not speak English or mouth human words.'
     )
   }
+  if (dog === 'both' && hugLike) {
+    return (
+      'Together shot: Murphy leans in and offers his neck; Riley is wary and may bare teeth if her side is touched — keep both dogs in frame. Peak those opposite hug reactions in the first ~2–3 seconds, then both settle back to a calm FaceTime idle looking toward the camera and hold it through the end of the clip. Neither dog howls or talks during a hug.'
+    )
+  }
+  if (dog === 'both' && howlLike && allowHowl) {
+    return (
+      'Together shot: Murphy sings a full husky howl; Riley attempts an awkward weaker howl beside him. Same kitchen-rug framing, both faces toward camera. Peak the pair howl in the first ~2–3 seconds, then mouths close and both return to a calm FaceTime idle looking at the camera, holding that idle through the end of the clip. Dog vocalization is allowed; neither speaks English or mouths human words.'
+    )
+  }
 
   return personalityNotesForIntent(personality, allowHowl)
 }
@@ -194,6 +204,9 @@ function lookLine(dogName: string): string {
   }
   if (dog === 'murphy') {
     return 'Murphy is the other huskita — not Riley (Riley is the black huskita). Keep his identity, coat, and face distinct from Riley. Do not turn him into the black huskita.'
+  }
+  if (dog === 'both') {
+    return 'Together memorial: Murphy (tan/ginger huskita, folded ears) on the left and Riley (the black huskita, upright ears) on the right. Keep both dogs in frame and do not swap their coats or places.'
   }
   return ''
 }

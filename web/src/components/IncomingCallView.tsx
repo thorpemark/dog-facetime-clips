@@ -36,7 +36,11 @@ export function IncomingCallView() {
     <div className="screen incoming-screen">
       <div className="incoming-content">
         <div className={`incoming-avatar ${pulse ? 'pulse' : ''}`}>
-          <span>🐾</span>
+          {profile.avatarUrl ? (
+            <img src={profile.avatarUrl} alt="" />
+          ) : (
+            <span>🐾</span>
+          )}
         </div>
         <p className="incoming-subtitle">Memorial Call</p>
         <h1 className="incoming-name">{profile.dogName}</h1>

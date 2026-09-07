@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { MURPHY_PERSONALITY, RILEY_PERSONALITY, createSeedStudioState } from '../data/clipStudioSeed'
+import {
+  BOTH_PERSONALITY,
+  MURPHY_PERSONALITY,
+  RILEY_PERSONALITY,
+  createSeedStudioState,
+} from '../data/clipStudioSeed'
 import { suggestClipPrompt } from './suggestClipPrompt'
 
 const framing = {
@@ -203,6 +208,31 @@ describe('suggestClipPrompt', () => {
     })
     expect(prompt).toMatch(/Howl\/sing clip/i)
     expect(prompt).not.toMatch(/NOT a howl clip/)
+  })
+
+  it('bakes Both hug / howl together-shot personality and identity', () => {
+    const hug = suggestClipPrompt({
+      dogName: 'Both',
+      personality: BOTH_PERSONALITY,
+      intentId: 'hug',
+      intentDescription: 'Hug / cuddle',
+      slotLabel: 'Together hug',
+    })
+    const howl = suggestClipPrompt({
+      dogName: 'Both',
+      personality: BOTH_PERSONALITY,
+      intentId: 'howl',
+      intentDescription: 'Howl / sing',
+      slotLabel: 'Together howl',
+    })
+
+    expect(hug).toMatch(/keep both dogs in frame/i)
+    expect(hug).toMatch(/Murphy leans in/i)
+    expect(hug).toMatch(/Riley is wary/i)
+    expect(hug).toMatch(/black huskita/i)
+    expect(howl).toMatch(/Murphy sings/i)
+    expect(howl).toMatch(/awkward weaker howl/i)
+    expect(howl).toMatch(/kitchen-rug/i)
   })
 
   it('matches seed studio prompts for hug / howl personality phrases', () => {

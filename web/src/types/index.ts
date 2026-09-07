@@ -4,6 +4,8 @@ export interface DogProfile {
   memorialNote: string
   memorialTitle?: string
   targetKind?: 'dog_a' | 'dog_b' | 'together'
+  /** Incoming / home avatar only — does not switch the call into Ken Burns photo mode. */
+  avatarUrl?: string
   photoUrls?: string[]
   photoFocalPoints?: Array<{
     focalX: number

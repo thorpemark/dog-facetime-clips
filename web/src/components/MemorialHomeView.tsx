@@ -20,7 +20,15 @@ export function MemorialHomeView({
         )}
 
         <div className="home-hero">
-          <span className="paw-icon large">🐾</span>
+          {profile.avatarUrl ? (
+            <img
+              className="home-avatar"
+              src={profile.avatarUrl}
+              alt={profile.dogName}
+            />
+          ) : (
+            <span className="paw-icon large">🐾</span>
+          )}
           <h1>{profile.dogName}</h1>
           {profile.memorialNote && (
             <p className="memorial-note">{profile.memorialNote}</p>
