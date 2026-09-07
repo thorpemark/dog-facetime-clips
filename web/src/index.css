@@ -2343,9 +2343,81 @@ button {
 .studio-placeholder-note,
 .studio-prompt-hint,
 .studio-chance,
-.studio-dog-hint {
+.studio-dog-hint,
+.studio-suggest-cta {
   font-size: 0.75rem;
   color: rgba(255, 255, 255, 0.45);
+}
+
+.studio-slot--needs-video {
+  border-color: rgba(80, 140, 255, 0.28);
+}
+
+.studio-prompt-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.studio-slot--needs-video .studio-prompt-panel {
+  background: rgba(80, 140, 255, 0.08);
+  border-color: rgba(158, 192, 255, 0.28);
+}
+
+.studio-prompt-panel--fresh {
+  box-shadow: 0 0 0 1px rgba(61, 220, 132, 0.35);
+}
+
+.studio-suggest-cta {
+  margin: 0;
+  font-weight: 600;
+  color: #9ec0ff;
+}
+
+.studio-btn-suggest,
+.studio-btn-copy {
+  padding: 10px 16px;
+  border-radius: 12px;
+  font-weight: 700;
+  font-size: 0.9rem;
+  white-space: nowrap;
+}
+
+.studio-btn-suggest {
+  background: rgba(80, 140, 255, 0.38);
+  border: 1px solid rgba(158, 192, 255, 0.45);
+}
+
+.studio-btn-suggest:hover {
+  background: rgba(80, 140, 255, 0.5);
+}
+
+.studio-btn-copy {
+  background: rgba(61, 220, 132, 0.28);
+  border: 1px solid rgba(142, 236, 192, 0.4);
+}
+
+.studio-btn-copy:hover:not(:disabled) {
+  background: rgba(61, 220, 132, 0.4);
+}
+
+.studio-btn-copy:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.studio-toast {
+  margin: 0;
+  padding: 8px 12px;
+  border-radius: 10px;
+  background: rgba(61, 220, 132, 0.2);
+  color: #b6f5d4;
+  font-size: 0.82rem;
+  font-weight: 600;
 }
 
 .studio-slot-photo-actions,
