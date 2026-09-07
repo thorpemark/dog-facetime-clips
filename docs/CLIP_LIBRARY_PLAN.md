@@ -10,7 +10,7 @@ This document describes the **dog-facetime-clips** product direction: FaceTime-s
 4. **React:** map transcript → **reaction bucket** (meaning + keyword) → **weighted random clip** → crossfade playback → return to idle.
 5. **Not** live generative video in the call — only seamless playback of prerendered MP4s.
 
-Murphy / Riley are the first dogs; buckets and phrases should feel natural for how Mark talks to them.
+Murphy / Riley are the first dogs; buckets and phrases should feel natural for how Mark talks to them. **Riley is the black huskita.** **Murphy is the other dog.** Playback UI will have three modes — Murphy, Riley, and both (mode image forthcoming).
 
 ---
 

@@ -10,39 +10,23 @@ import {
   type ReactionBucket,
 } from './reactionCatalog'
 import { generateId } from '../lib/ids'
-
-function personalityBeat(dogName: string, intentId: string, personality: DogPersonality): string {
-  const notes = personality.notes.join(' ')
-  if (dogName.toLowerCase() === 'riley' && intentId === 'hug') {
-    return 'Riley does not enjoy hugs: when her side is touched or she is asked for a hug she bares her teeth and growls — a characteristic warning, not an attack. Ears back, lips curled, wary eyes.'
-  }
-  if (dogName.toLowerCase() === 'murphy' && intentId === 'hug') {
-    return 'Murphy loves hugs: leans in, offers his neck with nose tilted up, enjoys a chest scratch, soft happy eyes, relaxed mouth.'
-  }
-  if (dogName.toLowerCase() === 'riley' && intentId === 'howl') {
-    return 'Riley attempts to howl but it is awkward — hesitant, slightly off, mouth half-open, looking unsure; a cute failed howl rather than a full song.'
-  }
-  if (dogName.toLowerCase() === 'murphy' && intentId === 'howl') {
-    return 'Murphy sings and howls well — head lifted, mouth open in a full confident howl/song, musical husky voice.'
-  }
-  return notes
-}
+import { suggestClipPrompt } from '../utils/suggestClipPrompt'
 
 export function buildClipPrompt(
   dog: { name: string; personality: DogPersonality },
   intent: { id: string; description: string },
   slotLabel: string,
+  options?: { userNotes?: string; hasSourcePhoto?: boolean },
 ): string {
-  const beat = personalityBeat(dog.name, intent.id, dog.personality)
-  return [
-    `Portrait FaceTime-style reaction clip, 1–3 seconds, silent.`,
-    `${dog.name} is a ${dog.personality.breed}.`,
-    `Looking toward the phone camera, natural lighting, no text, no morphing artifacts.`,
-    `Intent (${intent.id}): ${intent.description}.`,
-    beat,
-    `Variant: ${slotLabel}.`,
-    `Use the attached source still and crop. Keep a consistent phone-at-chest-height framing.`,
-  ].join(' ')
+  return suggestClipPrompt({
+    dogName: dog.name,
+    personality: dog.personality,
+    intentId: intent.id,
+    intentDescription: intent.description,
+    slotLabel,
+    userNotes: options?.userNotes,
+    hasSourcePhoto: options?.hasSourcePhoto,
+  })
 }
 
 function slotsFromBucket(
@@ -83,6 +67,7 @@ function intentsFromCatalog(
 export const MURPHY_PERSONALITY: DogPersonality = {
   breed: 'huskita (Husky × Akita mix)',
   notes: [
+    'Murphy is the other huskita — not Riley (Riley is the black huskita).',
     'Warm, expressive, slightly goofy.',
     'Loves hugs, chest scratches, and offering his neck with his nose up.',
     'Sings and howls well — a full musical husky howl.',
@@ -92,6 +77,7 @@ export const MURPHY_PERSONALITY: DogPersonality = {
 export const RILEY_PERSONALITY: DogPersonality = {
   breed: 'huskita (Husky × Akita mix)',
   notes: [
+    'Riley is the black huskita.',
     'Independent, expressive, a bit stubborn.',
     'Does not like hugs: bares teeth and growls when her side is touched or she is asked for a hug (warning, not an attack).',
     'Awkward howl attempt — hesitant and slightly off, not a full song.',
