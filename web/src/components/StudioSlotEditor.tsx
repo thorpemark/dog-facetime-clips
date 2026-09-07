@@ -275,8 +275,9 @@ export function StudioSlotEditor({
             {copied ? 'Copied' : 'Copy'}
           </button>
           <span className="studio-prompt-hint">
-            Paste into Grok Imagine image-to-video, 6s · 9:16. Howling only on howl/sing slots; no
-            talking dogs. Then attach the MP4. Re-suggest anytime.
+            Paste into Grok Imagine image-to-video, 6s · 9:16. AUDIO is silence-first (howl/sing is
+            the only vocal exception). If Grok adds bark/music, strip audio before attaching. Then
+            attach the MP4. Re-suggest anytime.
           </span>
         </div>
         {toast && (

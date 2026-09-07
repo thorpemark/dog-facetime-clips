@@ -125,6 +125,7 @@ export const MURPHY_PERSONALITY: DogPersonality = {
   breed: 'huskita (Husky × Akita mix)',
   notes: [
     'Murphy is the other huskita — not Riley (Riley is the black huskita).',
+    'Remarkably non-vocal — expresses via face and body.',
     'Warm, expressive, slightly goofy.',
     'Loves hugs, chest scratches, and offering his neck with his nose up.',
     'Sings and howls well — a full musical husky howl.',
@@ -135,8 +136,9 @@ export const RILEY_PERSONALITY: DogPersonality = {
   breed: 'huskita (Husky × Akita mix)',
   notes: [
     'Riley is the black huskita.',
+    'Remarkably non-vocal — expresses via face and body.',
     'Independent, expressive, a bit stubborn.',
-    'Does not like hugs: bares teeth and growls when her side is touched or she is asked for a hug (warning, not an attack).',
+    'Does not like hugs: silent warning face, bares teeth when her side is touched or she is asked for a hug (not an attack).',
     'Awkward howl attempt — hesitant and slightly off, not a full song.',
   ],
 }
@@ -145,6 +147,7 @@ export const BOTH_PERSONALITY: DogPersonality = {
   breed: 'huskitas (Husky × Akita mix)',
   notes: [
     'Shared memorial of Murphy (tan, folded ears, left) and Riley (black-and-white, upright ears, right).',
+    'Remarkably non-vocal — express via face and body. Howl/sing is the only vocal exception.',
     'Keep both dogs in frame. Same still as the Both mode card.',
     'Murphy loves hugs and howls well; Riley is hug-wary and has an awkward howl.',
   ],
