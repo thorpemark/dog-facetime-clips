@@ -16,7 +16,7 @@ A gentle memorial experience that simulates FaceTiming a beloved dog who has pas
 | **Sharing** | Supabase memorial links | Same UX target; clip assets per memorial (planned) |
 | **Status** | Production memorial sharing | v1 scaffold — see [`docs/CLIP_LIBRARY_PLAN.md`](docs/CLIP_LIBRARY_PLAN.md) |
 
-**Next steps for Mark:** generate portrait reaction clips (Runway/Kling/etc.), fill `web/src/data/reactionCatalog.ts`, tune phrase lists, then wire playback to pick randomly from each bucket. Ken Burns photo mode stays in code as fallback until dual-mode is complete.
+**Next steps for Mark:** generate portrait reaction clips (Runway/Kling/etc.), drop them on the placeholder paths in `web/src/data/reactionCatalog.ts`, and tune phrases / weights (or use `/catalog` for local demo weights). Ken Burns photo mode stays in code as fallback until dual-mode is complete.
 
 ---
 
@@ -59,7 +59,8 @@ See the sections below for iOS-specific details (clips, keywords, CI).
 |------|---------|
 | **`web/`** | **Run now** — Vite + React web app for Safari/Chrome (PC, iPhone, iPad) |
 | **`docs/CLIP_LIBRARY_PLAN.md`** | Architecture for clip buckets, phrase matching, storage, migration |
-| **`web/src/data/reactionCatalog.ts`** | Reaction bucket stub (phrases + placeholder clip paths) |
+| **`web/src/data/reactionCatalog.ts`** | Weighted reaction buckets, phrases, semantic hints |
+| **`web/src/utils/matchTranscript.ts`** | Meaning + keyword matcher |
 | **`MemorialCall/`** | Native iOS app — requires Mac + Xcode |
 | **`.github/workflows/deploy-web.yml`** | Builds & deploys `web/` to GitHub Pages |
 
@@ -67,7 +68,7 @@ See the sections below for iOS-specific details (clips, keywords, CI).
 
 - Create personal memorials with 1–3 call targets (Dog A, Dog B, Together)
 - Upload photos; crossfading Ken Burns playback during calls *(legacy still mode — kept until clip dual-mode ships)*
-- **Clip-library direction:** idle loop + voice-triggered prerendered reactions (see plan doc)
+- **Clip-library direction:** idle loop + meaning-matched prerendered reactions (`reactionCatalog.ts`, `/catalog`)
 - **Call-screen photo controls** — Side-drawer Ken Burns speed (saved in browser), swipe or tap prev/next between photos
 - **Portrait crop framing** — Drag a portrait frame on create/edit photos; zoom out for together shots
 - Share links for family (`/m/:shareId`) — no account needed
@@ -76,7 +77,7 @@ See the sections below for iOS-specific details (clips, keywords, CI).
 - Incoming call → Accept → full-screen memorial call UI
 - Web Speech API keyword listening (debug panel fallback)
 - Supabase backend with localStorage demo mode when env vars are missing
-- Configurable `keyword_rules.json` → reaction mapping (migrating toward `reactionCatalog.ts`)
+- Configurable `reactionCatalog.ts` (weighted clips + semantic matching) with `/catalog` viewer
 - GitHub Pages deploy at `/dog-facetime-clips/` base path
 
 ## iOS App — Quick Start

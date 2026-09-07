@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom'
 import { useMemorialCall } from '../context/MemorialCallContext'
 
 export function MemorialHomeView({
@@ -42,6 +43,10 @@ export function MemorialHomeView({
           <span className="btn-icon">📹</span>
           Start Memorial Call
         </button>
+
+        <Link to="/catalog" className="btn-text">
+          Reaction catalog
+        </Link>
       </div>
     </div>
   )

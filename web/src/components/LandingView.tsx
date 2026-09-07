@@ -53,6 +53,10 @@ export function LandingView() {
           My memorials / Sign in
         </Link>
 
+        <Link to="/catalog" className="btn-text landing-catalog-link">
+          Reaction catalog (intents → clips)
+        </Link>
+
         <div className="open-link-section">
           <p className="section-label">Open a link</p>
           <div className="open-link-row">

@@ -67,6 +67,7 @@ Magic links redirect to `https://thorpemark.github.io/dog-facetime-clips/` (site
 | Path | Purpose |
 |------|---------|
 | `/` | Home — create a memorial, open a link, sign in |
+| `/catalog` | Reaction catalog — intents, phrases, weighted clips, phrase tester |
 | `/create` | Step-by-step memorial creation |
 | `/my` | My memorials — list owned memorials, sign in |
 | `/m/:shareId` | Public share — pick who to call, start FaceTime UI |
@@ -166,20 +167,17 @@ When speech isn't available, use the **Debug Panel** (🐞 button):
 
 ## Keyword → Clip Mapping
 
-Rules live in [`public/keyword_rules.json`](public/keyword_rules.json):
+**Source of truth:** [`src/data/reactionCatalog.ts`](src/data/reactionCatalog.ts).
 
-```json
-{
-  "id": "walk",
-  "phrases": ["walk", "go for a walk", "wanna walk"],
-  "clipFileName": "react_walk.mp4",
-  "priority": 8,
-  "description": "Walk"
-}
-```
+Each intent bucket has seed `phrases`, `semanticHints`, and weighted `clips`. During a call, `matchTranscript` scores meaning (n-gram + synonyms) with keyword fallback; `pickWeightedClip` then rolls a variant by weight.
 
-- `{dogName}` and `{ownerName}` are replaced from onboarding.
-- Higher **priority** wins when multiple phrases match.
+Inspect the live table at **`/catalog`** (also linked from the landing page). You can tweak weights in the browser (localStorage); lasting edits belong in `reactionCatalog.ts`.
+
+`public/keyword_rules.json` is a static copy kept for compatibility. Playback no longer depends on a single `clipFileName` per rule.
+
+- `{dogName}` and `{ownerName}` are replaced from the memorial profile.
+- Higher **priority** wins near-ties. If the best score is below the confidence threshold, the call stays on idle.
+- Missing MP4s skip to another variant, then idle.
 
 ## Replacing Placeholder Clips
 

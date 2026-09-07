@@ -7,7 +7,7 @@ This document describes the **dog-facetime-clips** product direction: FaceTime-s
 1. Same call UX as the still app: incoming ring, active call, portrait/landscape framing, share links.
 2. **Idle:** loop one or more calm clips (or crossfade stills until clips exist).
 3. **Listen:** Web Speech API (web) / Speech framework (iOS) transcribes speech continuously.
-4. **React:** map transcript → **reaction bucket** → pick **one clip at random** from that bucket → crossfade playback → return to idle.
+4. **React:** map transcript → **reaction bucket** (meaning + keyword) → **weighted random clip** → crossfade playback → return to idle.
 5. **Not** live generative video in the call — only seamless playback of prerendered MP4s.
 
 Murphy / Riley are the first dogs; buckets and phrases should feel natural for how Mark talks to them.
@@ -27,10 +27,10 @@ stateDiagram-v2
 ```
 
 ```
-Transcript ──► normalize ──► match buckets (priority) ──► bucket id
+Transcript ──► normalize ──► match buckets (meaning + keyword, priority tie-break) ──► bucket id
                                                       │
                                                       ▼
-                                            pickRandomClip(bucket)
+                                            pickWeightedClip(bucket)
                                                       │
                                                       ▼
                                             crossfade to MP4
@@ -57,52 +57,82 @@ Each **bucket** is a semantic category with many synonymous **phrases** and seve
 
 Buckets are extensible. **`{dogName}`** and **`{ownerName}`** placeholders expand at runtime from memorial profile data.
 
-**Priority:** when multiple buckets match the same transcript substring, higher `priority` wins (same as today’s `keyword_rules.json`).
+**Priority:** when multiple buckets are close in score, higher `priority` wins. Content intents (come, treat, …) beat name/owner when the utterance is a command that also contains the dog’s name.
 
 ---
 
 ## Phrase → bucket matching
 
-### v1 (shipped pattern)
+The matcher lives in `web/src/utils/matchTranscript.ts` and is wired through `useKeywordSpotter`. Catalog data is the source of truth (`reactionCatalog.ts`); `keyword_rules.json` is a static copy for older clients.
 
-- Lowercase transcript.
-- For each bucket (sorted by priority), check if any resolved phrase is a **substring** of the transcript.
-- First match wins.
+### Pipeline (v2 — shipped)
 
-Implementation today: `web/src/utils/keywordRules.ts` + `web/public/keyword_rules.json`.
+1. **Normalize** the transcript (lowercase, contractions, punctuation).
+2. **Strip** `{dogName}` / `{ownerName}` (and short nicknames like “Murph”) before scoring *content* buckets so “come here Murph” does not get stolen by the name intent.
+3. **Keyword fallback:** seed `phrases` with word-boundary matching for short tokens (`no` must not match `know`). Longer phrases use substring includes. This works offline with zero model download.
+4. **Meaning / similarity (primary for paraphrases):** each bucket is a document of seed phrases + `semanticHints`. The transcript is scored with:
+   - token coverage after a small synonym/alias map (`chicken` → treat, `outside` → walk, `c’mere` → come)
+   - character n-gram cosine similarity (TF–IDF over the catalog)
+5. **Threshold:** if the best score is below `MATCH_CONFIDENCE_THRESHOLD` (~0.34), stay on idle — no false reaction.
+6. **Tie-break:** near-ties use bucket `priority`. Content buckets get a small preference over name/owner.
 
-### v1.1 (clips fork)
+Call flow:
 
-- Source phrases from `web/src/data/reactionCatalog.ts` (single source of truth).
-- Keep `keyword_rules.json` for backward compatibility until playback is fully wired to the catalog.
+```
+Transcript ──► matchTranscript ──► bucket id
+                                   │
+                                   ▼
+                         pickWeightedClip(bucket)
+                                   │
+                                   ▼
+                         crossfade to MP4 (or skip if missing)
+                                   │
+                                   ▼
+                         return to idle
+```
 
-### v2 (closest match)
+### Why not Transformers.js on GitHub Pages?
 
-When no substring match:
+A MiniLM model via Transformers.js / Xenova is ~20MB+ and slow on first load in mobile Safari. For a 10-intent closed set, n-gram + synonym similarity against baked catalog text is the better Pages-friendly approach: no Hugging Face download, works offline, instant. The `matchTranscript` API can later swap in an in-browser embedding model behind the same return type if needed.
 
-1. Tokenize transcript (remove filler words).
-2. Score each bucket by best phrase similarity (Levenshtein / trigram / embedding — TBD).
-3. Fire only if score ≥ threshold; optional debug overlay shows near-misses.
+There is no private LLM classify endpoint in this repo (no API keys in the web client), so matching stays fully client-side.
 
-Cooldown (~2s) prevents double-firing on partial transcripts.
+Cooldown (~2s) in `useKeywordSpotter` prevents double-firing on partial transcripts.
 
 ---
 
-## Randomness within a bucket
+## Weighted randomness within a bucket
 
-Each bucket holds **N ≥ 1** clip paths. On match:
+Each bucket holds **N ≥ 1** clips with relative **weights** (percents or raw numbers — they are normalized):
 
 ```ts
-const clipPath = pickRandomClipForBucket(bucketId, { excludeLast: true })
+clips: [
+  { path: 'clips/reactions/come/come_01.mp4', weight: 40, label: 'Head tilt' },
+  { path: 'clips/reactions/come/come_02.mp4', weight: 35, label: 'Eager lean' },
+  { path: 'clips/reactions/come/come_03.mp4', weight: 25, label: 'Approach' },
+]
+
+const clipPath = pickWeightedClip(bucketId, { excludeLast: true, rng })
 ```
 
-- Uniform random among variants.
-- Optional **exclude last played** in the same bucket to reduce back-to-back repeats.
-- Seed not required; variety is the goal.
+- Probability(clip) = weight / sum(weights).
+- Optional **exclude last played** in the same bucket (renormalize remaining weights).
+- Optional `rng` for deterministic tests.
+- Demo **localStorage** weight overrides: the `/catalog` page can tweak weights in-browser without editing source. Source of truth remains `reactionCatalog.ts`.
 
-Wire point: `useKeywordSpotter` → `onMatch(bucketId)` → `useMediaPlayback.playReaction(bucketId)` → resolve clip URL → dual-video crossfade (already implemented for single `clipFileName` per rule).
+Wire point: `useKeywordSpotter` → `matchTranscript` → `onMatch(bucketId)` → `useMediaPlayback.playReaction(bucketId)` → `pickWeightedClip` → dual-video crossfade. Missing MP4s skip to the next candidate, then idle.
 
-**TODO:** extend `playVideoReaction` to call `pickRandomClipForBucket` instead of `rule.clipFileName`.
+---
+
+## How to add a phrase or clip
+
+1. Drop a portrait H.264 MP4 in `web/public/clips/reactions/{bucket}/{bucket}_{nn}.mp4` (or keep the placeholder until the real render exists).
+2. Open `web/src/data/reactionCatalog.ts` and append `{ path, weight, label }` on that bucket. Weights are relative.
+3. Add lowercase seed `phrases` for keyword fallback; extend `semanticHints` with paraphrases you want the meaning matcher to catch (“get over here”, “want some chicken”).
+4. Reload `/catalog` — the table and “Try a phrase” tester read the catalog directly.
+5. Optional: copy the same phrases into `web/public/keyword_rules.json` if you still want the static JSON in sync (playback does not depend on it).
+
+Missing files fail gracefully: playback tries other variants, then returns to idle. The demo ships tiny colored placeholder MP4s so GitHub Pages has *something* to play.
 
 ---
 
@@ -218,14 +248,15 @@ Photos remain valid indefinitely in **dog-facetime**; this repo adds clip render
 ## Implementation checklist
 
 - [x] Fork repo + README product split
-- [x] `reactionCatalog.ts` stub with phrases + placeholder paths
-- [x] Comments in keyword spotter / keyword rules toward random bucket pick
-- [ ] `playVideoReaction` uses `pickRandomClipForBucket`
-- [ ] Load catalog instead of (or merged with) `keyword_rules.json`
-- [ ] Multiple idle clips + rotation
+- [x] `reactionCatalog.ts` with phrases, semantic hints, weighted clip paths
+- [x] `pickWeightedClip` + keyword/semantic `matchTranscript`
+- [x] `playVideoReaction` uses weighted catalog pick; missing MP4s fall back to idle
+- [x] Catalog is source of truth (`keyword_rules.json` kept in sync as a copy)
+- [x] Multiple idle clip paths with fallback
+- [x] `/catalog` table UI + localStorage weight overrides
+- [x] Closest-match / meaning scorer with confidence threshold
 - [ ] `playback_mode` on memorial schema
 - [ ] Supabase clip upload + manifest
-- [ ] Closest-match fallback scorer
 - [ ] iOS catalog sync
 
 ---

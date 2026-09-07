@@ -1,55 +1,76 @@
 {
-  "version": 1,
+  "version": 2,
   "idleClip": "idle.mp4",
   "rules": [
     {
       "id": "name",
-      "phrases": ["{dogName}", "biscuit"],
-      "clipFileName": "react_biscuit.mp4",
+      "phrases": ["{dogName}", "murphy", "riley", "biscuit"],
+      "clipFileName": "reactions/name/name_01.mp4",
       "priority": 10,
-      "description": "Dog Name"
+      "description": "Dog name"
+    },
+    {
+      "id": "owner",
+      "phrases": ["{ownerName}", "mark"],
+      "clipFileName": "reactions/owner/owner_01.mp4",
+      "priority": 9,
+      "description": "Owner name"
+    },
+    {
+      "id": "treat",
+      "phrases": ["treat", "cookie", "snack", "chicken", "want some chicken", "want a treat"],
+      "clipFileName": "reactions/treat/treat_01.mp4",
+      "priority": 8,
+      "description": "Treat / chicken"
     },
     {
       "id": "walk",
-      "phrases": ["walk", "go for a walk", "wanna walk"],
-      "clipFileName": "react_walk.mp4",
+      "phrases": ["walk", "go for a walk", "wanna walk", "go outside", "outside", "go out"],
+      "clipFileName": "reactions/walk/walk_01.mp4",
       "priority": 8,
       "description": "Walk"
     },
     {
-      "id": "treat",
-      "phrases": ["treat", "cookie", "snack"],
-      "clipFileName": "react_treat.mp4",
-      "priority": 8,
-      "description": "Treat"
+      "id": "come",
+      "phrases": ["come here", "come over here", "come over", "get over here", "come on", "c'mere", "come to me", "come"],
+      "clipFileName": "reactions/come/come_01.mp4",
+      "priority": 7,
+      "description": "Come here"
     },
     {
       "id": "good",
-      "phrases": ["good boy", "good girl", "good dog", "who's a good"],
-      "clipFileName": "react_good.mp4",
+      "phrases": ["good boy", "good girl", "good dog", "who's a good", "good pup"],
+      "clipFileName": "reactions/good/good_01.mp4",
       "priority": 7,
-      "description": "Good Boy/Girl"
+      "description": "Good dog"
+    },
+    {
+      "id": "here",
+      "phrases": ["here boy", "here girl", "over here", "this way", "here"],
+      "clipFileName": "reactions/here/here_01.mp4",
+      "priority": 6,
+      "description": "Here / this way"
     },
     {
       "id": "no",
-      "phrases": ["no", "no no", "stop that"],
-      "clipFileName": "react_no.mp4",
+      "phrases": ["no", "no no", "stop that", "uh uh"],
+      "clipFileName": "reactions/no/no_01.mp4",
       "priority": 6,
       "description": "No"
     },
     {
-      "id": "come",
-      "phrases": ["come here", "come on", "c'mere"],
-      "clipFileName": "react_come.mp4",
-      "priority": 7,
-      "description": "Come Here"
+      "id": "play",
+      "phrases": ["play", "ball", "fetch", "want to play"],
+      "clipFileName": "reactions/play/play_01.mp4",
+      "priority": 5,
+      "description": "Play (future)"
     },
     {
-      "id": "owner",
-      "phrases": ["{ownerName}"],
-      "clipFileName": "react_owner.mp4",
-      "priority": 9,
-      "description": "Owner Name"
+      "id": "quiet",
+      "phrases": ["quiet", "shh", "settle", "calm down"],
+      "clipFileName": "reactions/quiet/quiet_01.mp4",
+      "priority": 4,
+      "description": "Quiet (future)"
     }
   ]
 }

@@ -1,13 +1,13 @@
 /**
  * Reaction clip catalog for the dog-facetime-clips product line.
  *
- * Each bucket groups synonymous phrases and several prerendered clip variants.
- * Playback should pick randomly among `clipPaths` on match (see pickRandomClipForBucket).
+ * Each bucket is an intent: seed phrases, semantic hint text, and weighted clip
+ * variants. Playback picks with `pickWeightedClip`; matching uses
+ * `matchTranscript` (meaning similarity + keyword fallback).
  *
- * TODO: Wire into useMediaPlayback.playVideoReaction and loadKeywordRules merge.
- * TODO: Sync with MemorialCall iOS bundle layout under Resources/Clips/reactions/.
- *
- * Still-image Ken Burns mode remains in dog-facetime / useMediaPlayback photos branch.
+ * Add a clip: drop an MP4 under public/clips/reactions/{bucket}/ and append a
+ * `{ path, weight, label }` entry here. Weights are relative (40/30/30 and
+ * 4/3/3 are equivalent). Add a phrase: push a lowercase seed onto `phrases`.
  */
 
 export type ReactionBucketId =
@@ -22,24 +22,43 @@ export type ReactionBucketId =
   | 'play'
   | 'quiet'
 
+export interface WeightedClip {
+  path: string
+  /** Relative weight or percent — normalized at pick time. */
+  weight: number
+  label?: string
+}
+
 export interface ReactionBucket {
   id: ReactionBucketId
-  /** Substrings matched against lowercased transcript; {dogName} / {ownerName} expanded at runtime. */
+  /** Seed examples / keyword fallback; {dogName} / {ownerName} expand at runtime. */
   phrases: string[]
-  /** Public URL paths under BASE_URL (multiple variants for random pick). */
-  clipPaths: string[]
+  clips: WeightedClip[]
   priority: number
   description?: string
+  /** Free-text intent description used by the meaning matcher. */
+  semanticHints?: string
 }
 
 /** Placeholder portrait clips — replace with Murphy/Riley AI renders. */
-const CLIPS_BASE = 'clips/reactions'
+export const CLIPS_BASE = 'clips/reactions'
 
-function bucketClips(bucket: string, count: number): string[] {
-  return Array.from({ length: count }, (_, i) => {
-    const n = String(i + 1).padStart(2, '0')
-    return `${CLIPS_BASE}/${bucket}/${bucket}_${n}.mp4`
-  })
+function clip(
+  bucket: string,
+  index: number,
+  weight: number,
+  label: string,
+): WeightedClip {
+  const n = String(index).padStart(2, '0')
+  return {
+    path: `${CLIPS_BASE}/${bucket}/${bucket}_${n}.mp4`,
+    weight,
+    label,
+  }
+}
+
+function legacyClip(file: string, weight: number, label = 'Legacy placeholder'): WeightedClip {
+  return { path: `clips/${file}`, weight, label }
 }
 
 /** v1 global catalog (Murphy/Riley demo). Per-memorial overrides planned via Supabase manifest. */
@@ -47,33 +66,56 @@ export const REACTION_CATALOG: ReactionBucket[] = [
   {
     id: 'name',
     phrases: ['{dogName}', 'murphy', 'riley', 'biscuit'],
-    clipPaths: [
-      ...bucketClips('name', 3),
-      'clips/react_biscuit.mp4',
+    clips: [
+      clip('name', 1, 40, 'Perk up / eye contact'),
+      clip('name', 2, 35, 'Head turn toward camera'),
+      clip('name', 3, 25, 'Soft recognition'),
+      legacyClip('react_biscuit.mp4', 10),
     ],
     priority: 10,
     description: 'Dog name',
+    semanticHints:
+      'The dog hears their own name called. Greeting the dog by name. Hey buddy, hey pup. Recognition, looking up when addressed. Not a command — just saying the name.',
   },
   {
     id: 'come',
-    phrases: ['come here', 'come on', "c'mere", 'come'],
-    clipPaths: [...bucketClips('come', 3), 'clips/react_come.mp4'],
+    phrases: ['come here', 'come over here', 'come over', 'get over here', 'come on', "c'mere", 'come to me', 'come'],
+    clips: [
+      clip('come', 1, 40, 'Head tilt, step forward'),
+      clip('come', 2, 35, 'Eager lean in'),
+      clip('come', 3, 25, 'Get up and approach'),
+      legacyClip('react_come.mp4', 10),
+    ],
     priority: 7,
     description: 'Come here',
+    semanticHints:
+      'Come here, come over, get over here, come to me, come closer, come on over, c’mere, come to the camera, come say hi, come to mom, come to dad. A recall / approach command, not merely looking this way.',
   },
   {
     id: 'here',
     phrases: ['here boy', 'here girl', 'over here', 'this way', 'here'],
-    clipPaths: bucketClips('here', 2),
+    clips: [
+      clip('here', 1, 55, 'Look toward camera'),
+      clip('here', 2, 45, 'Glance this way'),
+    ],
     priority: 6,
     description: 'Here / this way',
+    semanticHints:
+      'Over here, this way, look here, right here, here boy, here girl. Directing attention toward the speaker or camera without a full come-here recall.',
   },
   {
     id: 'good',
     phrases: ['good boy', 'good girl', 'good dog', "who's a good", 'good pup'],
-    clipPaths: [...bucketClips('good', 3), 'clips/react_good.mp4'],
+    clips: [
+      clip('good', 1, 40, 'Happy wag'),
+      clip('good', 2, 35, 'Soft proud eyes'),
+      clip('good', 3, 25, 'Pleased wriggle'),
+      legacyClip('react_good.mp4', 10),
+    ],
     priority: 7,
     description: 'Good dog',
+    semanticHints:
+      'Good boy, good girl, good dog, who’s a good dog, such a good pup, yes good, proud of you, that’s a good dog, nice job, attaboy, attagirl. Praise and affection.',
   },
   {
     id: 'treat',
@@ -85,44 +127,80 @@ export const REACTION_CATALOG: ReactionBucket[] = [
       'want some chicken',
       'want a treat',
     ],
-    clipPaths: [...bucketClips('treat', 3), 'clips/react_treat.mp4'],
+    clips: [
+      clip('treat', 1, 40, 'Excited, mouth open'),
+      clip('treat', 2, 35, 'Food interest'),
+      clip('treat', 3, 25, 'Lick / expectant'),
+      legacyClip('react_treat.mp4', 10),
+    ],
     priority: 8,
     description: 'Treat / chicken',
+    semanticHints:
+      'Treat, cookie, snack, chicken, want a treat, want some chicken, nummies, yum, food, dinner, breakfast, supper, something to eat. Excited about getting food.',
   },
   {
     id: 'walk',
-    phrases: ['walk', 'go for a walk', 'wanna walk', 'outside', 'go out'],
-    clipPaths: [...bucketClips('walk', 3), 'clips/react_walk.mp4'],
+    phrases: ['walk', 'go for a walk', 'wanna walk', 'go outside', 'outside', 'go out'],
+    clips: [
+      clip('walk', 1, 40, 'Alert, tail energy'),
+      clip('walk', 2, 35, 'Door / leash excitement'),
+      clip('walk', 3, 25, 'Ready to go'),
+      legacyClip('react_walk.mp4', 10),
+    ],
     priority: 8,
     description: 'Walk',
+    semanticHints:
+      'Walk, go for a walk, wanna walk, outside, go out, let’s go out, leash, go potty, potty time, backyard, go for a stroll. Heading outdoors, not indoor play.',
   },
   {
     id: 'no',
     phrases: ['no', 'no no', 'stop that', 'uh uh'],
-    clipPaths: [...bucketClips('no', 2), 'clips/react_no.mp4'],
+    clips: [
+      clip('no', 1, 55, 'Ears back, pause'),
+      clip('no', 2, 45, 'Guilty settle'),
+      legacyClip('react_no.mp4', 10),
+    ],
     priority: 6,
     description: 'No',
+    semanticHints:
+      'No, no no, stop that, uh uh, don’t, leave it, ah ah, knock it off, stop it. A correction or prohibition — not praise.',
   },
   {
     id: 'owner',
     phrases: ['{ownerName}', 'mark'],
-    clipPaths: [...bucketClips('owner', 2), 'clips/react_owner.mp4'],
+    clips: [
+      clip('owner', 1, 55, 'Recognition, lean in'),
+      clip('owner', 2, 45, 'Soft owner gaze'),
+      legacyClip('react_owner.mp4', 10),
+    ],
     priority: 9,
     description: 'Owner name',
+    semanticHints:
+      'The owner says their own name, or the dog hears the person’s name. Mark, mom, dad. Recognition of the familiar person — not the dog’s name.',
   },
   {
     id: 'play',
     phrases: ['play', 'ball', 'fetch', 'want to play'],
-    clipPaths: bucketClips('play', 2),
+    clips: [
+      clip('play', 1, 55, 'Bouncy'),
+      clip('play', 2, 45, 'Play bow energy'),
+    ],
     priority: 5,
     description: 'Play (future)',
+    semanticHints:
+      'Play, ball, fetch, want to play, toy, tug, let’s play, get the ball, playtime. Invitation to play, not a walk or a treat.',
   },
   {
     id: 'quiet',
     phrases: ['quiet', 'shh', 'settle', 'calm down'],
-    clipPaths: bucketClips('quiet', 2),
+    clips: [
+      clip('quiet', 1, 55, 'Calm down'),
+      clip('quiet', 2, 45, 'Settle / rest'),
+    ],
     priority: 4,
     description: 'Quiet (future)',
+    semanticHints:
+      'Quiet, shh, shush, settle, calm down, easy, relax, lie down, settle down, that’s enough barking. Asking the dog to be still and calm.',
   },
 ]
 
@@ -132,24 +210,103 @@ export const IDLE_CLIP_PATHS = [
   'clips/idle.mp4',
 ]
 
+const NAME_LIKE_BUCKETS = new Set<string>(['name', 'owner'])
+
+export function isNameLikeBucket(id: string): boolean {
+  return NAME_LIKE_BUCKETS.has(id)
+}
+
+export function clipPathsOf(bucket: ReactionBucket): string[] {
+  return bucket.clips.map((c) => c.path)
+}
+
+export function normalizeClipWeights(
+  clips: WeightedClip[],
+): Array<WeightedClip & { percent: number }> {
+  const total = clips.reduce((sum, c) => sum + Math.max(0, c.weight), 0)
+  if (total <= 0) {
+    const even = clips.length === 0 ? 0 : 100 / clips.length
+    return clips.map((c) => ({ ...c, percent: even }))
+  }
+  return clips.map((c) => ({
+    ...c,
+    percent: (Math.max(0, c.weight) / total) * 100,
+  }))
+}
+
+export type Rng = () => number
+
 const lastPickByBucket = new Map<string, string>()
 
-/** Random clip for bucket; optionally avoids repeating the previous pick in that bucket. */
+export interface PickClipOptions {
+  excludeLast?: boolean
+  rng?: Rng
+  /** When set, use these clips instead of bucket.clips (localStorage overrides). */
+  clips?: WeightedClip[]
+}
+
+function defaultRng(): number {
+  return Math.random()
+}
+
+/**
+ * Weighted random clip for a bucket. Weights are relative; they do not need
+ * to sum to 100. Optional `excludeLast` skips the previous pick when others exist.
+ */
+export function pickWeightedClip(
+  bucket: ReactionBucket | string,
+  options: PickClipOptions = { excludeLast: true },
+): string | undefined {
+  const resolved =
+    typeof bucket === 'string'
+      ? REACTION_CATALOG.find((b) => b.id === bucket)
+      : bucket
+  if (!resolved) return undefined
+
+  const source = options.clips ?? resolved.clips
+  const viable = source.filter((c) => c.weight > 0 && c.path)
+  if (viable.length === 0) return undefined
+
+  const excludeLast = options.excludeLast !== false
+  const last = lastPickByBucket.get(resolved.id)
+  const pool =
+    excludeLast && last && viable.length > 1
+      ? viable.filter((c) => c.path !== last)
+      : viable
+  const use = pool.length > 0 ? pool : viable
+
+  const rng = options.rng ?? defaultRng
+  const total = use.reduce((sum, c) => sum + c.weight, 0)
+  if (total <= 0) {
+    const pick = use[Math.floor(rng() * use.length)]?.path
+    if (pick) lastPickByBucket.set(resolved.id, pick)
+    return pick
+  }
+
+  let cursor = rng() * total
+  let pick = use[use.length - 1].path
+  for (const clipOption of use) {
+    cursor -= clipOption.weight
+    if (cursor <= 0) {
+      pick = clipOption.path
+      break
+    }
+  }
+
+  lastPickByBucket.set(resolved.id, pick)
+  return pick
+}
+
+/** @deprecated Prefer pickWeightedClip — kept as an equal-weight alias. */
 export function pickRandomClipForBucket(
   bucketId: string,
-  options: { excludeLast?: boolean } = { excludeLast: true },
+  options: { excludeLast?: boolean; rng?: Rng } = { excludeLast: true },
 ): string | undefined {
-  const bucket = REACTION_CATALOG.find((b) => b.id === bucketId)
-  if (!bucket || bucket.clipPaths.length === 0) return undefined
+  return pickWeightedClip(bucketId, options)
+}
 
-  const pool =
-    options.excludeLast && bucket.clipPaths.length > 1
-      ? bucket.clipPaths.filter((p) => p !== lastPickByBucket.get(bucketId))
-      : bucket.clipPaths
-
-  const pick = pool[Math.floor(Math.random() * pool.length)]
-  lastPickByBucket.set(bucketId, pick)
-  return pick
+export function resetClipPickHistory(): void {
+  lastPickByBucket.clear()
 }
 
 export function bucketById(id: string): ReactionBucket | undefined {
@@ -159,4 +316,17 @@ export function bucketById(id: string): ReactionBucket | undefined {
 /** Sorted for priority matching (highest first). */
 export function catalogSortedByPriority(): ReactionBucket[] {
   return [...REACTION_CATALOG].sort((a, b) => b.priority - a.priority)
+}
+
+export function pickIdleClipPath(options: PickClipOptions = {}): string {
+  const rng = options.rng ?? defaultRng
+  const last = lastPickByBucket.get('idle')
+  const pool =
+    options.excludeLast !== false && last && IDLE_CLIP_PATHS.length > 1
+      ? IDLE_CLIP_PATHS.filter((p) => p !== last)
+      : IDLE_CLIP_PATHS
+  const use = pool.length > 0 ? pool : IDLE_CLIP_PATHS
+  const pick = use[Math.floor(rng() * use.length)] ?? IDLE_CLIP_PATHS[0]
+  lastPickByBucket.set('idle', pick)
+  return pick
 }
