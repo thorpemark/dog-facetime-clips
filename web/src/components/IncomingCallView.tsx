@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useMemorialCall } from '../context/MemorialCallContext'
+import { IdentityAvatar } from './ModePhoto'
 
 function CallActionButton({
   icon,
@@ -36,11 +37,7 @@ export function IncomingCallView() {
     <div className="screen incoming-screen">
       <div className="incoming-content">
         <div className={`incoming-avatar ${pulse ? 'pulse' : ''}`}>
-          {profile.avatarUrl ? (
-            <img src={profile.avatarUrl} alt="" />
-          ) : (
-            <span>🐾</span>
-          )}
+          <IdentityAvatar dogName={profile.dogName} url={profile.avatarUrl} />
         </div>
         <p className="incoming-subtitle">Memorial Call</p>
         <h1 className="incoming-name">{profile.dogName}</h1>

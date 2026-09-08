@@ -109,6 +109,33 @@ describe('applyStudioAction', () => {
     const updated = withSlot.dogs[0].intents.find((intent) => intent.id === 'belly-rub')
     expect(updated?.clipSlots.length).toBe(2)
   })
+
+  it('persists a preferred call-idle slot without dropping videos', () => {
+    const seed = createSeedStudioState()
+    const murphy = seed.dogs[0]
+    const idle = murphy.intents.find((intent) => intent.id === 'idle')
+    const second = idle?.clipSlots[1]
+    if (!second) throw new Error('missing idle slot')
+    const withVideo = applyStudioAction(seed, {
+      type: 'updateSlot',
+      dogId: murphy.id,
+      intentId: 'idle',
+      slotId: second.id,
+      patch: {
+        resultVideo: { objectUrl: 'blob:chosen-idle', origin: 'user' },
+      },
+    })
+    const chosen = applyStudioAction(withVideo, {
+      type: 'setPreferredIdle',
+      dogId: murphy.id,
+      slotId: second.id,
+    })
+    expect(chosen.dogs[0].preferredIdleSlotId).toBe(second.id)
+    const idleSlot = chosen.dogs[0].intents
+      .find((intent) => intent.id === 'idle')
+      ?.clipSlots.find((slot) => slot.id === second.id)
+    expect(idleSlot?.resultVideo?.objectUrl).toBe('blob:chosen-idle')
+  })
 })
 
 describe('seed modes and photos', () => {
@@ -200,6 +227,32 @@ describe('seed personality', () => {
     expect(buckets.some((bucket) => bucket.id === 'unknown')).toBe(true)
     expect(buckets.find((bucket) => bucket.id === 'come')?.clips.length).toBeGreaterThan(0)
     expect(buckets.find((bucket) => bucket.id === 'unknown')?.clips.length).toBeGreaterThan(0)
+  })
+
+  it('plays attached user clips instead of leftover placeholder variants', () => {
+    const seed = createSeedStudioState()
+    const murphy = seed.dogs[0]
+    const hug = murphy.intents.find((intent) => intent.id === 'hug')
+    if (!hug) throw new Error('missing hug')
+    const withUser = {
+      ...murphy,
+      intents: murphy.intents.map((intent) =>
+        intent.id === 'hug'
+          ? {
+              ...intent,
+              clipSlots: [
+                {
+                  ...hug.clipSlots[0],
+                  resultVideo: { objectUrl: 'blob:hug-user', origin: 'user' as const },
+                },
+                ...hug.clipSlots.slice(1),
+              ],
+            }
+          : intent,
+      ),
+    }
+    const hugBucket = dogLibraryToBuckets(withUser).find((bucket) => bucket.id === 'hug')
+    expect(hugBucket?.clips.map((clip) => clip.path)).toEqual(['blob:hug-user'])
   })
 })
 

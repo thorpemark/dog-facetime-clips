@@ -26,6 +26,8 @@ interface StudioSlotEditorProps {
   onClearPhoto: () => Promise<void>
   onNeedsRedo: () => void
   onRemove: () => void
+  isCallIdle?: boolean
+  onUseAsCallIdle?: () => void
 }
 
 export function StudioSlotEditor({
@@ -39,6 +41,8 @@ export function StudioSlotEditor({
   onClearPhoto,
   onNeedsRedo,
   onRemove,
+  isCallIdle = false,
+  onUseAsCallIdle,
 }: StudioSlotEditorProps) {
   const photoRef = useRef<HTMLInputElement>(null)
   const videoRef = useRef<HTMLInputElement>(null)
@@ -101,7 +105,7 @@ export function StudioSlotEditor({
 
   return (
     <article
-      className={`studio-slot studio-slot--${slot.status}${needsVideo ? ' studio-slot--needs-video' : ''}`}
+      className={`studio-slot studio-slot--${slot.status}${needsVideo ? ' studio-slot--needs-video' : ''}${isCallIdle ? ' studio-slot--call-idle' : ''}`}
     >
       <header className="studio-slot-header">
         <span className={`studio-status studio-status--${usingDogDefault && slot.status === 'empty' ? 'photo_ready' : slot.status}`}>
@@ -109,6 +113,9 @@ export function StudioSlotEditor({
             ? 'Dog default still'
             : STATUS_LABEL[slot.status]}
         </span>
+        {isCallIdle && (
+          <span className="studio-status studio-status--call-idle">Call idle</span>
+        )}
         <input
           className="studio-slot-label"
           value={slot.label}
@@ -217,6 +224,16 @@ export function StudioSlotEditor({
             {slot.resultVideo?.origin === 'user' && (
               <button type="button" className="btn-text" onClick={onNeedsRedo}>
                 Mark needs redo
+              </button>
+            )}
+            {onUseAsCallIdle && slot.resultVideo?.origin === 'user' && (
+              <button
+                type="button"
+                className={isCallIdle ? 'btn-secondary' : 'btn-text'}
+                onClick={onUseAsCallIdle}
+                disabled={isCallIdle}
+              >
+                {isCallIdle ? 'Looping on calls' : 'Use as call idle'}
               </button>
             )}
           </div>

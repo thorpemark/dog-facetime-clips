@@ -12,6 +12,7 @@ import {
   defaultSourcePhotoForMode,
   isKeySeedIntent,
 } from '../data/callModes'
+import { repairSeedIdentityPhotos } from './callIdentity'
 import {
   BOTH_PERSONALITY,
   MURPHY_PERSONALITY,
@@ -189,7 +190,10 @@ export function migrateStudioState(state: ClipStudioState): ClipStudioState {
     (dog) => !dog.intents.some((intent) => isUnknownIntent(intent.id)),
   )
   if (revision >= 2 && hasBoth && !missingUnknown) {
-    return withNormalizedPersonalities(state)
+    return withNormalizedPersonalities({
+      ...state,
+      dogs: state.dogs.map((dog) => repairSeedIdentityPhotos(dog)),
+    })
   }
 
   const seed = createSeedStudioState()
@@ -222,7 +226,9 @@ export function migrateStudioState(state: ClipStudioState): ClipStudioState {
   }
 
   const withUnknown = dogs.map((dog) =>
-    fillMissingSlotPhotos(ensureUnknownIntent(dog), seedPhotoForDog(dog)),
+    repairSeedIdentityPhotos(
+      fillMissingSlotPhotos(ensureUnknownIntent(dog), seedPhotoForDog(dog)),
+    ),
   )
 
   return withNormalizedPersonalities({
@@ -351,6 +357,11 @@ export function applyStudioAction(
           action.patch.name ?? dog.name,
         ),
       }))
+    case 'setPreferredIdle':
+      return mapDog(state, action.dogId, (dog) => ({
+        ...dog,
+        preferredIdleSlotId: action.slotId ?? undefined,
+      }))
     case 'removeDog': {
       const dogs = state.dogs.filter((dog) => dog.id !== action.dogId)
       if (dogs.length === 0) return state
@@ -409,12 +420,16 @@ export function applyStudioAction(
         })),
       )
     case 'removeSlot':
-      return mapDog(state, action.dogId, (dog) =>
-        mapIntent(dog, action.intentId, (intent) => ({
+      return mapDog(state, action.dogId, (dog) => {
+        const next = mapIntent(dog, action.intentId, (intent) => ({
           ...intent,
           clipSlots: intent.clipSlots.filter((slot) => slot.id !== action.slotId),
-        })),
-      )
+        }))
+        if (dog.preferredIdleSlotId === action.slotId) {
+          return { ...next, preferredIdleSlotId: undefined }
+        }
+        return next
+      })
     default:
       return state
   }
@@ -445,6 +460,13 @@ export async function hydrateStudioMedia(loadBlob: (key: string) => Promise<Blob
   const next = cloneState(state)
   let changed = false
   for (const dog of next.dogs) {
+    if (dog.defaultPhoto?.blobKey && !dog.defaultPhoto.url) {
+      const blob = await loadBlob(dog.defaultPhoto.blobKey)
+      if (blob) {
+        dog.defaultPhoto.url = URL.createObjectURL(blob)
+        changed = true
+      }
+    }
     for (const intent of dog.intents) {
       for (const slot of intent.clipSlots) {
         if (slot.sourcePhoto?.blobKey && !slot.sourcePhoto.url) {

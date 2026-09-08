@@ -94,4 +94,95 @@ describe('studio seed migration', () => {
         ?.sourcePhoto?.publicPath,
     ).toBe('modes/murphy.jpg')
   })
+
+  it('repairs a current-revision Murphy library that stored the Both still', () => {
+    const seed = migrateStudioState({
+      version: 1,
+      seedRevision: 4,
+      activeDogId: 'murphy',
+      dogs: [
+        {
+          id: 'murphy',
+          name: 'Murphy',
+          personality: {
+            breed: 'huskita',
+            notes: [],
+            vocalStyle: 'silent',
+            voiceSize: 'large_low',
+            energy: 'normal',
+            eyes: 'goofy',
+            mouth: 'dry',
+            touch: 'cuddly',
+          },
+          avatarPath: 'modes/both.jpg',
+          defaultPhoto: defaultSourcePhotoForMode(CALL_MODES[2]),
+          intents: [
+            {
+              id: 'idle',
+              description: 'Idle',
+              phrases: [],
+              semanticHints: '',
+              priority: 0,
+              clipSlots: [
+                {
+                  id: 'murphy-idle-1',
+                  weight: 55,
+                  prompt: 'p',
+                  label: 'Calm',
+                  sourcePhoto: defaultSourcePhotoForMode(CALL_MODES[2]),
+                  resultVideo: {
+                    objectUrl: 'blob:keep-murphy-idle',
+                    blobKey: 'video:murphy-idle-1',
+                    origin: 'user',
+                    fileName: 'idle.mp4',
+                  },
+                  status: 'video_attached',
+                },
+              ],
+            },
+          ],
+        },
+        {
+          id: 'riley',
+          name: 'Riley',
+          personality: {
+            breed: 'huskita',
+            notes: [],
+            vocalStyle: 'silent',
+            voiceSize: 'medium',
+            energy: 'normal',
+            eyes: 'alert',
+            mouth: 'dry',
+            touch: 'grumble_hug',
+          },
+          intents: [],
+        },
+        {
+          id: 'both',
+          name: 'Both',
+          personality: {
+            breed: 'huskitas',
+            notes: [],
+            vocalStyle: 'silent',
+            voiceSize: 'medium',
+            energy: 'normal',
+            eyes: 'goofy',
+            mouth: 'dry',
+            touch: 'cuddly',
+          },
+          intents: [],
+        },
+      ],
+    })
+
+    const murphy = seed.dogs.find((dog) => dog.id === 'murphy')
+    expect(murphy?.defaultPhoto?.publicPath).toBe('modes/murphy.jpg')
+    expect(murphy?.avatarPath).toBe('modes/murphy.jpg')
+    expect(murphy?.intents[0]?.clipSlots[0]?.sourcePhoto?.publicPath).toBe(
+      'modes/murphy.jpg',
+    )
+    expect(murphy?.intents[0]?.clipSlots[0]?.resultVideo?.objectUrl).toBe(
+      'blob:keep-murphy-idle',
+    )
+  })
 })

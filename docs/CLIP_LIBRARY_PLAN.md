@@ -5,7 +5,7 @@ This document describes the **dog-facetime-clips** product direction: FaceTime-s
 ## Goals (v1)
 
 1. Same call UX as the still app: incoming ring, active call, portrait/landscape framing, share links.
-2. **Idle:** loop one or more calm clips (or crossfade stills until clips exist).
+2. **Idle:** loop the dog’s chosen Studio idle MP4 (soft crossfade back after reactions). If no idle is attached, hold the correct identity still — never the colored placeholder slate.
 3. **Listen:** Web Speech API (web) / Speech framework (iOS) transcribes speech continuously.
 4. **React:** map transcript → **reaction bucket** (meaning + keyword) → **weighted random clip** → crossfade playback → return to idle.
 5. **Not** live generative video in the call — only seamless playback of prerendered MP4s.

@@ -322,7 +322,7 @@ button {
   width: 100%;
   height: 100%;
   overflow: hidden;
-  background: #3a4660;
+  background: #000;
 }
 
 .video-layer {
@@ -332,6 +332,18 @@ button {
   height: 100%;
   object-fit: cover;
   z-index: 1;
+}
+
+.call-idle-still-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+}
+
+.call-idle-still-layer .photo-layer-cover,
+.call-idle-still-layer .photo-layer-media {
+  width: 100%;
+  height: 100%;
 }
 
 .call-idle-still {
@@ -2447,6 +2459,33 @@ button {
 .studio-status--needs_redo {
   background: rgba(255, 159, 64, 0.25);
   color: #ffc48a;
+}
+
+.studio-status--call-idle {
+  background: rgba(255, 214, 102, 0.22);
+  color: #ffe08a;
+}
+
+.studio-slot--call-idle {
+  border-color: rgba(255, 214, 102, 0.35);
+}
+
+.studio-idle-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 12px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: rgba(255, 214, 102, 0.08);
+  border: 1px solid rgba(255, 214, 102, 0.22);
+}
+
+.studio-idle-note {
+  margin: 0;
+  font-size: 0.88rem;
+  line-height: 1.45;
+  color: rgba(255, 255, 255, 0.68);
 }
 
 .studio-slot-media {

@@ -20,6 +20,8 @@ Murphy, Riley, and **Both** ship as seed dogs (huskitas) with baked stills in `w
 
 Those stills are the Studio avatars, the home/demo three-mode picker cards, incoming-call faces, and the default source photo on **idle + name / come / hug / howl / unknown** slots. Other slots fall back to the dog-level still until you attach a different one. Reset seed from the bottom of Studio if you want to start over in this browser. Portrait framing is a sensible default — refine crops in Studio.
 
+**Call idle (looping FaceTime hold):** the `idle` intent is what you see after Accept and after every reaction. Attach a short MP4 on an idle slot, then pick it in the **Call idle loop** dropdown (or tap **Use as call idle** on the slot). First attached idle is the default until you choose. The demo loops that clip with a short crossfade back from reactions. If nothing is attached yet, the call holds the correct dog still — not the colored placeholder slab. Preference is stored on the dog in localStorage and does not wipe other attachments.
+
 ## Add an intent (bucket)
 
 1. Type a label (e.g. `belly rub`) → **Add intent**.

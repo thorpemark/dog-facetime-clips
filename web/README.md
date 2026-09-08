@@ -149,7 +149,7 @@ Without uploaded photos, placeholder MP4 clips from `public/clips/` are used.
 idle → listen → react → cooldown → idle
 ```
 
-- **idle** — loops the idle clip
+- **idle** — loops the Studio **call idle** MP4 (or the dog still if none is attached)
 - **listen** — microphone + Web Speech API transcribes speech
 - **react** — crossfades to a matching reaction clip
 - **cooldown** — brief pause before returning to idle

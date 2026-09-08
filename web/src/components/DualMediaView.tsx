@@ -1,7 +1,9 @@
 import type { CSSProperties } from 'react'
 import { useMemorialCall } from '../context/MemorialCallContext'
 import { useDisplayOrientation } from '../hooks/useDisplayOrientation'
-import { focalForOrientation } from '../utils/focalPoint'
+import { identityStillForDog } from '../utils/callIdentity'
+import { findDog, getStudioState } from '../utils/clipStudioStore'
+import { focalForOrientation, photoSourceFromFraming } from '../utils/focalPoint'
 import { FocalPhotoLayer } from './FocalPhotoLayer'
 
 function photoLayerWrapperStyle(
@@ -14,7 +16,9 @@ function photoLayerWrapperStyle(
 export function DualMediaView() {
   const { mediaPlayback, profile } = useMemorialCall()
   const displayOrientation = useDisplayOrientation()
-  const idleStillUrl = profile.avatarUrl
+  const identityStill =
+    identityStillForDog(profile.dogName, findDog(getStudioState(), profile.dogName))
+  const idleStillUrl = identityStill?.url ?? profile.avatarUrl
   const {
     mode,
     primaryRef,
@@ -27,6 +31,7 @@ export function DualMediaView() {
     secondaryMotion,
     primaryMotionKey,
     secondaryMotionKey,
+    idleVisual,
     idleAnimationMs,
     crossfadeMs,
   } = mediaPlayback
@@ -74,15 +79,37 @@ export function DualMediaView() {
     )
   }
 
+  const idlePhoto = identityStill
+    ? photoSourceFromFraming(identityStill.url, identityStill.framing, true)
+    : null
+  const idleFocal = idlePhoto
+    ? focalForOrientation(idlePhoto, displayOrientation)
+    : null
+
   return (
-    <div className="dual-video">
+    <div
+      className={`dual-video${idleVisual === 'still' ? ' dual-video--still-idle' : ''}`}
+      style={kenBurnsStyle}
+    >
       {idleStillUrl && (
-        <img
-          className={`call-idle-still${profile.dogName.toLowerCase() === 'both' ? ' call-idle-still--wide' : ''}`}
-          src={idleStillUrl}
-          alt=""
-          aria-hidden
-        />
+        <div className="call-idle-still-layer photo-layer" aria-hidden>
+          {idleFocal && idlePhoto ? (
+            <FocalPhotoLayer
+              imageUrl={idleStillUrl}
+              focal={idleFocal}
+              imageAspect={identityStill?.imageAspect}
+              displayOrientation={displayOrientation}
+              className="photo-layer"
+              motionClassName="photo-layer-media motion-idle"
+            />
+          ) : (
+            <img
+              className={`call-idle-still${profile.dogName.toLowerCase() === 'both' ? ' call-idle-still--wide' : ''}`}
+              src={idleStillUrl}
+              alt=""
+            />
+          )}
+        </div>
       )}
       <video
         ref={primaryRef}

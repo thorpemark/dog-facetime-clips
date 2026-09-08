@@ -21,7 +21,7 @@ import { suggestClipPrompt } from '../utils/suggestClipPrompt'
 import { normalizePersonality } from '../utils/dogPersonality'
 
 /** Existing browsers merge this seed when their stored revision is lower. */
-export const STUDIO_SEED_REVISION = 4
+export const STUDIO_SEED_REVISION = 5
 
 export function buildClipPrompt(
   dog: { name: string; personality: DogPersonality },

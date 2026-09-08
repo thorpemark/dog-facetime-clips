@@ -8,6 +8,7 @@ import {
   createEmptyIntent,
 } from '../data/clipStudioSeed'
 import { slugifyIntent } from '../utils/clipStudioMedia'
+import { attachedIdleSlots, chosenIdleSlot } from '../utils/callIdentity'
 import { resetStudioToSeed, sourcePhotoDisplayUrl } from '../utils/clipStudioStore'
 import { publicAssetUrl } from '../lib/urls'
 import { defaultPersonality } from '../utils/dogPersonality'
@@ -26,6 +27,7 @@ export function StudioView() {
   } = useClipStudio()
 
   const [expanded, setExpanded] = useState<Record<string, boolean>>({
+    idle: true,
     hug: true,
     howl: true,
   })
@@ -36,6 +38,8 @@ export function StudioView() {
 
   const dog = activeDog
   const previewHref = dog ? `/demo?dog=${encodeURIComponent(dog.name)}` : '/demo'
+  const callIdleSlotId = dog ? chosenIdleSlot(dog)?.id : undefined
+  const idleChoices = dog ? attachedIdleSlots(dog) : []
 
   const intentSummary = useMemo(() => {
     if (!dog) return ''
@@ -221,6 +225,44 @@ export function StudioView() {
 
                 {open && (
                   <div className="studio-intent-body">
+                    {intent.id === 'idle' && (
+                      <div className="studio-idle-picker">
+                        <p className="studio-idle-note">
+                          Looping FaceTime hold — first frame after Accept and
+                          the return after every reaction. Pick an attached
+                          idle MP4 below, or tap <strong>Use as call idle</strong>{' '}
+                          on a slot. Until one is attached, the call shows this
+                          dog’s still (never the colored placeholder).
+                        </p>
+                        <label className="studio-field">
+                          Call idle loop
+                          <select
+                            value={callIdleSlotId ?? ''}
+                            disabled={idleChoices.length === 0}
+                            onChange={(event) =>
+                              dispatch({
+                                type: 'setPreferredIdle',
+                                dogId: dog.id,
+                                slotId: event.target.value || null,
+                              })
+                            }
+                          >
+                            {idleChoices.length === 0 ? (
+                              <option value="">
+                                No attached idle yet — using still
+                              </option>
+                            ) : (
+                              idleChoices.map((slot) => (
+                                <option key={slot.id} value={slot.id}>
+                                  {slot.label || slot.id}
+                                  {slot.id === callIdleSlotId ? ' (current)' : ''}
+                                </option>
+                              ))
+                            )}
+                          </select>
+                        </label>
+                      </div>
+                    )}
                     <div className="studio-intent-fields">
                       <label className="studio-field">
                         Description
@@ -368,6 +410,17 @@ export function StudioView() {
                               intentId: intent.id,
                               slotId: slot.id,
                             })
+                          }
+                          isCallIdle={intent.id === 'idle' && slot.id === callIdleSlotId}
+                          onUseAsCallIdle={
+                            intent.id === 'idle'
+                              ? () =>
+                                  dispatch({
+                                    type: 'setPreferredIdle',
+                                    dogId: dog.id,
+                                    slotId: slot.id,
+                                  })
+                              : undefined
                           }
                         />
                       ))}

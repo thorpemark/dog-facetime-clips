@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom'
 import { useMemorialCall } from '../context/MemorialCallContext'
+import { IdentityAvatar } from './ModePhoto'
 
 export function MemorialHomeView({
   showBack,
@@ -20,15 +21,11 @@ export function MemorialHomeView({
         )}
 
         <div className="home-hero">
-          {profile.avatarUrl ? (
-            <img
-              className="home-avatar"
-              src={profile.avatarUrl}
-              alt={profile.dogName}
-            />
-          ) : (
-            <span className="paw-icon large">🐾</span>
-          )}
+          <IdentityAvatar
+            dogName={profile.dogName}
+            url={profile.avatarUrl}
+            className="home-avatar"
+          />
           <h1>{profile.dogName}</h1>
           {profile.memorialNote && (
             <p className="memorial-note">{profile.memorialNote}</p>

@@ -1,10 +1,11 @@
 import type { KeywordRule, KeywordRulesConfig } from '../types'
 import {
-  IDLE_CLIP_PATHS,
   pickWeightedClip,
   type ReactionBucket,
 } from '../data/reactionCatalog'
+import { resolveIdlePlayback } from './callIdentity'
 import { getEffectiveCatalog } from './catalogOverrides'
+import { findDog, getStudioState } from './clipStudioStore'
 import { matchTranscript } from './matchTranscript'
 
 export function resolvePhrases(
@@ -56,10 +57,16 @@ export function bucketToKeywordRule(bucket: ReactionBucket): KeywordRule {
 /** Catalog is the source of truth; keyword_rules.json remains a static fallback copy. */
 export function rulesConfigFromCatalog(dogName?: string): KeywordRulesConfig {
   const catalog = getEffectiveCatalog(undefined, dogName)
+  const dog = findDog(getStudioState(), dogName)
+  const idle = resolveIdlePlayback(dogName, dog)
   return {
     version: 2,
-    idleClip: IDLE_CLIP_PATHS[2] ?? IDLE_CLIP_PATHS[0] ?? 'idle.mp4',
-    rules: catalog.map(bucketToKeywordRule),
+    // Empty when Studio has no user idle — playback holds the identity still
+    // instead of the slate-blue placeholder MP4.
+    idleClip: idle.kind === 'user-video' ? (idle.urls[0] ?? '') : '',
+    rules: catalog
+      .filter((bucket) => bucket.id !== 'idle')
+      .map(bucketToKeywordRule),
   }
 }
 
