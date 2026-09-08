@@ -322,7 +322,7 @@ button {
   width: 100%;
   height: 100%;
   overflow: hidden;
-  background: #3a4660;
+  background: #000;
 }
 
 .video-layer {
@@ -332,6 +332,18 @@ button {
   height: 100%;
   object-fit: cover;
   z-index: 1;
+}
+
+.call-idle-still-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+}
+
+.call-idle-still-layer .photo-layer-cover,
+.call-idle-still-layer .photo-layer-media {
+  width: 100%;
+  height: 100%;
 }
 
 .call-idle-still {

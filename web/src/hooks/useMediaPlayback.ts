@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { KeywordRulesConfig } from '../types'
 import type { MotionPreset } from '../types/memorial'
-import { IDLE_CLIP_PATHS, pickWeightedClip, REACTION_CATALOG } from '../data/reactionCatalog'
+import { pickWeightedClip, REACTION_CATALOG } from '../data/reactionCatalog'
+import { resolveIdlePlayback } from '../utils/callIdentity'
 import { getEffectiveCatalog } from '../utils/catalogOverrides'
+import { findDog, getStudioState } from '../utils/clipStudioStore'
 import { clipUrl } from '../utils/keywordRules'
 import { loadVideoWithFallback, uniqueUrls } from '../utils/videoSource'
 import {
@@ -29,6 +31,8 @@ interface UseMediaPlaybackOptions {
   crossfadeIntervalMs: number
   idleAnimationMs: number
   dogName?: string
+  /** Incoming / idle still is available — never cover it with placeholder idle. */
+  hasIdentityStill?: boolean
 }
 
 function emptyPhotoSource(): PhotoSource {
@@ -57,13 +61,13 @@ export function useMediaPlayback(
     idleAnimationMs: 12_000,
   },
 ) {
-  const { crossfadeIntervalMs, idleAnimationMs, dogName } = options
+  const { crossfadeIntervalMs, idleAnimationMs, dogName, hasIdentityStill } = options
   const usePhotos = photos.length > 0
 
   const primaryRef = useRef<HTMLVideoElement>(null)
   const secondaryRef = useRef<HTMLVideoElement>(null)
 
-  const [primaryOpacity, setPrimaryOpacity] = useState(1)
+  const [primaryOpacity, setPrimaryOpacity] = useState(hasIdentityStill ? 0 : 1)
   const [secondaryOpacity, setSecondaryOpacity] = useState(0)
   const [currentClipId, setCurrentClipId] = useState('idle')
   const [photoIndex, setPhotoIndex] = useState(0)
@@ -79,6 +83,9 @@ export function useMediaPlayback(
   const [primaryMotionKey, setPrimaryMotionKey] = useState(0)
   const [secondaryMotionKey, setSecondaryMotionKey] = useState(0)
   const [isReactionPlaying, setIsReactionPlaying] = useState(false)
+  const [idleVisual, setIdleVisual] = useState<'video' | 'still'>(
+    hasIdentityStill ? 'still' : 'video',
+  )
 
   const activeSlotRef = useRef<'primary' | 'secondary'>('primary')
   const photoIndexRef = useRef(0)
@@ -87,6 +94,7 @@ export function useMediaPlayback(
   const onCompleteRef = useRef<(() => void) | null>(null)
   const idleTimerRef = useRef<number | null>(null)
   const reactionTimerRef = useRef<number | null>(null)
+  const outgoingClearTimerRef = useRef<number | null>(null)
   const cancelLoadRef = useRef<(() => void) | null>(null)
   const photosRef = useRef(photos)
   const crossfadeIntervalRef = useRef(crossfadeIntervalMs)
@@ -123,8 +131,10 @@ export function useMediaPlayback(
   const clearTimers = useCallback(() => {
     if (idleTimerRef.current) window.clearTimeout(idleTimerRef.current)
     if (reactionTimerRef.current) window.clearTimeout(reactionTimerRef.current)
+    if (outgoingClearTimerRef.current) window.clearTimeout(outgoingClearTimerRef.current)
     idleTimerRef.current = null
     reactionTimerRef.current = null
+    outgoingClearTimerRef.current = null
     cancelLoadRef.current?.()
     cancelLoadRef.current = null
   }, [])
@@ -211,20 +221,40 @@ export function useMediaPlayback(
     goToPhoto(photoIndexRef.current - 1)
   }, [goToPhoto])
 
+  const idlePlan = useCallback(() => {
+    const dog = findDog(getStudioState(), dogName)
+    return resolveIdlePlayback(dogName, dog, Boolean(hasIdentityStill))
+  }, [dogName, hasIdentityStill])
+
   const idleUrls = useCallback(() => {
+    const plan = idlePlan()
+    if (plan.kind === 'user-video') {
+      return uniqueUrls(plan.urls.map((path) => clipUrl(path)))
+    }
+    if (plan.kind === 'still') return []
     return uniqueUrls([
       rulesConfig?.idleClip ? clipUrl(rulesConfig.idleClip) : undefined,
-      ...IDLE_CLIP_PATHS.map((path) => clipUrl(path)),
+      ...plan.urls.map((path) => clipUrl(path)),
     ])
-  }, [rulesConfig])
+  }, [idlePlan, rulesConfig])
+
+  const clearVideoElement = useCallback((video: HTMLVideoElement | null) => {
+    if (!video) return
+    video.pause()
+    video.removeAttribute('src')
+    video.load()
+  }, [])
+
+  const hideVideosToStill = useCallback(() => {
+    clearVideoElement(primaryRef.current)
+    clearVideoElement(secondaryRef.current)
+    setPrimaryOpacity(0)
+    setSecondaryOpacity(0)
+    setIdleVisual('still')
+  }, [clearVideoElement])
 
   const finishReactionToIdle = useCallback(
     (onComplete?: () => void) => {
-      const idleSlot =
-        activeSlotRef.current === 'primary' ? 'secondary' : 'primary'
-      const idleVideo =
-        idleSlot === 'primary' ? primaryRef.current : secondaryRef.current
-
       const done = () => {
         setCurrentClipId('idle')
         isPlayingReactionRef.current = false
@@ -233,28 +263,53 @@ export function useMediaPlayback(
         onCompleteRef.current = null
       }
 
+      const urls = idleUrls()
+      if (urls.length === 0) {
+        hideVideosToStill()
+        done()
+        return
+      }
+
+      const idleSlot =
+        activeSlotRef.current === 'primary' ? 'secondary' : 'primary'
+      const idleVideo =
+        idleSlot === 'primary' ? primaryRef.current : secondaryRef.current
+
       if (!idleVideo) {
+        hideVideosToStill()
         done()
         return
       }
 
       cancelLoadRef.current?.()
-      cancelLoadRef.current = loadVideoWithFallback(idleVideo, idleUrls(), {
+      cancelLoadRef.current = loadVideoWithFallback(idleVideo, urls, {
         loop: true,
         onReady: () => {
           cancelLoadRef.current = null
+          setIdleVisual('video')
           void idleVideo.play()
           crossfadeTo(idleSlot)
+          const outgoing =
+            idleSlot === 'primary' ? secondaryRef.current : primaryRef.current
+          if (outgoingClearTimerRef.current) {
+            window.clearTimeout(outgoingClearTimerRef.current)
+          }
+          outgoingClearTimerRef.current = window.setTimeout(() => {
+            outgoingClearTimerRef.current = null
+            if (activeSlotRef.current === idleSlot) {
+              clearVideoElement(outgoing)
+            }
+          }, CROSSFADE_MS + 50)
           done()
         },
         onFail: () => {
           cancelLoadRef.current = null
-          idleVideo.removeAttribute('src')
+          hideVideosToStill()
           done()
         },
       })
     },
-    [crossfadeTo, idleUrls],
+    [clearVideoElement, crossfadeTo, hideVideosToStill, idleUrls],
   )
 
   const loadIdle = useCallback(() => {
@@ -276,25 +331,31 @@ export function useMediaPlayback(
       setActivePhotoSlot('primary')
       setPrimaryOpacity(1)
       setSecondaryOpacity(0)
+      setIdleVisual('still')
       scheduleIdleCycle()
       return
     }
 
-    const video = primaryRef.current
-    if (!video) return
-
-    activeSlotRef.current = 'primary'
-    setPrimaryOpacity(1)
-    setSecondaryOpacity(0)
-
-    const secondary = secondaryRef.current
-    if (secondary) {
-      secondary.pause()
-      secondary.removeAttribute('src')
+    const urls = idleUrls()
+    if (urls.length === 0) {
+      hideVideosToStill()
+      return
     }
 
+    const video = primaryRef.current
+    if (!video) {
+      hideVideosToStill()
+      return
+    }
+
+    activeSlotRef.current = 'primary'
+    setIdleVisual('video')
+    setPrimaryOpacity(1)
+    setSecondaryOpacity(0)
+    clearVideoElement(secondaryRef.current)
+
     cancelLoadRef.current?.()
-    cancelLoadRef.current = loadVideoWithFallback(video, idleUrls(), {
+    cancelLoadRef.current = loadVideoWithFallback(video, urls, {
       loop: true,
       onReady: () => {
         cancelLoadRef.current = null
@@ -302,10 +363,18 @@ export function useMediaPlayback(
       },
       onFail: () => {
         cancelLoadRef.current = null
-        video.removeAttribute('src')
+        hideVideosToStill()
       },
     })
-  }, [clearTimers, idleUrls, photos, scheduleIdleCycle, usePhotos])
+  }, [
+    clearTimers,
+    clearVideoElement,
+    hideVideosToStill,
+    idleUrls,
+    photos,
+    scheduleIdleCycle,
+    usePhotos,
+  ])
 
   const playPhotoReaction = useCallback(
     (clipId: string, onComplete: () => void) => {
@@ -367,8 +436,10 @@ export function useMediaPlayback(
         incomingSlot === 'primary' ? primaryRef.current : secondaryRef.current
       if (!incomingVideo) return
 
+      clearTimers()
       isPlayingReactionRef.current = true
       setIsReactionPlaying(true)
+      setIdleVisual('video')
       onCompleteRef.current = onComplete
       setCurrentClipId(clipId)
 
@@ -392,7 +463,7 @@ export function useMediaPlayback(
         },
       })
     },
-    [crossfadeTo, dogName, finishReactionToIdle, rulesConfig],
+    [clearTimers, crossfadeTo, dogName, finishReactionToIdle, rulesConfig],
   )
 
   const playReaction = useCallback(
@@ -452,6 +523,7 @@ export function useMediaPlayback(
     primaryMotionKey,
     secondaryMotionKey,
     currentClipId,
+    idleVisual,
     photoIndex,
     photoCount: photos.length,
     canNavigatePhotos: usePhotos && photos.length > 1 && !isReactionPlaying,

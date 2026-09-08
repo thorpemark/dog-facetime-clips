@@ -19,8 +19,9 @@ import type {
   KeywordRulesConfig,
 } from '../types'
 import { DEFAULT_PROFILE } from '../types'
+import { getStudioBlob } from '../utils/clipStudioMedia'
 import { rulesConfigFromCatalog } from '../utils/keywordRules'
-import { subscribeStudio } from '../utils/clipStudioStore'
+import { hydrateStudioMedia, subscribeStudio } from '../utils/clipStudioStore'
 import type { TranscriptMatch } from '../utils/matchTranscript'
 
 interface MemorialCallContextValue {
@@ -120,6 +121,7 @@ export function MemorialCallProvider({
     crossfadeIntervalMs,
     idleAnimationMs,
     dogName: profile.dogName,
+    hasIdentityStill: Boolean(profile.avatarUrl),
   })
 
   const playReaction = mediaPlayback.playReaction
@@ -158,8 +160,26 @@ export function MemorialCallProvider({
   useEffect(() => {
     const refresh = () => setRulesConfig(rulesConfigFromCatalog(profile.dogName))
     refresh()
-    return subscribeStudio(refresh)
+    let cancelled = false
+    void hydrateStudioMedia(getStudioBlob).then(() => {
+      if (!cancelled) refresh()
+    })
+    const unsub = subscribeStudio(refresh)
+    return () => {
+      cancelled = true
+      unsub()
+    }
   }, [profile.dogName])
+
+  const rulesConfigRef = useRef(rulesConfig)
+  useEffect(() => {
+    const previous = rulesConfigRef.current
+    rulesConfigRef.current = rulesConfig
+    if (previous === rulesConfig) return
+    if (callPhaseRef.current !== 'active') return
+    if (behaviorStateRef.current.type === 'react') return
+    loadIdle()
+  }, [loadIdle, rulesConfig])
 
   useEffect(() => {
     if (behaviorState.type === 'listen' && callPhase === 'active' && !isMuted) {

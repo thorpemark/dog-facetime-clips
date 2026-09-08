@@ -4,6 +4,7 @@ import {
   type ReactionBucket,
   type WeightedClip,
 } from '../data/reactionCatalog'
+import { userVideoPlaybackPath } from './callIdentity'
 import { findDog, getStudioState } from './clipStudioStore'
 
 export function playbackPathForSlot(slot: ClipSlot): string | undefined {
@@ -12,18 +13,30 @@ export function playbackPathForSlot(slot: ClipSlot): string | undefined {
   return undefined
 }
 
+function clipsFromSlots(
+  slots: ClipSlot[],
+  pathForSlot: (slot: ClipSlot) => string | undefined,
+): WeightedClip[] {
+  const clips: WeightedClip[] = []
+  for (const slot of slots) {
+    const path = pathForSlot(slot)
+    if (!path || slot.weight <= 0) continue
+    clips.push({
+      path,
+      weight: slot.weight,
+      label: slot.label,
+    })
+  }
+  return clips
+}
+
 export function dogLibraryToBuckets(dog: DogLibrary): ReactionBucket[] {
   return dog.intents.map((intent) => {
-    const clips: WeightedClip[] = []
-    for (const slot of intent.clipSlots) {
-      const path = playbackPathForSlot(slot)
-      if (!path || slot.weight <= 0) continue
-      clips.push({
-        path,
-        weight: slot.weight,
-        label: slot.label,
-      })
-    }
+    const userClips = clipsFromSlots(intent.clipSlots, userVideoPlaybackPath)
+    const clips =
+      userClips.length > 0
+        ? userClips
+        : clipsFromSlots(intent.clipSlots, playbackPathForSlot)
 
     return {
       id: intent.id,
