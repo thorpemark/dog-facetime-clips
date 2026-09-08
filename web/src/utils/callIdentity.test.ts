@@ -3,6 +3,7 @@ import { CALL_MODES, defaultSourcePhotoForMode } from '../data/callModes'
 import { createSeedStudioState } from '../data/clipStudioSeed'
 import type { ClipSlot, ClipSourcePhoto, DogLibrary } from '../types/clipStudio'
 import {
+  attachedIdleSlots,
   chosenIdleSlot,
   identityStillForDog,
   isMismatchedModePhoto,
@@ -186,6 +187,9 @@ describe('idle playback plan', () => {
     expect(userVideoPlaybackPath(withIdle.intents[0].clipSlots[0])).toBe('blob:idle-user')
     expect(userIdlePlaybackUrls(withIdle)).toEqual(['blob:idle-user'])
     expect(chosenIdleSlot(withIdle)?.id).toBe(withIdle.intents[0].clipSlots[0].id)
+    expect(attachedIdleSlots(withIdle).map((slot) => slot.id)).toEqual([
+      withIdle.intents[0].clipSlots[0].id,
+    ])
     expect(resolveIdlePlayback('Murphy', withIdle)).toEqual({
       kind: 'user-video',
       urls: ['blob:idle-user'],

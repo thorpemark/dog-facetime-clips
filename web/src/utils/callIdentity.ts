@@ -154,6 +154,15 @@ function playableIdleSlots(dog?: DogLibrary | null): ClipSlot[] {
   return idleSlots(dog).filter((slot) => slot.weight > 0)
 }
 
+/** Idle variants with a real attached MP4 (not the colored placeholder). */
+export function attachedIdleSlots(dog?: DogLibrary | null): ClipSlot[] {
+  return playableIdleSlots(dog).filter(
+    (slot) =>
+      slot.resultVideo?.origin === 'user' &&
+      Boolean(userVideoPlaybackPath(slot) || slot.resultVideo.blobKey),
+  )
+}
+
 /** Slot Mark picked as the looping FaceTime hold, or the first attached idle. */
 export function chosenIdleSlot(dog?: DogLibrary | null): ClipSlot | undefined {
   const slots = playableIdleSlots(dog)
