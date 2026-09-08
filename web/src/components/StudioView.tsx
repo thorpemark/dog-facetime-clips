@@ -8,6 +8,7 @@ import {
   createEmptyIntent,
 } from '../data/clipStudioSeed'
 import { slugifyIntent } from '../utils/clipStudioMedia'
+import { chosenIdleSlot } from '../utils/callIdentity'
 import { resetStudioToSeed, sourcePhotoDisplayUrl } from '../utils/clipStudioStore'
 import { publicAssetUrl } from '../lib/urls'
 import { defaultPersonality } from '../utils/dogPersonality'
@@ -26,6 +27,7 @@ export function StudioView() {
   } = useClipStudio()
 
   const [expanded, setExpanded] = useState<Record<string, boolean>>({
+    idle: true,
     hug: true,
     howl: true,
   })
@@ -36,6 +38,7 @@ export function StudioView() {
 
   const dog = activeDog
   const previewHref = dog ? `/demo?dog=${encodeURIComponent(dog.name)}` : '/demo'
+  const callIdleSlotId = dog ? chosenIdleSlot(dog)?.id : undefined
 
   const intentSummary = useMemo(() => {
     if (!dog) return ''
@@ -221,6 +224,15 @@ export function StudioView() {
 
                 {open && (
                   <div className="studio-intent-body">
+                    {intent.id === 'idle' && (
+                      <p className="studio-idle-note">
+                        This is the looping FaceTime hold — first frame on the
+                        call and the return after every reaction. Attach an MP4,
+                        then mark <strong>Use as call idle</strong>. Until one
+                        is attached, the call shows this dog’s still (never the
+                        colored placeholder).
+                      </p>
+                    )}
                     <div className="studio-intent-fields">
                       <label className="studio-field">
                         Description
@@ -368,6 +380,17 @@ export function StudioView() {
                               intentId: intent.id,
                               slotId: slot.id,
                             })
+                          }
+                          isCallIdle={intent.id === 'idle' && slot.id === callIdleSlotId}
+                          onUseAsCallIdle={
+                            intent.id === 'idle'
+                              ? () =>
+                                  dispatch({
+                                    type: 'setPreferredIdle',
+                                    dogId: dog.id,
+                                    slotId: slot.id,
+                                  })
+                              : undefined
                           }
                         />
                       ))}

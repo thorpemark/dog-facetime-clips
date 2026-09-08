@@ -150,20 +150,52 @@ export function identityStillForDog(
   return fallback
 }
 
+function playableIdleSlots(dog?: DogLibrary | null): ClipSlot[] {
+  return idleSlots(dog).filter((slot) => slot.weight > 0)
+}
+
+/** Slot Mark picked as the looping FaceTime hold, or the first attached idle. */
+export function chosenIdleSlot(dog?: DogLibrary | null): ClipSlot | undefined {
+  const slots = playableIdleSlots(dog)
+  if (slots.length === 0) return undefined
+  const preferredId = dog?.preferredIdleSlotId
+  const preferred = preferredId
+    ? slots.find((slot) => slot.id === preferredId)
+    : undefined
+  if (preferred && (userVideoPlaybackPath(preferred) || preferred.resultVideo?.origin === 'user')) {
+    return preferred
+  }
+  return (
+    slots.find((slot) => userVideoPlaybackPath(slot)) ??
+    slots.find((slot) => slot.resultVideo?.origin === 'user')
+  )
+}
+
 export function userIdlePlaybackUrls(dog?: DogLibrary | null): string[] {
+  const slots = playableIdleSlots(dog)
+  const chosen = chosenIdleSlot(dog)
   const urls: string[] = []
-  for (const slot of idleSlots(dog)) {
-    if (slot.weight <= 0) continue
+  const primary = chosen ? userVideoPlaybackPath(chosen) : undefined
+  if (primary) urls.push(primary)
+  for (const slot of slots) {
     const path = userVideoPlaybackPath(slot)
-    if (path) urls.push(path)
+    if (path && path !== primary) urls.push(path)
   }
   return urls
 }
 
+export function hasPendingChosenIdle(dog?: DogLibrary | null): boolean {
+  const chosen = chosenIdleSlot(dog)
+  if (!chosen || userVideoPlaybackPath(chosen)) return false
+  return (
+    chosen.resultVideo?.origin === 'user' && Boolean(chosen.resultVideo.blobKey)
+  )
+}
+
 /**
- * After a reaction (or on first accept): play a real attached idle if the
- * Studio library has one; otherwise hold the identity still. Placeholder
- * slate-blue idle MP4s are last resort when there is no still at all.
+ * Looping FaceTime hold: Mark's chosen/first attached idle MP4, else the
+ * identity still. Placeholder slate-blue idle MP4s are last resort when
+ * there is no still at all.
  */
 export function resolveIdlePlayback(
   dogName?: string,
@@ -174,7 +206,7 @@ export function resolveIdlePlayback(
   if (userUrls.length > 0) return { kind: 'user-video', urls: userUrls }
 
   const still = identityStillForDog(dogName, dog)
-  if (still?.url || hasProfileStill) {
+  if (still?.url || hasProfileStill || hasPendingChosenIdle(dog)) {
     return { kind: 'still', url: still?.url ?? '' }
   }
 

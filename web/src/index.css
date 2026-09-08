@@ -2461,6 +2461,22 @@ button {
   color: #ffc48a;
 }
 
+.studio-status--call-idle {
+  background: rgba(255, 214, 102, 0.22);
+  color: #ffe08a;
+}
+
+.studio-slot--call-idle {
+  border-color: rgba(255, 214, 102, 0.35);
+}
+
+.studio-idle-note {
+  margin: 0 0 12px;
+  font-size: 0.88rem;
+  line-height: 1.45;
+  color: rgba(255, 255, 255, 0.68);
+}
+
 .studio-slot-media {
   display: grid;
   grid-template-columns: 1fr 1fr;

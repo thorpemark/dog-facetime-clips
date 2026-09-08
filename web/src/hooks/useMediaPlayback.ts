@@ -25,7 +25,8 @@ import {
   presetForRule,
 } from '../utils/reactionPresets'
 
-const CROSSFADE_MS = 400
+/** Short, calm FaceTime handoff — long enough to hide a cut, not a dissolve. */
+const CROSSFADE_MS = 320
 
 interface UseMediaPlaybackOptions {
   crossfadeIntervalMs: number
@@ -245,13 +246,81 @@ export function useMediaPlayback(
     video.load()
   }, [])
 
-  const hideVideosToStill = useCallback(() => {
-    clearVideoElement(primaryRef.current)
-    clearVideoElement(secondaryRef.current)
+  const scheduleClearOutgoing = useCallback(
+    (outgoing: HTMLVideoElement | null, incomingSlot: 'primary' | 'secondary') => {
+      if (outgoingClearTimerRef.current) {
+        window.clearTimeout(outgoingClearTimerRef.current)
+      }
+      outgoingClearTimerRef.current = window.setTimeout(() => {
+        outgoingClearTimerRef.current = null
+        if (activeSlotRef.current === incomingSlot) {
+          clearVideoElement(outgoing)
+        }
+      }, CROSSFADE_MS + 40)
+    },
+    [clearVideoElement],
+  )
+
+  const fadeVideosToStill = useCallback(() => {
     setPrimaryOpacity(0)
     setSecondaryOpacity(0)
     setIdleVisual('still')
+    if (outgoingClearTimerRef.current) {
+      window.clearTimeout(outgoingClearTimerRef.current)
+    }
+    outgoingClearTimerRef.current = window.setTimeout(() => {
+      outgoingClearTimerRef.current = null
+      if (!isPlayingReactionRef.current) {
+        clearVideoElement(primaryRef.current)
+        clearVideoElement(secondaryRef.current)
+      }
+    }, CROSSFADE_MS + 40)
   }, [clearVideoElement])
+
+  const videoMatchesIdle = useCallback(
+    (video: HTMLVideoElement | null, urls: string[]) => {
+      if (!video || urls.length === 0) return false
+      const src = video.currentSrc || video.src
+      return Boolean(src && urls.some((url) => src === url || src.endsWith(url)))
+    },
+    [],
+  )
+
+  const playIdleOnSlot = useCallback(
+    (
+      slot: 'primary' | 'secondary',
+      urls: string[],
+      onSettled?: () => void,
+    ) => {
+      const idleVideo = slot === 'primary' ? primaryRef.current : secondaryRef.current
+      if (!idleVideo) {
+        fadeVideosToStill()
+        onSettled?.()
+        return
+      }
+
+      cancelLoadRef.current?.()
+      cancelLoadRef.current = loadVideoWithFallback(idleVideo, urls, {
+        loop: true,
+        onReady: () => {
+          cancelLoadRef.current = null
+          setIdleVisual('video')
+          void idleVideo.play()
+          crossfadeTo(slot)
+          const outgoing =
+            slot === 'primary' ? secondaryRef.current : primaryRef.current
+          scheduleClearOutgoing(outgoing, slot)
+          onSettled?.()
+        },
+        onFail: () => {
+          cancelLoadRef.current = null
+          fadeVideosToStill()
+          onSettled?.()
+        },
+      })
+    },
+    [crossfadeTo, fadeVideosToStill, scheduleClearOutgoing],
+  )
 
   const finishReactionToIdle = useCallback(
     (onComplete?: () => void) => {
@@ -265,51 +334,16 @@ export function useMediaPlayback(
 
       const urls = idleUrls()
       if (urls.length === 0) {
-        hideVideosToStill()
+        fadeVideosToStill()
         done()
         return
       }
 
       const idleSlot =
         activeSlotRef.current === 'primary' ? 'secondary' : 'primary'
-      const idleVideo =
-        idleSlot === 'primary' ? primaryRef.current : secondaryRef.current
-
-      if (!idleVideo) {
-        hideVideosToStill()
-        done()
-        return
-      }
-
-      cancelLoadRef.current?.()
-      cancelLoadRef.current = loadVideoWithFallback(idleVideo, urls, {
-        loop: true,
-        onReady: () => {
-          cancelLoadRef.current = null
-          setIdleVisual('video')
-          void idleVideo.play()
-          crossfadeTo(idleSlot)
-          const outgoing =
-            idleSlot === 'primary' ? secondaryRef.current : primaryRef.current
-          if (outgoingClearTimerRef.current) {
-            window.clearTimeout(outgoingClearTimerRef.current)
-          }
-          outgoingClearTimerRef.current = window.setTimeout(() => {
-            outgoingClearTimerRef.current = null
-            if (activeSlotRef.current === idleSlot) {
-              clearVideoElement(outgoing)
-            }
-          }, CROSSFADE_MS + 50)
-          done()
-        },
-        onFail: () => {
-          cancelLoadRef.current = null
-          hideVideosToStill()
-          done()
-        },
-      })
+      playIdleOnSlot(idleSlot, urls, done)
     },
-    [clearVideoElement, crossfadeTo, hideVideosToStill, idleUrls],
+    [fadeVideosToStill, idleUrls, playIdleOnSlot],
   )
 
   const loadIdle = useCallback(() => {
@@ -338,42 +372,38 @@ export function useMediaPlayback(
 
     const urls = idleUrls()
     if (urls.length === 0) {
-      hideVideosToStill()
+      fadeVideosToStill()
       return
     }
 
-    const video = primaryRef.current
-    if (!video) {
-      hideVideosToStill()
+    const active =
+      activeSlotRef.current === 'primary' ? primaryRef.current : secondaryRef.current
+    if (videoMatchesIdle(active, urls) && !active?.paused) {
+      setIdleVisual('video')
       return
     }
 
-    activeSlotRef.current = 'primary'
-    setIdleVisual('video')
-    setPrimaryOpacity(1)
-    setSecondaryOpacity(0)
-    clearVideoElement(secondaryRef.current)
-
-    cancelLoadRef.current?.()
-    cancelLoadRef.current = loadVideoWithFallback(video, urls, {
-      loop: true,
-      onReady: () => {
-        cancelLoadRef.current = null
-        void video.play()
-      },
-      onFail: () => {
-        cancelLoadRef.current = null
-        hideVideosToStill()
-      },
-    })
+    const incomingSlot =
+      videoMatchesIdle(active, urls)
+        ? activeSlotRef.current
+        : activeSlotRef.current === 'primary'
+          ? 'secondary'
+          : 'primary'
+    // First accept: both layers are empty — load on primary and fade up over the still.
+    const usePrimary =
+      !primaryRef.current?.src && !secondaryRef.current?.src
+        ? 'primary'
+        : incomingSlot
+    playIdleOnSlot(usePrimary, urls)
   }, [
     clearTimers,
-    clearVideoElement,
-    hideVideosToStill,
+    fadeVideosToStill,
     idleUrls,
     photos,
+    playIdleOnSlot,
     scheduleIdleCycle,
     usePhotos,
+    videoMatchesIdle,
   ])
 
   const playPhotoReaction = useCallback(

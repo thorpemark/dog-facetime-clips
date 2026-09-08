@@ -3,6 +3,7 @@ import { CALL_MODES, defaultSourcePhotoForMode } from '../data/callModes'
 import { createSeedStudioState } from '../data/clipStudioSeed'
 import type { ClipSlot, ClipSourcePhoto, DogLibrary } from '../types/clipStudio'
 import {
+  chosenIdleSlot,
   identityStillForDog,
   isMismatchedModePhoto,
   repairSeedIdentityPhotos,
@@ -184,9 +185,44 @@ describe('idle playback plan', () => {
 
     expect(userVideoPlaybackPath(withIdle.intents[0].clipSlots[0])).toBe('blob:idle-user')
     expect(userIdlePlaybackUrls(withIdle)).toEqual(['blob:idle-user'])
+    expect(chosenIdleSlot(withIdle)?.id).toBe(withIdle.intents[0].clipSlots[0].id)
     expect(resolveIdlePlayback('Murphy', withIdle)).toEqual({
       kind: 'user-video',
       urls: ['blob:idle-user'],
+    })
+  })
+
+  it('uses the preferred idle slot as the looping FaceTime hold', () => {
+    const seed = createSeedStudioState()
+    const murphy = seed.dogs.find((dog) => dog.id === 'murphy')
+    if (!murphy) throw new Error('missing murphy')
+    const idle = murphy.intents.find((intent) => intent.id === 'idle')
+    if (!idle || idle.clipSlots.length < 2) throw new Error('need two idle slots')
+
+    const withTwo: DogLibrary = {
+      ...murphy,
+      preferredIdleSlotId: idle.clipSlots[1].id,
+      intents: murphy.intents.map((intent) =>
+        intent.id === 'idle'
+          ? {
+              ...intent,
+              clipSlots: intent.clipSlots.map((slot, index) => ({
+                ...slot,
+                resultVideo: {
+                  objectUrl: index === 0 ? 'blob:idle-a' : 'blob:idle-b',
+                  origin: 'user' as const,
+                  blobKey: `video:idle-${index}`,
+                },
+              })),
+            }
+          : intent,
+      ),
+    }
+
+    expect(chosenIdleSlot(withTwo)?.id).toBe(idle.clipSlots[1].id)
+    expect(resolveIdlePlayback('Murphy', withTwo)).toEqual({
+      kind: 'user-video',
+      urls: ['blob:idle-b', 'blob:idle-a'],
     })
   })
 

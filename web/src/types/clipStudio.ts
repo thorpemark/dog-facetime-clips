@@ -94,6 +94,8 @@ export interface DogLibrary {
   avatarPath?: string
   /** Dog-level still used when a slot has no photo yet. */
   defaultPhoto?: ClipSourcePhoto | null
+  /** Idle-intent slot used as the looping FaceTime hold. */
+  preferredIdleSlotId?: string
 }
 
 export interface ClipStudioState {
@@ -107,7 +109,8 @@ export interface ClipStudioState {
 export type StudioAction =
   | { type: 'selectDog'; dogId: string }
   | { type: 'addDog'; dog: DogLibrary }
-  | { type: 'updateDog'; dogId: string; patch: Partial<Pick<DogLibrary, 'name' | 'personality'>> }
+  | { type: 'updateDog'; dogId: string; patch: Partial<Pick<DogLibrary, 'name' | 'personality' | 'preferredIdleSlotId'>> }
+  | { type: 'setPreferredIdle'; dogId: string; slotId: string | null }
   | { type: 'removeDog'; dogId: string }
   | { type: 'addIntent'; dogId: string; intent: IntentBucket }
   | { type: 'updateIntent'; dogId: string; intentId: string; patch: Partial<Omit<IntentBucket, 'id' | 'clipSlots'>> }

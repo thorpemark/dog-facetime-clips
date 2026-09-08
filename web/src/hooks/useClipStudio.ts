@@ -119,6 +119,12 @@ export function useClipStudio() {
           status: 'video_attached',
         },
       })
+      if (intentId === 'idle') {
+        const dog = findDog(getStudioState(), dogId)
+        if (dog && !dog.preferredIdleSlotId) {
+          dispatchStudio({ type: 'setPreferredIdle', dogId, slotId: slot.id })
+        }
+      }
     },
     [],
   )

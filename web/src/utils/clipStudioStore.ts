@@ -357,6 +357,11 @@ export function applyStudioAction(
           action.patch.name ?? dog.name,
         ),
       }))
+    case 'setPreferredIdle':
+      return mapDog(state, action.dogId, (dog) => ({
+        ...dog,
+        preferredIdleSlotId: action.slotId ?? undefined,
+      }))
     case 'removeDog': {
       const dogs = state.dogs.filter((dog) => dog.id !== action.dogId)
       if (dogs.length === 0) return state
@@ -415,12 +420,16 @@ export function applyStudioAction(
         })),
       )
     case 'removeSlot':
-      return mapDog(state, action.dogId, (dog) =>
-        mapIntent(dog, action.intentId, (intent) => ({
+      return mapDog(state, action.dogId, (dog) => {
+        const next = mapIntent(dog, action.intentId, (intent) => ({
           ...intent,
           clipSlots: intent.clipSlots.filter((slot) => slot.id !== action.slotId),
-        })),
-      )
+        }))
+        if (dog.preferredIdleSlotId === action.slotId) {
+          return { ...next, preferredIdleSlotId: undefined }
+        }
+        return next
+      })
     default:
       return state
   }
