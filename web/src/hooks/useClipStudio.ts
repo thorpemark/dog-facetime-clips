@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import type { DualFraming } from '../utils/focalPoint'
+import { fullImageDualFraming, type DualFraming } from '../utils/focalPoint'
 import type { ClipSlot, ClipSourcePhoto, ClipStudioState } from '../types/clipStudio'
 import { generateId } from '../lib/ids'
 import {
@@ -81,7 +81,6 @@ export function useClipStudio() {
     const id = generateId()
     const blobKey = `photo:generation:${dogId}:${id}`
     await putStudioBlob(blobKey, blob)
-    const dog = findDog(getStudioState(), dogId)
     const url = URL.createObjectURL(blob)
     dispatchStudio({
       type: 'setGenerationPhoto',
@@ -90,7 +89,7 @@ export function useClipStudio() {
         id,
         url,
         blobKey,
-        framing: dog?.generationPhoto?.framing ?? DEFAULT_FRAMING,
+        framing: fullImageDualFraming(),
       },
       fillEmptySlots: true,
     })
@@ -127,7 +126,7 @@ export function useClipStudio() {
         url,
         blobKey,
         publicPath: photo.publicPath,
-        framing: structuredClone(photo.framing),
+        framing: fullImageDualFraming(),
       },
       fillEmptySlots: true,
     })

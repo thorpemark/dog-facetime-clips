@@ -808,6 +808,15 @@ export function fitFullImageFraming(
   )
 }
 
+/** Whole photo in both FaceTime orientations — no inset crop, zoom, or pan. */
+export function fullImageDualFraming(imageAspect = 1): DualFraming {
+  const aspect = imageAspect > 0 ? imageAspect : 1
+  return {
+    portrait: fitFullImageFraming(aspect, PORTRAIT_CALL_ASPECT),
+    landscape: fitFullImageFraming(aspect, LANDSCAPE_CALL_ASPECT),
+  }
+}
+
 /** True when zooming out to the full image would change the visible framing. */
 export function canFitFullImage(
   focal: FocalFrame,

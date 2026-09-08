@@ -19,6 +19,7 @@ import {
 import { generateId } from '../lib/ids'
 import { suggestClipPrompt } from '../utils/suggestClipPrompt'
 import { normalizePersonality } from '../utils/dogPersonality'
+import { fullImageDualFraming } from '../utils/focalPoint'
 
 /** Existing browsers merge this seed when their stored revision is lower. */
 export const STUDIO_SEED_REVISION = 5
@@ -49,6 +50,16 @@ export function cloneSourcePhoto(
     ...structuredClone(photo),
     id: `${photo.id}-${slotId}`,
   }
+}
+
+/** Copy a generation still onto a slot at full-frame (whole image, both orientations). */
+export function cloneGenerationStillForSlot(
+  photo: ClipSourcePhoto | null | undefined,
+  slotId: string,
+): ClipSourcePhoto | null {
+  const cloned = cloneSourcePhoto(photo, slotId)
+  if (!cloned) return null
+  return { ...cloned, framing: fullImageDualFraming() }
 }
 
 function slotsFromBucket(
@@ -220,7 +231,7 @@ export function createEmptyClipSlot(
 ): ClipSlot {
   const label = `${intent.description} ${String(index).padStart(2, '0')}`
   const id = generateId()
-  const sourcePhoto = cloneSourcePhoto(dog.generationPhoto, id)
+  const sourcePhoto = cloneGenerationStillForSlot(dog.generationPhoto, id)
   return {
     id,
     weight: 40,

@@ -27,16 +27,16 @@ Those stills are the Studio tab avatars, the home/demo three-mode picker cards, 
 This is the framed photo every new clip should start from — the same still you feed Grok Imagine — so playback can return to an exact FaceTime frame. It is **not** the Studio tab / demo picker avatar.
 
 1. Pick the dog (Murphy, Riley, Both, or a custom dog).
-2. Under **Generation still**, choose or replace a photo and frame it (same crop editor as clip slots).
-3. Or open a slot that already has the keeper still (idle or name) → **Use this photo as generation still**.
-4. **Add intent** (or **Add clip variant**). New slots copy that still + crop. Slots that already have their own photo, and any attached MP4s, are left alone.
+2. Under **Generation still**, choose or replace a photo. It is applied at **full frame** for both portrait and landscape (the whole image, no crop). Frame only if you want a tighter crop later.
+3. Or open a slot that already has the keeper still (idle or name) → **Use this photo as generation still** (also full-frame by default).
+4. **Add intent** (or **Add clip variant**). New slots copy that still at full frame. Slots that already have their own photo, and any attached MP4s, are left alone.
 
 Persists with the Studio library (localStorage + IndexedDB). Home cards stay on `modes/*.jpg` unless you change those separately.
 
 ## Add an intent (bucket)
 
 1. Type a label (e.g. `belly rub`) → **Add intent**.
-2. New clip slots copy this dog’s **Generation still** (and its framing) when one is set — not the tab avatar.
+2. New clip slots copy this dog’s **Generation still** at full frame (whole photo, both orientations) when one is set — not the tab avatar.
 3. Set **priority** (higher wins close matches), **semantic hints** (paraphrases for meaning match), and **phrases** (keyword fallback).
 4. Expand the intent to edit clip slots.
 
@@ -50,7 +50,7 @@ In an expanded intent: type the phrase → **Add phrase**. Lowercased automatica
 
 ## Add a clip variant
 
-1. **Add clip variant** on the intent. If a generation still is set, the new slot already has that framed photo.
+1. **Add clip variant** on the intent. If a generation still is set, the new slot already has that photo at full frame.
 2. **Add photo** only if you need a different still (same framing editor: portrait + landscape/PC, crop handles, zoom, rotation). **Use this photo as generation still** if this is the keeper you want on later intents.
 3. Optional: type **slot notes** for this variant (director extras).
 4. **Suggest prompt** → edit if you want → **Copy**.

@@ -13,12 +13,13 @@ import {
   isKeySeedIntent,
 } from '../data/callModes'
 import { repairSeedIdentityPhotos } from './callIdentity'
+import { fullImageDualFraming } from './focalPoint'
 import {
   BOTH_PERSONALITY,
   MURPHY_PERSONALITY,
   RILEY_PERSONALITY,
   STUDIO_SEED_REVISION,
-  cloneSourcePhoto,
+  cloneGenerationStillForSlot,
   createDogLibrary,
   createSeedStudioState,
 } from '../data/clipStudioSeed'
@@ -94,7 +95,7 @@ function withCopiedGenerationStill(
   if (!photo || slotHasOwnSourcePhoto(slot)) return withDerivedStatus(slot)
   return withDerivedStatus({
     ...slot,
-    sourcePhoto: cloneSourcePhoto(photo, slot.id),
+    sourcePhoto: cloneGenerationStillForSlot(photo, slot.id),
   })
 }
 
@@ -390,7 +391,10 @@ export function applyStudioAction(
       }))
     case 'setGenerationPhoto':
       return mapDog(state, action.dogId, (dog) => {
-        const photo = action.photo ? structuredClone(action.photo) : null
+        let photo = action.photo ? structuredClone(action.photo) : null
+        if (photo && action.fillEmptySlots !== false) {
+          photo = { ...photo, framing: fullImageDualFraming() }
+        }
         const next: DogLibrary = { ...dog, generationPhoto: photo }
         if (!photo || action.fillEmptySlots === false) return next
         return {

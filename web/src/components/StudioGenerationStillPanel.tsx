@@ -29,8 +29,9 @@ export function StudioGenerationStillPanel({
       <h2 id={`generation-still-${dogId}`}>Generation still</h2>
       <p className="studio-generation-lead">
         The framed photo used as the <strong>video source</strong> for Grok Imagine
-        (and new clip slots). Home / demo picker cards stay on the mode avatar —
-        this does not change the tab face.
+        (and new clip slots). New slots start at the whole image — no crop.
+        Home / demo picker cards stay on the mode avatar — this does not change the
+        tab face.
       </p>
       <div className="studio-generation-row">
         {url ? (
@@ -55,8 +56,9 @@ export function StudioGenerationStillPanel({
         )}
         <div className="studio-generation-copy">
           <p>
-            New intents and empty clip variants copy this still and its crop so
-            every reaction can return to the same locked FaceTime frame.
+            New intents and empty clip variants copy this still at{' '}
+            <strong>full frame</strong> (whole photo, portrait and landscape).
+            Frame only if you want a tighter crop.
           </p>
           <div className="studio-generation-actions">
             <button
@@ -87,7 +89,6 @@ export function StudioGenerationStillPanel({
           setBusy(true)
           void onAttach(file).finally(() => {
             setBusy(false)
-            setFramingOpen(true)
           })
         }}
       />
