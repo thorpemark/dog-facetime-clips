@@ -2325,6 +2325,12 @@ button {
   align-items: center;
 }
 
+.studio-generation-apply-note {
+  margin: 10px 0 0;
+  font-size: 0.82rem;
+  color: rgba(180, 230, 180, 0.9);
+}
+
 .studio-trait-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;

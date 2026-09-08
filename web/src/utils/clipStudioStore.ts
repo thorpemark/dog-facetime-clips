@@ -12,7 +12,7 @@ import {
   defaultSourcePhotoForMode,
   isKeySeedIntent,
 } from '../data/callModes'
-import { repairSeedIdentityPhotos } from './callIdentity'
+import { isUserAttachedPhoto, repairSeedIdentityPhotos } from './callIdentity'
 import { fullImageDualFraming } from './focalPoint'
 import {
   BOTH_PERSONALITY,
@@ -22,6 +22,7 @@ import {
   cloneGenerationStillForSlot,
   createDogLibrary,
   createSeedStudioState,
+  ensureHolidayIntents,
 } from '../data/clipStudioSeed'
 import { isUnknownIntent, UNKNOWN_INTENT_ID } from '../data/reactionCatalog'
 import { normalizePersonality } from './dogPersonality'
@@ -88,15 +89,89 @@ export function isSlotOwnedPhotoBlobKey(slotId: string, blobKey?: string): boole
   return Boolean(blobKey && blobKey === `photo:${slotId}`)
 }
 
+/**
+ * Seed/avatar stills and copies of the generation portrait can be replaced.
+ * Slot-owned custom photos (IndexedDB `photo:${slotId}`) stay unless forced.
+ */
+export function slotUsesReplaceableStill(slot: ClipSlot): boolean {
+  if (!slotHasOwnSourcePhoto(slot)) return true
+  return !isUserAttachedPhoto(slot.sourcePhoto)
+}
+
 function withCopiedGenerationStill(
   slot: ClipSlot,
   photo: ClipSourcePhoto | null | undefined,
+  options?: { replaceCustom?: boolean },
 ): ClipSlot {
-  if (!photo || slotHasOwnSourcePhoto(slot)) return withDerivedStatus(slot)
+  if (!photo) return withDerivedStatus(slot)
+  if (!options?.replaceCustom && !slotUsesReplaceableStill(slot)) {
+    return withDerivedStatus(slot)
+  }
   return withDerivedStatus({
     ...slot,
     sourcePhoto: cloneGenerationStillForSlot(photo, slot.id),
   })
+}
+
+export function applyGenerationStillToDog(
+  dog: DogLibrary,
+  photo: ClipSourcePhoto,
+  options?: { replaceCustom?: boolean },
+): DogLibrary {
+  const still: ClipSourcePhoto = {
+    ...structuredClone(photo),
+    framing: fullImageDualFraming(),
+  }
+  return {
+    ...dog,
+    generationPhoto: still,
+    intents: dog.intents.map((intent) => ({
+      ...intent,
+      clipSlots: intent.clipSlots.map((slot) =>
+        withCopiedGenerationStill(slot, still, options),
+      ),
+    })),
+  }
+}
+
+function isFullFrameStill(framing: ClipSourcePhoto['framing'] | undefined): boolean {
+  if (!framing) return false
+  return [framing.portrait, framing.landscape].every(
+    (side) =>
+      side.focalX === 0.5 &&
+      side.focalY === 0.5 &&
+      (side.cropWidth == null || side.cropWidth === 1) &&
+      (side.cropHeight == null || side.cropHeight === 1),
+  )
+}
+
+function slotAlreadyHasGenerationStill(
+  slot: ClipSlot,
+  photo: ClipSourcePhoto,
+): boolean {
+  const current = slot.sourcePhoto
+  if (!current) return false
+  const sameBlob = Boolean(photo.blobKey && current.blobKey === photo.blobKey)
+  const samePublic =
+    Boolean(photo.publicPath && current.publicPath === photo.publicPath) && !photo.blobKey
+  return (sameBlob || samePublic) && isFullFrameStill(current.framing)
+}
+
+export function countGenerationStillTargets(
+  dog: DogLibrary,
+  replaceCustom = false,
+): number {
+  const photo = dog.generationPhoto
+  if (!photo) return 0
+  return dog.intents.reduce((sum, intent) => {
+    return (
+      sum +
+      intent.clipSlots.filter((slot) => {
+        if (!replaceCustom && !slotUsesReplaceableStill(slot)) return false
+        return !slotAlreadyHasGenerationStill(slot, photo)
+      }).length
+    )
+  }, 0)
 }
 
 function rehydratePublicPhotos(state: ClipStudioState): ClipStudioState {
@@ -197,6 +272,14 @@ function withNormalizedPersonalities(state: ClipStudioState): ClipStudioState {
   }
 }
 
+function withHolidayIntents(state: ClipStudioState): ClipStudioState {
+  return {
+    ...state,
+    dogs: state.dogs.map((dog) => ensureHolidayIntents(dog)),
+    seedRevision: STUDIO_SEED_REVISION,
+  }
+}
+
 function ensureUnknownIntent(dog: DogLibrary): DogLibrary {
   if (dog.intents.some((intent) => isUnknownIntent(intent.id))) return dog
   const seed = createDogLibrary(dog.name, dog.personality, {
@@ -217,10 +300,12 @@ export function migrateStudioState(state: ClipStudioState): ClipStudioState {
     (dog) => !dog.intents.some((intent) => isUnknownIntent(intent.id)),
   )
   if (revision >= 2 && hasBoth && !missingUnknown) {
-    return withNormalizedPersonalities({
-      ...state,
-      dogs: state.dogs.map((dog) => repairSeedIdentityPhotos(dog)),
-    })
+    return withHolidayIntents(
+      withNormalizedPersonalities({
+        ...state,
+        dogs: state.dogs.map((dog) => repairSeedIdentityPhotos(dog)),
+      }),
+    )
   }
 
   const seed = createSeedStudioState()
@@ -258,11 +343,13 @@ export function migrateStudioState(state: ClipStudioState): ClipStudioState {
     ),
   )
 
-  return withNormalizedPersonalities({
-    ...state,
-    dogs: withUnknown,
-    activeDogId: state.activeDogId || withUnknown[0]?.id || seed.activeDogId,
-  })
+  return withHolidayIntents(
+    withNormalizedPersonalities({
+      ...state,
+      dogs: withUnknown,
+      activeDogId: state.activeDogId || withUnknown[0]?.id || seed.activeDogId,
+    }),
+  )
 }
 
 export function getStudioState(): ClipStudioState {
@@ -397,13 +484,14 @@ export function applyStudioAction(
         }
         const next: DogLibrary = { ...dog, generationPhoto: photo }
         if (!photo || action.fillEmptySlots === false) return next
-        return {
-          ...next,
-          intents: next.intents.map((intent) => ({
-            ...intent,
-            clipSlots: intent.clipSlots.map((slot) => withCopiedGenerationStill(slot, photo)),
-          })),
-        }
+        return applyGenerationStillToDog(next, photo)
+      })
+    case 'applyGenerationStill':
+      return mapDog(state, action.dogId, (dog) => {
+        if (!dog.generationPhoto) return dog
+        return applyGenerationStillToDog(dog, dog.generationPhoto, {
+          replaceCustom: action.replaceCustom === true,
+        })
       })
     case 'removeDog': {
       const dogs = state.dogs.filter((dog) => dog.id !== action.dogId)

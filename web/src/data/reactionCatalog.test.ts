@@ -40,6 +40,31 @@ describe('unknown catch-all', () => {
   })
 })
 
+describe('holiday costume-walk catalog', () => {
+  it('seeds holiday intents before the unknown catch-all', () => {
+    const ids = REACTION_CATALOG.map((bucket) => bucket.id)
+    expect(ids).toEqual(
+      expect.arrayContaining([
+        'halloween',
+        'thanksgiving',
+        'christmas',
+        'new-years',
+        'valentines-day',
+        'super-bowl-sunday',
+        'st-patricks-day',
+        'birthday',
+        'memorial-day',
+        'fourth-of-july',
+        'labor-day',
+      ]),
+    )
+    expect(ids.indexOf('thanksgiving')).toBeLessThan(ids.indexOf(UNKNOWN_INTENT_ID))
+    const thanksgiving = REACTION_CATALOG.find((bucket) => bucket.id === 'thanksgiving')
+    expect(thanksgiving?.phrases).toContain('happy thanksgiving')
+    expect(thanksgiving?.clips.every((clip) => clip.path === '')).toBe(true)
+  })
+})
+
 describe('normalizeClipWeights', () => {
   it('converts relative weights to percents', () => {
     const result = normalizeClipWeights(sampleBucket.clips)

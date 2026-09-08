@@ -5,7 +5,7 @@ import type { DualFraming } from '../utils/focalPoint'
 import { playbackPathForSlot } from '../utils/clipStudioCatalog'
 import { resolveSourcePhoto } from '../utils/clipStudioStore'
 import { normalizeClipWeights } from '../data/reactionCatalog'
-import { suggestClipPrompt } from '../utils/suggestClipPrompt'
+import { isHolidayLikeIntent, suggestClipPrompt } from '../utils/suggestClipPrompt'
 import { PhotoFocalEditor } from './PhotoFocalEditor'
 
 const STATUS_LABEL: Record<ClipSlot['status'], string> = {
@@ -64,6 +64,9 @@ export function StudioSlotEditor({
     weight: item.weight,
   }))).find((item) => item.path === slot.id)?.percent ?? 0
 
+  const holiday = isHolidayLikeIntent(intent.id, intent.description)
+  const grokLength = holiday ? '10s or 15s · 9:16' : '6s · 9:16'
+
   const showToast = (message: string) => {
     setToast(message)
     window.setTimeout(() => setToast(null), 2200)
@@ -97,7 +100,7 @@ export function StudioSlotEditor({
     try {
       await navigator.clipboard.writeText(text)
       setCopied(true)
-      showToast('Copied — paste into Grok Imagine (6s · 9:16)')
+      showToast(`Copied — paste into Grok Imagine (${grokLength})`)
       window.setTimeout(() => setCopied(false), 1800)
     } catch {
       promptRef.current?.select()
@@ -263,7 +266,7 @@ export function StudioSlotEditor({
       <div className={`studio-prompt-panel${justSuggested ? ' studio-prompt-panel--fresh' : ''}`}>
         {needsVideo && (
           <p className="studio-suggest-cta">
-            Needs a video — Suggest prompt, Copy, paste into Grok Imagine (6s · 9:16).
+            Needs a video — Suggest prompt, Copy, paste into Grok Imagine ({grokLength}).
           </p>
         )}
         <label className="studio-field">
@@ -299,7 +302,8 @@ export function StudioSlotEditor({
             {copied ? 'Copied' : 'Copy'}
           </button>
           <span className="studio-prompt-hint">
-            Paste into Grok Imagine image-to-video, 6s · 9:16. Locked camera — only the dog moves.
+            Paste into Grok Imagine image-to-video, {grokLength}. Locked camera — only the dog moves.
+            {holiday ? ' Holiday costume walk — do not use 6s. ' : ' '}
             AUDIO is silence-first (howl/sing, or one play-bow challenge huff). If Grok adds
             bark/music, strip audio before attaching. Then attach the MP4. Re-suggest anytime.
           </span>

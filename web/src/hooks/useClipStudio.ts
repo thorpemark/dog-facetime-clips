@@ -9,6 +9,7 @@ import {
   putStudioBlob,
 } from '../utils/clipStudioMedia'
 import {
+  countGenerationStillTargets,
   dispatchStudio,
   findDog,
   getStudioState,
@@ -214,6 +215,14 @@ export function useClipStudio() {
     [],
   )
 
+  const applyGenerationStillToSlots = useCallback((dogId: string) => {
+    const dog = findDog(getStudioState(), dogId)
+    if (!dog?.generationPhoto) return 0
+    const count = countGenerationStillTargets(dog)
+    dispatchStudio({ type: 'applyGenerationStill', dogId })
+    return count
+  }, [])
+
   const markNeedsRedo = useCallback((dogId: string, intentId: string, slotId: string) => {
     dispatchStudio({
       type: 'updateSlot',
@@ -232,6 +241,7 @@ export function useClipStudio() {
     attachGenerationPhoto,
     saveGenerationFraming,
     promoteSlotAsGeneration,
+    applyGenerationStillToSlots,
     saveFraming,
     attachVideo,
     clearPhoto,

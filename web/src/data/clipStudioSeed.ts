@@ -12,8 +12,10 @@ import {
   isKeySeedIntent,
   type CallMode,
 } from './callModes'
+import { HOLIDAY_INTENTS, dogHasHolidayIntent } from './holidayIntents'
 import {
   REACTION_CATALOG,
+  isUnknownIntent,
   type ReactionBucket,
 } from './reactionCatalog'
 import { generateId } from '../lib/ids'
@@ -22,7 +24,7 @@ import { normalizePersonality } from '../utils/dogPersonality'
 import { fullImageDualFraming } from '../utils/focalPoint'
 
 /** Existing browsers merge this seed when their stored revision is lower. */
-export const STUDIO_SEED_REVISION = 5
+export const STUDIO_SEED_REVISION = 6
 
 export function buildClipPrompt(
   dog: { name: string; personality: DogPersonality },
@@ -241,6 +243,56 @@ export function createEmptyClipSlot(
     resultVideo: null,
     status: sourcePhoto ? 'photo_ready' : 'empty',
   }
+}
+
+function holidayIntentForDog(
+  dog: {
+    name: string
+    personality: DogPersonality
+    generationPhoto?: ClipSourcePhoto | null
+  },
+  spec: (typeof HOLIDAY_INTENTS)[number],
+): IntentBucket {
+  const clipSlots: ClipSlot[] = spec.clipLabels.map((label, index) => {
+    const id = `${dog.name.toLowerCase().replace(/\s+/g, '-')}-${spec.id}-${index + 1}`
+    const sourcePhoto = cloneGenerationStillForSlot(dog.generationPhoto, id)
+    return {
+      id,
+      weight: index === 0 ? 55 : 45,
+      label,
+      prompt: buildClipPrompt(
+        dog,
+        { id: spec.id, description: spec.description },
+        label,
+        { hasSourcePhoto: Boolean(sourcePhoto) },
+      ),
+      sourcePhoto,
+      resultVideo: null,
+      status: sourcePhoto ? 'photo_ready' : 'empty',
+    }
+  })
+  return {
+    id: spec.id,
+    description: spec.description,
+    phrases: [...spec.phrases],
+    semanticHints: spec.semanticHints,
+    priority: spec.priority,
+    clipSlots,
+  }
+}
+
+/** Add missing holiday costume-walk intents without touching existing ones (e.g. Murphy’s Halloween). */
+export function ensureHolidayIntents(dog: DogLibrary): DogLibrary {
+  const missing = HOLIDAY_INTENTS.filter((spec) => !dogHasHolidayIntent(dog.intents, spec.id))
+  if (missing.length === 0) return dog
+  const added = missing.map((spec) => holidayIntentForDog(dog, spec))
+  const unknownIndex = dog.intents.findIndex((intent) => isUnknownIntent(intent.id))
+  if (unknownIndex === -1) {
+    return { ...dog, intents: [...dog.intents, ...added] }
+  }
+  const intents = [...dog.intents]
+  intents.splice(unknownIndex, 0, ...added)
+  return { ...dog, intents }
 }
 
 export function createEmptyIntent(
