@@ -50,8 +50,14 @@ export function isMismatchedModePhoto(
   return publicPath.replace(/^\//, '') !== expected
 }
 
+/** IndexedDB keys for the dog-level clip-source portrait (`photo:generation:…`). */
+export function isGenerationPhotoBlobKey(blobKey?: string): boolean {
+  return Boolean(blobKey && blobKey.startsWith('photo:generation:'))
+}
+
 export function isUserAttachedPhoto(photo: ClipSourcePhoto | null | undefined): boolean {
   if (!photo) return false
+  if (isGenerationPhotoBlobKey(photo.blobKey)) return false
   if (photo.blobKey) return true
   if (photo.publicPath && isModeAssetPath(photo.publicPath)) return false
   return Boolean(
@@ -116,7 +122,9 @@ function idleSlots(dog?: DogLibrary | null): ClipSlot[] {
 
 /**
  * Canonical FaceTime still for a dog. Never returns another seed dog’s
- * `modes/*.jpg`. User-uploaded stills (blob/data) are allowed once hydrated.
+ * `modes/*.jpg`. User-uploaded stills (blob/data) are allowed once hydrated,
+ * except the Studio **generation still** (clip source portrait) — that stays
+ * off the home / demo picker and incoming avatar.
  */
 export function identityStillForDog(
   dogName?: string,
@@ -133,6 +141,7 @@ export function identityStillForDog(
   }
 
   for (const photo of candidates) {
+    if (isGenerationPhotoBlobKey(photo.blobKey)) continue
     if (isMismatchedModePhoto(photo.publicPath, identityName)) continue
     if (!isUserAttachedPhoto(photo)) continue
     const url = displayUrlForPhoto(photo)

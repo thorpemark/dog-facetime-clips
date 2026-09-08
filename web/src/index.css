@@ -2225,6 +2225,14 @@ button {
   align-items: center;
 }
 
+.studio-add-intent-hint {
+  flex-basis: 100%;
+  margin: 0;
+  font-size: 0.8rem;
+  line-height: 1.4;
+  color: rgba(255, 255, 255, 0.5);
+}
+
 .studio-add-dog input,
 .studio-add-intent input,
 .studio-add-phrase input,

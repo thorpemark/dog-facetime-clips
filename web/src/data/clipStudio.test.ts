@@ -201,6 +201,24 @@ describe('applyStudioAction', () => {
     expectFullImageFraming(filledTreat?.sourcePhoto?.framing)
     expect(filledTreat?.sourcePhoto?.id).not.toBe(kitchen.id)
     expect(filledTreat?.status).toBe('photo_ready')
+
+    const videosBefore: string[] = []
+    const videosAfter: string[] = []
+    for (const intent of withVideo.dogs[0].intents) {
+      for (const slot of intent.clipSlots) {
+        if (slot.resultVideo?.origin === 'user' && slot.resultVideo.objectUrl) {
+          videosBefore.push(`${intent.id}:${slot.id}:${slot.resultVideo.objectUrl}`)
+        }
+      }
+    }
+    for (const intent of dog.intents) {
+      for (const slot of intent.clipSlots) {
+        if (slot.resultVideo?.origin === 'user' && slot.resultVideo.objectUrl) {
+          videosAfter.push(`${intent.id}:${slot.id}:${slot.resultVideo.objectUrl}`)
+        }
+      }
+    }
+    expect(videosAfter).toEqual(videosBefore)
   })
 
   it('copies the generation still onto new intents, not the picker avatar', () => {

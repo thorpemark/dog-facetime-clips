@@ -28,10 +28,10 @@ export function StudioGenerationStillPanel({
     <section className="studio-generation" aria-labelledby={`generation-still-${dogId}`}>
       <h2 id={`generation-still-${dogId}`}>Generation still</h2>
       <p className="studio-generation-lead">
-        The framed photo used as the <strong>video source</strong> for Grok Imagine
-        (and new clip slots). New slots start at the whole image — no crop.
-        Home / demo picker cards stay on the mode avatar — this does not change the
-        tab face.
+        {dogName}’s <strong>clip source portrait</strong> — the same still you
+        already used to generate videos you like. Set it once. New intents copy
+        it at full frame (whole image, portrait and landscape). This is not the
+        tab / demo picker avatar.
       </p>
       <div className="studio-generation-row">
         {url ? (
@@ -51,14 +51,14 @@ export function StudioGenerationStillPanel({
             onClick={() => fileRef.current?.click()}
           >
             <span>+</span>
-            <span className="photo-add-label">Add generation still</span>
+            <span className="photo-add-label">Add {dogName}’s portrait</span>
           </button>
         )}
         <div className="studio-generation-copy">
           <p>
-            New intents and empty clip variants copy this still at{' '}
-            <strong>full frame</strong> (whole photo, portrait and landscape).
-            Frame only if you want a tighter crop.
+            {url
+              ? `New clip slots for ${dogName} inherit this portrait at full frame. You do not need to re-crop each intent. Attached videos stay put.`
+              : `Upload the portrait you used for ${dogName}’s keepers, or tap “Use this photo as generation still” on a slot that already has it. Tab avatars stay on the mode cards.`}
           </p>
           <div className="studio-generation-actions">
             <button
@@ -67,7 +67,7 @@ export function StudioGenerationStillPanel({
               disabled={busy}
               onClick={() => fileRef.current?.click()}
             >
-              {photo ? 'Replace generation still' : 'Choose photo'}
+              {photo ? 'Replace generation still' : 'Choose portrait'}
             </button>
             {url && (
               <button type="button" className="btn-text" onClick={() => setFramingOpen(true)}>

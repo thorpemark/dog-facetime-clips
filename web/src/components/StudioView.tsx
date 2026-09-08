@@ -144,6 +144,14 @@ export function StudioView() {
           </form>
         </div>
 
+        <StudioGenerationStillPanel
+          dogId={dog.id}
+          dogName={dog.name}
+          photo={dog.generationPhoto}
+          onAttach={(file) => attachGenerationPhoto(dog.id, file)}
+          onSaveFraming={(framing) => saveGenerationFraming(dog.id, framing)}
+        />
+
         <StudioPersonalityPanel
           dogId={dog.id}
           dogName={dog.name}
@@ -165,14 +173,6 @@ export function StudioView() {
               patch: { personality: { ...dog.personality, ...patch } },
             })
           }
-        />
-
-        <StudioGenerationStillPanel
-          dogId={dog.id}
-          dogName={dog.name}
-          photo={dog.generationPhoto}
-          onAttach={(file) => attachGenerationPhoto(dog.id, file)}
-          onSaveFraming={(framing) => saveGenerationFraming(dog.id, framing)}
         />
 
         <form
@@ -206,6 +206,11 @@ export function StudioView() {
           <button type="submit" className="btn-secondary">
             Add intent
           </button>
+          <p className="studio-add-intent-hint">
+            {dog.generationPhoto
+              ? `New slots copy ${dog.name}’s generation still at full frame.`
+              : `Set ${dog.name}’s generation still first (the portrait you generate from) so new slots match those videos.`}
+          </p>
         </form>
 
         <div className="studio-intent-list">

@@ -95,8 +95,9 @@ export interface DogLibrary {
   /** Dog-level avatar still (picker / incoming). Not used as the Grok source. */
   defaultPhoto?: ClipSourcePhoto | null
   /**
-   * Framed source still for image-to-video. Copied onto new intents / empty
-   * clip slots. Separate from the tab / demo-picker avatar.
+   * Portrait used as the Grok / clip source for this dog. Copied onto new
+   * intents at full frame. Not the Studio tab or demo-picker avatar
+   * (`defaultPhoto` / `modes/*.jpg`).
    */
   generationPhoto?: ClipSourcePhoto | null
   /** Idle-intent slot used as the looping FaceTime hold. */
