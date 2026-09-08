@@ -11,8 +11,9 @@ import {
   applyStudioAction,
   deriveSlotStatus,
   migrateStudioState,
+  resolveSourcePhoto,
 } from '../utils/clipStudioStore'
-import type { ClipSlot, ClipStudioState, DogPersonality } from '../types/clipStudio'
+import type { ClipSlot, ClipSourcePhoto, ClipStudioState, DogPersonality } from '../types/clipStudio'
 
 describe('slugifyIntent', () => {
   it('turns a display name into a stable id', () => {
@@ -135,6 +136,110 @@ describe('applyStudioAction', () => {
       .find((intent) => intent.id === 'idle')
       ?.clipSlots.find((slot) => slot.id === second.id)
     expect(idleSlot?.resultVideo?.objectUrl).toBe('blob:chosen-idle')
+  })
+
+  it('stores a generation still without changing the tab avatar or attached videos', () => {
+    const seed = createSeedStudioState()
+    const murphy = seed.dogs[0]
+    const kitchen: ClipSourcePhoto = {
+      id: 'kitchen',
+      url: 'blob:kitchen',
+      blobKey: 'photo:generation:murphy:kitchen',
+      framing: {
+        portrait: { focalX: 0.42, focalY: 0.31, focalZoom: 1.15 },
+        landscape: { focalX: 0.4, focalY: 0.35, focalZoom: 1 },
+      },
+    }
+    const idle = murphy.intents.find((intent) => intent.id === 'idle')
+    const firstIdle = idle?.clipSlots[0]
+    if (!firstIdle) throw new Error('missing idle')
+    const withVideo = applyStudioAction(seed, {
+      type: 'updateSlot',
+      dogId: murphy.id,
+      intentId: 'idle',
+      slotId: firstIdle.id,
+      patch: {
+        resultVideo: { objectUrl: 'blob:idle-mp4', origin: 'user', blobKey: 'video:idle' },
+      },
+    })
+    const treat = withVideo.dogs[0].intents.find((intent) => intent.id === 'treat')
+    const emptyTreat = treat?.clipSlots.find((slot) => !slot.sourcePhoto)
+    if (!emptyTreat) throw new Error('expected an empty treat slot')
+
+    const next = applyStudioAction(withVideo, {
+      type: 'setGenerationPhoto',
+      dogId: murphy.id,
+      photo: kitchen,
+    })
+    const dog = next.dogs[0]
+    expect(dog.generationPhoto?.url).toBe('blob:kitchen')
+    expect(dog.generationPhoto?.framing.portrait.focalX).toBe(0.42)
+    expect(dog.defaultPhoto?.publicPath).toBe('modes/murphy.jpg')
+    expect(dog.avatarPath).toBe('modes/murphy.jpg')
+
+    const idleAfter = dog.intents.find((intent) => intent.id === 'idle')?.clipSlots[0]
+    expect(idleAfter?.sourcePhoto?.publicPath).toBe('modes/murphy.jpg')
+    expect(idleAfter?.resultVideo?.objectUrl).toBe('blob:idle-mp4')
+    expect(idleAfter?.resultVideo?.blobKey).toBe('video:idle')
+
+    const filledTreat = dog.intents
+      .find((intent) => intent.id === 'treat')
+      ?.clipSlots.find((slot) => slot.id === emptyTreat.id)
+    expect(filledTreat?.sourcePhoto?.blobKey).toBe(kitchen.blobKey)
+    expect(filledTreat?.sourcePhoto?.framing.portrait.focalY).toBe(0.31)
+    expect(filledTreat?.sourcePhoto?.id).not.toBe(kitchen.id)
+    expect(filledTreat?.status).toBe('photo_ready')
+  })
+
+  it('copies the generation still onto new intents, not the picker avatar', () => {
+    const seed = createSeedStudioState()
+    const murphy = seed.dogs[0]
+    const kitchen: ClipSourcePhoto = {
+      id: 'kitchen',
+      url: 'blob:kitchen',
+      blobKey: 'photo:generation:murphy:kitchen',
+      framing: {
+        portrait: { focalX: 0.5, focalY: 0.28, focalZoom: 1.2 },
+        landscape: { focalX: 0.5, focalY: 0.3, focalZoom: 1 },
+      },
+    }
+    const withStill = applyStudioAction(seed, {
+      type: 'setGenerationPhoto',
+      dogId: murphy.id,
+      photo: kitchen,
+      fillEmptySlots: false,
+    })
+    const dog = withStill.dogs[0]
+    const withIntent = applyStudioAction(withStill, {
+      type: 'addIntent',
+      dogId: dog.id,
+      intent: createEmptyIntent(dog, 'Belly rub', 'belly-rub'),
+    })
+    const belly = withIntent.dogs[0].intents.find((intent) => intent.id === 'belly-rub')
+    const slot = belly?.clipSlots[0]
+    expect(slot?.sourcePhoto?.blobKey).toBe(kitchen.blobKey)
+    expect(slot?.sourcePhoto?.framing.portrait.focalY).toBe(0.28)
+    expect(slot?.sourcePhoto?.publicPath).toBeUndefined()
+    expect(slot?.status).toBe('photo_ready')
+
+    const hugVariant = createEmptyClipSlot(dog, { id: 'hug', description: 'Hug' }, 4)
+    expect(hugVariant.sourcePhoto?.blobKey).toBe(kitchen.blobKey)
+
+    const withoutStill = createEmptyClipSlot(murphy, { id: 'hug', description: 'Hug' }, 5)
+    expect(withoutStill.sourcePhoto).toBeNull()
+    expect(withoutStill.status).toBe('empty')
+
+    const emptySlot: ClipSlot = {
+      id: 'empty-1',
+      weight: 40,
+      prompt: 'p',
+      label: 'A',
+      sourcePhoto: null,
+      resultVideo: null,
+      status: 'empty',
+    }
+    expect(resolveSourcePhoto(emptySlot, dog)?.url).toBe('blob:kitchen')
+    expect(resolveSourcePhoto(emptySlot, murphy)?.url).toBeFalsy()
   })
 })
 

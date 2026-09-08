@@ -90,10 +90,15 @@ export interface DogLibrary {
   name: string
   personality: DogPersonality
   intents: IntentBucket[]
-  /** Public path used for Studio / picker avatars. */
+  /** Public path used for Studio / picker avatars (home cards stay on seed modes). */
   avatarPath?: string
-  /** Dog-level still used when a slot has no photo yet. */
+  /** Dog-level avatar still (picker / incoming). Not used as the Grok source. */
   defaultPhoto?: ClipSourcePhoto | null
+  /**
+   * Framed source still for image-to-video. Copied onto new intents / empty
+   * clip slots. Separate from the tab / demo-picker avatar.
+   */
+  generationPhoto?: ClipSourcePhoto | null
   /** Idle-intent slot used as the looping FaceTime hold. */
   preferredIdleSlotId?: string
 }
@@ -111,6 +116,13 @@ export type StudioAction =
   | { type: 'addDog'; dog: DogLibrary }
   | { type: 'updateDog'; dogId: string; patch: Partial<Pick<DogLibrary, 'name' | 'personality' | 'preferredIdleSlotId'>> }
   | { type: 'setPreferredIdle'; dogId: string; slotId: string | null }
+  | {
+      type: 'setGenerationPhoto'
+      dogId: string
+      photo: ClipSourcePhoto | null
+      /** Copy onto slots that still have no photo of their own. Default true. */
+      fillEmptySlots?: boolean
+    }
   | { type: 'removeDog'; dogId: string }
   | { type: 'addIntent'; dogId: string; intent: IntentBucket }
   | { type: 'updateIntent'; dogId: string; intentId: string; patch: Partial<Omit<IntentBucket, 'id' | 'clipSlots'>> }

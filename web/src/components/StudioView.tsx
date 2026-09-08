@@ -13,6 +13,7 @@ import { resetStudioToSeed, sourcePhotoDisplayUrl } from '../utils/clipStudioSto
 import { publicAssetUrl } from '../lib/urls'
 import { defaultPersonality } from '../utils/dogPersonality'
 import { StudioPersonalityPanel } from './StudioPersonalityPanel'
+import { StudioGenerationStillPanel } from './StudioGenerationStillPanel'
 
 export function StudioView() {
   const {
@@ -20,6 +21,9 @@ export function StudioView() {
     dispatch,
     activeDog,
     attachPhoto,
+    attachGenerationPhoto,
+    saveGenerationFraming,
+    promoteSlotAsGeneration,
     saveFraming,
     attachVideo,
     clearPhoto,
@@ -161,6 +165,14 @@ export function StudioView() {
               patch: { personality: { ...dog.personality, ...patch } },
             })
           }
+        />
+
+        <StudioGenerationStillPanel
+          dogId={dog.id}
+          dogName={dog.name}
+          photo={dog.generationPhoto}
+          onAttach={(file) => attachGenerationPhoto(dog.id, file)}
+          onSaveFraming={(framing) => saveGenerationFraming(dog.id, framing)}
         />
 
         <form
@@ -420,6 +432,11 @@ export function StudioView() {
                                     dogId: dog.id,
                                     slotId: slot.id,
                                   })
+                              : undefined
+                          }
+                          onUseAsGenerationStill={
+                            slot.sourcePhoto
+                              ? () => void promoteSlotAsGeneration(dog.id, slot.sourcePhoto!)
                               : undefined
                           }
                         />

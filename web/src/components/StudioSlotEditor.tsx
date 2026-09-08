@@ -28,6 +28,7 @@ interface StudioSlotEditorProps {
   onRemove: () => void
   isCallIdle?: boolean
   onUseAsCallIdle?: () => void
+  onUseAsGenerationStill?: () => void
 }
 
 export function StudioSlotEditor({
@@ -43,6 +44,7 @@ export function StudioSlotEditor({
   onRemove,
   isCallIdle = false,
   onUseAsCallIdle,
+  onUseAsGenerationStill,
 }: StudioSlotEditorProps) {
   const photoRef = useRef<HTMLInputElement>(null)
   const videoRef = useRef<HTMLInputElement>(null)
@@ -54,7 +56,7 @@ export function StudioSlotEditor({
   const [justSuggested, setJustSuggested] = useState(false)
 
   const resolvedPhoto = resolveSourcePhoto(slot, dog)
-  const usingDogDefault = !slot.sourcePhoto && Boolean(resolvedPhoto)
+  const usingGenerationStill = !slot.sourcePhoto && Boolean(resolvedPhoto)
   const previewVideo = playbackPathForSlot(slot)
   const needsVideo = slot.status !== 'video_attached'
   const chance = normalizeClipWeights(intent.clipSlots.map((item) => ({
@@ -108,9 +110,9 @@ export function StudioSlotEditor({
       className={`studio-slot studio-slot--${slot.status}${needsVideo ? ' studio-slot--needs-video' : ''}${isCallIdle ? ' studio-slot--call-idle' : ''}`}
     >
       <header className="studio-slot-header">
-        <span className={`studio-status studio-status--${usingDogDefault && slot.status === 'empty' ? 'photo_ready' : slot.status}`}>
-          {usingDogDefault && slot.status === 'empty'
-            ? 'Dog default still'
+        <span className={`studio-status studio-status--${usingGenerationStill && slot.status === 'empty' ? 'photo_ready' : slot.status}`}>
+          {usingGenerationStill && slot.status === 'empty'
+            ? 'Generation still'
             : STATUS_LABEL[slot.status]}
         </span>
         {isCallIdle && (
@@ -172,8 +174,8 @@ export function StudioSlotEditor({
           />
           {resolvedPhoto && (
             <div className="studio-slot-photo-actions">
-              {usingDogDefault && (
-                <span className="studio-default-photo-note">Dog default still</span>
+              {usingGenerationStill && (
+                <span className="studio-default-photo-note">Uses generation still</span>
               )}
               <button
                 type="button"
@@ -194,6 +196,11 @@ export function StudioSlotEditor({
               >
                 Replace photo
               </button>
+              {slot.sourcePhoto && onUseAsGenerationStill && (
+                <button type="button" className="btn-text" onClick={onUseAsGenerationStill}>
+                  Use this photo as generation still
+                </button>
+              )}
               {slot.sourcePhoto && (
                 <button type="button" className="btn-text danger" onClick={() => void onClearPhoto()}>
                   Remove photo

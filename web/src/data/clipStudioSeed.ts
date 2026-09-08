@@ -40,7 +40,10 @@ export function buildClipPrompt(
   })
 }
 
-function cloneSeedPhoto(photo: ClipSourcePhoto | null | undefined, slotId: string): ClipSourcePhoto | null {
+export function cloneSourcePhoto(
+  photo: ClipSourcePhoto | null | undefined,
+  slotId: string,
+): ClipSourcePhoto | null {
   if (!photo) return null
   return {
     ...structuredClone(photo),
@@ -57,7 +60,7 @@ function slotsFromBucket(
     const label = clip.label ?? `${bucket.id} ${String(index + 1).padStart(2, '0')}`
     const id = `${dog.name.toLowerCase()}-${bucket.id}-${index + 1}`
     const sourcePhoto = isKeySeedIntent(bucket.id)
-      ? cloneSeedPhoto(defaultPhoto, id)
+      ? cloneSourcePhoto(defaultPhoto, id)
       : null
     return {
       id,
@@ -87,7 +90,7 @@ function idleIntent(
       weight: index === 1 ? 55 : 45,
       label,
       prompt: buildClipPrompt(dog, { id: 'idle', description }, label),
-      sourcePhoto: cloneSeedPhoto(defaultPhoto, id),
+      sourcePhoto: cloneSourcePhoto(defaultPhoto, id),
       resultVideo: {
         path: index === 1 ? 'clips/idle/idle_01.mp4' : 'clips/idle/idle_02.mp4',
         origin: 'placeholder',
@@ -207,15 +210,17 @@ function libraryFromMode(
 }
 
 export function createEmptyClipSlot(
-  dog: { name: string; personality: DogPersonality; defaultPhoto?: ClipSourcePhoto | null },
+  dog: {
+    name: string
+    personality: DogPersonality
+    generationPhoto?: ClipSourcePhoto | null
+  },
   intent: { id: string; description: string },
   index: number,
 ): ClipSlot {
   const label = `${intent.description} ${String(index).padStart(2, '0')}`
   const id = generateId()
-  const sourcePhoto = isKeySeedIntent(intent.id)
-    ? cloneSeedPhoto(dog.defaultPhoto, id)
-    : null
+  const sourcePhoto = cloneSourcePhoto(dog.generationPhoto, id)
   return {
     id,
     weight: 40,
@@ -228,7 +233,11 @@ export function createEmptyClipSlot(
 }
 
 export function createEmptyIntent(
-  dog: { name: string; personality: DogPersonality },
+  dog: {
+    name: string
+    personality: DogPersonality
+    generationPhoto?: ClipSourcePhoto | null
+  },
   description: string,
   id: string,
 ): IntentBucket {

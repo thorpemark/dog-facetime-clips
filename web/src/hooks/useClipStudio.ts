@@ -13,6 +13,7 @@ import {
   findDog,
   getStudioState,
   hydrateStudioMedia,
+  isSlotOwnedPhotoBlobKey,
   subscribeStudio,
 } from '../utils/clipStudioStore'
 
@@ -49,7 +50,10 @@ export function useClipStudio() {
       const blob = await compressImageFile(file)
       const blobKey = `photo:${slot.id}`
       await putStudioBlob(blobKey, blob)
-      if (slot.sourcePhoto?.url?.startsWith('blob:')) {
+      if (
+        isSlotOwnedPhotoBlobKey(slot.id, slot.sourcePhoto?.blobKey) &&
+        slot.sourcePhoto?.url?.startsWith('blob:')
+      ) {
         URL.revokeObjectURL(slot.sourcePhoto.url)
       }
       const url = URL.createObjectURL(blob)
@@ -71,6 +75,63 @@ export function useClipStudio() {
     },
     [],
   )
+
+  const attachGenerationPhoto = useCallback(async (dogId: string, file: File) => {
+    const blob = await compressImageFile(file)
+    const id = generateId()
+    const blobKey = `photo:generation:${dogId}:${id}`
+    await putStudioBlob(blobKey, blob)
+    const dog = findDog(getStudioState(), dogId)
+    const url = URL.createObjectURL(blob)
+    dispatchStudio({
+      type: 'setGenerationPhoto',
+      dogId,
+      photo: {
+        id,
+        url,
+        blobKey,
+        framing: dog?.generationPhoto?.framing ?? DEFAULT_FRAMING,
+      },
+      fillEmptySlots: true,
+    })
+  }, [])
+
+  const saveGenerationFraming = useCallback((dogId: string, framing: DualFraming) => {
+    const dog = findDog(getStudioState(), dogId)
+    if (!dog?.generationPhoto) return
+    dispatchStudio({
+      type: 'setGenerationPhoto',
+      dogId,
+      photo: { ...dog.generationPhoto, framing },
+      fillEmptySlots: false,
+    })
+  }, [])
+
+  const promoteSlotAsGeneration = useCallback(async (dogId: string, photo: ClipSourcePhoto) => {
+    const id = generateId()
+    let blobKey = photo.blobKey
+    let url = photo.url
+    if (photo.blobKey) {
+      const blob = await getStudioBlob(photo.blobKey)
+      if (blob) {
+        blobKey = `photo:generation:${dogId}:${id}`
+        await putStudioBlob(blobKey, blob)
+        url = URL.createObjectURL(blob)
+      }
+    }
+    dispatchStudio({
+      type: 'setGenerationPhoto',
+      dogId,
+      photo: {
+        id,
+        url,
+        blobKey,
+        publicPath: photo.publicPath,
+        framing: structuredClone(photo.framing),
+      },
+      fillEmptySlots: true,
+    })
+  }, [])
 
   const saveFraming = useCallback(
     (
@@ -131,8 +192,15 @@ export function useClipStudio() {
 
   const clearPhoto = useCallback(
     async (dogId: string, intentId: string, slot: ClipSlot) => {
-      if (slot.sourcePhoto?.blobKey) await deleteStudioBlob(slot.sourcePhoto.blobKey)
-      if (slot.sourcePhoto?.url?.startsWith('blob:')) URL.revokeObjectURL(slot.sourcePhoto.url)
+      if (isSlotOwnedPhotoBlobKey(slot.id, slot.sourcePhoto?.blobKey) && slot.sourcePhoto?.blobKey) {
+        await deleteStudioBlob(slot.sourcePhoto.blobKey)
+      }
+      if (
+        isSlotOwnedPhotoBlobKey(slot.id, slot.sourcePhoto?.blobKey) &&
+        slot.sourcePhoto?.url?.startsWith('blob:')
+      ) {
+        URL.revokeObjectURL(slot.sourcePhoto.url)
+      }
       dispatchStudio({
         type: 'updateSlot',
         dogId,
@@ -162,6 +230,9 @@ export function useClipStudio() {
     dispatch,
     activeDog,
     attachPhoto,
+    attachGenerationPhoto,
+    saveGenerationFraming,
+    promoteSlotAsGeneration,
     saveFraming,
     attachVideo,
     clearPhoto,
