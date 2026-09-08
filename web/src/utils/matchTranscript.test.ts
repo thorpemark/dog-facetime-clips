@@ -105,6 +105,16 @@ describe('matchTranscript', () => {
     expect(matchTranscript('come play', names)?.bucketId).toBe('play')
   })
 
+  it('matches holiday greetings to costume-walk intents', () => {
+    expect(matchTranscript('happy thanksgiving', names)?.bucketId).toBe('thanksgiving')
+    expect(matchTranscript('merry christmas', names)?.bucketId).toBe('christmas')
+    expect(matchTranscript('happy halloween', names)?.bucketId).toBe('halloween')
+    expect(matchTranscript('happy birthday', names)?.bucketId).toBe('birthday')
+    expect(matchTranscript('super bowl', names)?.bucketId).toBe('super-bowl-sunday')
+    expect(matchTranscript('go birds', names)?.bucketId).toBe('super-bowl-sunday')
+    expect(matchTranscript('4th of july', names)?.bucketId).toBe('fourth-of-july')
+  })
+
   it('scores every catalog bucket without throwing', () => {
     for (const bucket of REACTION_CATALOG) {
       const phrase = bucket.phrases[0]?.replace('{dogName}', 'Murphy').replace(

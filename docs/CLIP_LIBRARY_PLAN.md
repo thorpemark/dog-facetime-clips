@@ -56,6 +56,7 @@ Each **bucket** is a semantic category with many synonymous **phrases** and seve
 | `quiet` | "quiet", "shh", "settle" | Calm down (future) |
 | `hug` | "hug", "cuddle" | `touch=cuddly`: loves hug / neck offer. `touch=grumble_hug`: bares teeth, silent warning (Riley-style) |
 | `howl` | "howl", "sing" | Murphy: full song. Riley: awkward attempt |
+| `halloween` … `labor-day` | "happy halloween", "happy thanksgiving", "merry christmas", "happy birthday", "super bowl", "go birds", … | 10s+ locked-camera costume walk (holiday seed) |
 | `unknown` | *(no seed phrases — catch-all)* | Curious head-tilt / silent “huh?” when speech is not recognized |
 
 Buckets are extensible. **`{dogName}`** and **`{ownerName}`** placeholders expand at runtime from memorial profile data.
@@ -134,7 +135,7 @@ Wire point: `useKeywordSpotter` → `matchTranscript` → `onMatch(bucketId)` �
 1. Pick (or add) a dog.
 2. **Add intent** / **Add phrase** / **Add clip variant**.
 3. Upload a source still → frame (portrait + landscape, crop handles, zoom, rotation).
-4. **Suggest prompt** → **Copy** → generate in Grok Imagine (6s · 9:16) / Pika / Gemini → **Attach MP4**.
+4. **Suggest prompt** → **Copy** → generate in Grok Imagine (6s · 9:16 for reactions; 10s/15s for holiday costume walks) / Pika / Gemini → **Attach MP4**.
 5. Optional `generatorUsed` label only (no live APIs).
 
 Seed templates still live in `web/src/data/reactionCatalog.ts` and are copied into Murphy / Riley / Both on first load. Suggest hug/howl/play + AUDIO lines are composed from each dog’s Studio **Personality** radios (`web/src/utils/suggestClipPrompt.ts`), not from hard-coded dog-name branches.

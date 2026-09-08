@@ -1,3 +1,4 @@
+import { holidaySpecFor, isHolidayLikeIntent, type HolidayIntentSpec } from '../data/holidayIntents'
 import type { DogPersonality, VocalStyle, VoiceSize } from '../types/clipStudio'
 import type { DualFraming } from './focalPoint'
 import {
@@ -6,6 +7,8 @@ import {
   normalizePersonality,
   voiceSizePitch,
 } from './dogPersonality'
+
+export { isHolidayLikeIntent }
 
 export interface SuggestPromptInput {
   dogName: string
@@ -281,6 +284,35 @@ function togetherUnknownBeat(): string {
   )
 }
 
+function holidayCostumeWalkMotion(
+  spec: HolidayIntentSpec,
+  together: boolean,
+): string {
+  if (together) {
+    return (
+      `Together shot: both dogs stay identifiable (Murphy left, Riley right). ` +
+      `This exact pair walks off camera to the left side and instantly returns wearing ${spec.costume}, ` +
+      `looks right at the camera as they walk off screen on the right, then instantly returns without any costume, ` +
+      `still the exact same two dogs, and returns to the exact sitting positions in the source image. ` +
+      `Do not swap coats or places. Keep both in frame whenever they are on screen.`
+    )
+  }
+  return (
+    `this exact dog walks off camera to the left side and instantly returns wearing ${spec.costume} ` +
+    `and looks right at the camera as they walk off screen on the right, then instantly returns without any costume, ` +
+    `still the exact same dog, and returns to the exact sitting position in the source image`
+  )
+}
+
+function holidayDurationLine(): string {
+  return (
+    'Grok Imagine image-to-video, 10s, 9:16. One continuous shot — locked camera; only the dog moves. ' +
+    'Costume walk (choose 10s or 15s in Grok Imagine; do not use 6s): walk off, return in costume, ' +
+    'walk across with eye contact, return without costume to the exact sitting pose in the source still. ' +
+    'Do not use the usual 6s react-then-idle arc.'
+  )
+}
+
 /** Trait-driven hug / howl / play beats. Together-shot (Both) keeps the pair-specific lines. */
 export function personalityBeat(
   dogName: string,
@@ -297,11 +329,18 @@ export function personalityBeat(
   const allowHowl = options?.allowHowl ?? howlLike
 
   const unknownLike = isUnknownLikeIntent(intent)
+  const holiday = holidaySpecFor(intentId)
 
   if (dog === 'both' && hugLike) return togetherHugBeat()
   if (dog === 'both' && howlLike && allowHowl) return togetherHowlBeat()
   if (dog === 'both' && playLike) return togetherPlayBeat()
   if (dog === 'both' && unknownLike) return togetherUnknownBeat()
+  if (dog === 'both' && holiday) {
+    return (
+      'Together memorial: keep Murphy (tan, folded ears, left) and Riley (black huskita, upright ears, right) identifiable. ' +
+      'Do not swap coats or places.'
+    )
+  }
 
   if (hugLike) return hugBeat(dogName, traits)
   if (howlLike && allowHowl) return howlBeat(dogName, traits)
@@ -320,6 +359,11 @@ function intentMotion(input: SuggestPromptInput, allowHowl: boolean, allowPlayHu
   const silent = allowHowl || allowPlayHuff ? '' : ' Mouth closed. Face and body only.'
   const energy = energyMotionPhrase(personality.energy)
   const energyBit = energy ? ` ${energy}` : ''
+  const holiday = holidaySpecFor(input.intentId, input.intentDescription)
+  if (holiday) {
+    const together = dogKey(input.dogName) === 'both'
+    return `${holidayCostumeWalkMotion(holiday, together)}${energyBit}${variantBit}`
+  }
 
   const motions: Record<string, string> = {
     treat: `Ears perk, eyes lock on an implied treat, slight eager lean, maybe a brief lick — food-interest while looking at the phone camera.${silent}`,
@@ -414,6 +458,7 @@ export function suggestClipPrompt(input: SuggestPromptInput): string {
   const personality = normalizePersonality(input.personality)
   const allowHowl = allowsHowlVocalization(input)
   const allowPlayHuff = allowsPlayHuff(input)
+  const holiday = isHolidayLikeIntent(intentId, intentDescription)
   const beat = personalityBeat(dogName, intentId, personality, { allowHowl })
   const motion = intentMotion(input, allowHowl, allowPlayHuff, personality)
   const notes = input.userNotes?.trim()
@@ -421,7 +466,9 @@ export function suggestClipPrompt(input: SuggestPromptInput): string {
   const lines = [
     audioBlock(personality, { allowHowl, allowPlayHuff }),
     lockedCameraBlock(),
-    'Grok Imagine image-to-video, 6s, 9:16. One continuous shot: reaction peaks in the first ~2–3 seconds, then return to a calm FaceTime idle and hold. Camera stays perfectly still; only the dog moves. Same crop first-to-last — no cut, no morph.',
+    holiday
+      ? holidayDurationLine()
+      : 'Grok Imagine image-to-video, 6s, 9:16. One continuous shot: reaction peaks in the first ~2–3 seconds, then return to a calm FaceTime idle and hold. Camera stays perfectly still; only the dog moves. Same crop first-to-last — no cut, no morph.',
     'Natural lighting, no text, no extra animals.',
     breedLine(dogName, personality),
     beat ? `Personality: ${beat}` : '',

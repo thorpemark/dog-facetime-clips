@@ -7,6 +7,7 @@
  *
  * Playback picks with `pickWeightedClip`; matching uses `matchTranscript`.
  */
+import { HOLIDAY_INTENTS } from './holidayIntents'
 
 /** Free-form intent id. New phrases/dogs/intents do not require a code change. */
 export type ReactionBucketId = string
@@ -229,6 +230,18 @@ export const REACTION_CATALOG: ReactionBucket[] = [
     semanticHints:
       'Howl, sing, sing it, aroo, awoo, speak, let me hear you, husky song. Asking the dog to howl or sing — not a walk or a name call.',
   },
+  ...HOLIDAY_INTENTS.map((holiday) => ({
+    id: holiday.id,
+    phrases: [...holiday.phrases],
+    clips: holiday.clipLabels.map((label, index) => ({
+      path: '',
+      weight: index === 0 ? 55 : 45,
+      label,
+    })),
+    priority: holiday.priority,
+    description: holiday.description,
+    semanticHints: holiday.semanticHints,
+  })),
   {
     id: UNKNOWN_INTENT_ID,
     phrases: [],

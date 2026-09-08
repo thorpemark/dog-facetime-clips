@@ -121,8 +121,14 @@ export type StudioAction =
       type: 'setGenerationPhoto'
       dogId: string
       photo: ClipSourcePhoto | null
-      /** Copy onto slots that still have no photo of their own. Default true. */
+      /** Copy onto empty + seed/avatar slots. Default true. */
       fillEmptySlots?: boolean
+    }
+  | {
+      type: 'applyGenerationStill'
+      dogId: string
+      /** Also replace custom unique slot photos. Default false. */
+      replaceCustom?: boolean
     }
   | { type: 'removeDog'; dogId: string }
   | { type: 'addIntent'; dogId: string; intent: IntentBucket }

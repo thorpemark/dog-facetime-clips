@@ -29,10 +29,23 @@ Each dog has one **clip source portrait** — the still you already used to gene
 1. Pick the dog.
 2. Under **Generation still**, upload that portrait — or on a slot that already has it, tap **Use this photo as generation still**.
 3. It is stored at **full frame** (whole image, portrait and landscape). You do not re-crop for every new intent. Frame only if you want a tighter crop later.
-4. **Add intent** / **Add clip variant**. New slots copy that exact portrait at full frame so future clips match the identity and framing of the videos you already like.
-5. Slots that already have their own photo, and any attached MP4s, are left alone.
+4. **Setting it** copies that portrait onto **empty slots and seed/avatar photos** at full frame (Riley and Both stills that still show `modes/*.jpg`, plus any slot with no photo). Attached MP4s stay attached — only the source still/framing is swapped.
+5. **Apply generation still to all clip slots (full frame)** does the same pass later (for example if the still was set before this existed, or you replaced the portrait). Custom unique slot photos (a crop you uploaded that is not the seed avatar) are kept.
+6. **Add intent** / **Add clip variant**. New slots copy that exact portrait at full frame so future clips match the identity and framing of the videos you already like.
 
-Do this once per dog. Persists with the Studio library (localStorage + IndexedDB). Home cards stay on `modes/*.jpg`.
+Do this once per dog. Persists with the Studio library (localStorage + IndexedDB). Home cards stay on `modes/*.jpg`. The portrait binaries live in this browser’s IndexedDB — they are not uploaded by a pull request.
+
+### How Mark uses this (Riley / Both, then Thanksgiving)
+
+Hard refresh. **Do not reset Studio** if Murphy already has attached videos.
+
+1. Studio → **Riley** (then **Both**).
+2. If **Generation still** is already the kitchen portrait, tap **Apply generation still to all clip slots (full frame)** and confirm. If it is not set yet, upload / promote that portrait — empty + seed photos update automatically; use Apply if any leftover avatar stills remain.
+3. Expand **Thanksgiving**. Suggest already uses the generation still as the source photo.
+4. **Suggest prompt** → **Copy**. In Grok Imagine pick **10s** (or **15s**), **9:16**, image-to-video from that still. Do **not** pick 6s.
+5. Attach the MP4 on the same slot.
+
+Repeat for the other holiday intents when you want those greetings.
 
 ## Add an intent (bucket)
 
@@ -44,6 +57,8 @@ Do this once per dog. Persists with the Studio library (localStorage + IndexedDB
 Intent ids are slugs (`belly-rub`). You do **not** edit TypeScript unions for each new intent.
 
 Seed libraries include an **`unknown`** catch-all (confused head-tilt). The matcher plays it when a spoken or typed phrase is not recognized — it does not stay on idle and does not pick a random other intent. Murphy, Riley, and Both each have their own slots + Suggest prompt (silence-first). Attach the MP4s here the same way as any other intent.
+
+Seed libraries also include **holiday costume-walk** intents (Halloween, Thanksgiving, Christmas, New Year’s, Valentine’s Day, Super Bowl Sunday, St. Patrick’s Day, Birthday, Memorial Day, 4th of July, Labor Day). Existing browsers pick up missing holidays on refresh without wiping attached videos, a Halloween intent you already added, or the generation still. Suggest for these is a **10s / 15s** locked-camera costume walk — not the 6s react-idle arc.
 
 ## Add a phrase
 
@@ -75,11 +90,12 @@ This is the main generation loop. It is fully offline in the browser.
    - **Play:** downward-dog play-bow (front low, rear up) plus one short sneeze-like challenge huff — not a bark (intent exception even for silent dogs)
    - this slot’s label + optional slot notes
    - framing context when a photo is attached (portrait FaceTime, keep identity)
-   - a **6s** Grok Imagine arc: reaction peaks in the first ~2–3s → return to calm FaceTime idle and hold. Camera stays perfectly still; only the dog moves.
+   - a **6s** Grok Imagine arc for ordinary reactions: reaction peaks in the first ~2–3s → return to calm FaceTime idle and hold. Camera stays perfectly still; only the dog moves.
+   - **Holiday costume-walk intents** (Thanksgiving, Halloween, …): **10s** (15s ok) locked-camera walk — off left, return in costume, walk across with eye contact, return without costume to the exact source pose. Do **not** use 6s for these.
    - **LOCKED CAMERA** on every Suggest (see below) so playback can return to idle without a framing reset.
    - **AUDIO first** (silence-first by default — see below). Prompts stay short.
 3. **Copy** (toast confirms). Paste into **Grok Imagine** as an **image-to-video** prompt, with the framed still as the source image.
-4. In Grok Imagine, length options are **6 / 10 / 15s** (there is no 3–4s). Use **6s**, **9:16 portrait**, H.264 MP4. Reject morphing / breed drift / extra dogs / talking dogs / camera moves / clips that keep reacting until the last frame.
+4. In Grok Imagine, length options are **6 / 10 / 15s** (there is no 3–4s). Use **6s** for ordinary reactions, **10s or 15s** for holiday costume walks, **9:16 portrait**, H.264 MP4. Reject morphing / breed drift / extra dogs / talking dogs / camera moves / clips that keep reacting until the last frame.
 5. **Attach MP4** back on the same slot. If Grok still adds bark, music, or other audio, **strip the audio before attaching** — post mute is normal.
 
 You can edit the prompt after Suggest, then Copy again. Suggest again to rebuild from the current dog / intent / notes / framing.
@@ -93,7 +109,25 @@ Playback returns to the idle still/clip. If Grok pans, zooms, or reframes, the l
 - Framing **identical** from first frame to last — same crop as the source still.
 - **Only the subject (dog) moves.**
 
-The 6s arc and the closing line repeat this. Reject keepers where the crop drifts.
+The 6s arc and the closing line repeat this. Holiday costume walks use **10s or 15s** instead of that 6s arc, still with a locked camera. Reject keepers where the crop drifts.
+
+### Holiday costume walks (10s+)
+
+Seed holiday intents share one clip concept (Mark’s Thanksgiving prompt, generalized):
+
+- **LOCKED CAMERA** — perfectly still; only the dog moves.
+- Length **10 seconds or more** (Grok Imagine 10s or 15s — not 6s).
+- Exact same dog as the generation still.
+- Walks off camera to the **left**.
+- Instantly returns wearing a holiday-appropriate costume (Thanksgiving: Pilgrim hat + dog-jacket; Halloween / Christmas / etc. described per intent).
+- Looks **right at the camera** (eye contact) while walking off the **right**.
+- Instantly returns **without** any costume, still the exact same dog.
+- Returns to the **exact sitting position** in the source image.
+- **AUDIO** still follows personality (Murphy/Riley silent unless talker, etc.). No invented bark or music.
+
+**Both:** both dogs do the costume walk together and stay identifiable (Murphy left, Riley right), then return to the source poses.
+
+Phrases include greetings such as “happy thanksgiving”, “merry christmas”, “happy halloween”, “happy birthday”, “super bowl”, “go birds”.
 
 ### Personality radios
 
@@ -159,7 +193,7 @@ Clip Studio does **not** call Grok from GitHub Pages. In-app **Generate with Gro
 
 1. Frame the source still in Studio so the crop matches the FaceTime portrait (and landscape if you care about desktop).
 2. Suggest prompt → Copy. Keep camera distance consistent across a dog.
-3. Image-to-video in Grok Imagine (or Pika / Gemini). Grok Imagine: **6s** (not 3–4s), **9:16 portrait**, H.264 MP4. The suggested prompt locks the camera (only the dog moves), is silence-first (howl/sing or one play-bow challenge huff excepted), and asks for react-then-return-to-idle so the extra seconds stay as a loopable FaceTime hold. If Grok still adds bark/music, strip audio before attaching — post mute is normal.
+3. Image-to-video in Grok Imagine (or Pika / Gemini). Grok Imagine: **6s** for ordinary reactions, **10s or 15s** for holiday costume walks (not 3–4s), **9:16 portrait**, H.264 MP4. Ordinary prompts lock the camera (only the dog moves), are silence-first (howl/sing or one play-bow challenge huff excepted), and ask for react-then-return-to-idle. Holiday prompts use the locked-camera costume walk instead of that 6s arc. If Grok still adds bark/music, strip audio before attaching — post mute is normal.
 4. Reject morphing / identity drift / camera movement. Attach the keeper, or mark **needs redo**.
 5. Optional: later commit keepers under `web/public/clips/reactions/{intent}/{intent}_{nn}.mp4` for GitHub Pages.
 

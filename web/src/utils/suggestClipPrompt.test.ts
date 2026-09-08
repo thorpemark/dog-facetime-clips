@@ -565,4 +565,66 @@ describe('suggestClipPrompt', () => {
     expect(barker).toMatch(/Barking dog/)
     expect(barker).not.toMatch(/Silence-first/)
   })
+
+  it('uses a 10s locked-camera costume walk for holiday intents', () => {
+    const thanksgiving = suggestClipPrompt({
+      dogName: 'Murphy',
+      personality: MURPHY_PERSONALITY,
+      intentId: 'thanksgiving',
+      intentDescription: 'Thanksgiving',
+      slotLabel: 'Costume walk',
+      hasSourcePhoto: true,
+    })
+    const halloween = suggestClipPrompt({
+      dogName: 'Riley',
+      personality: RILEY_PERSONALITY,
+      intentId: 'halloween',
+      intentDescription: 'Halloween',
+      slotLabel: 'Costume walk',
+    })
+    const bothChristmas = suggestClipPrompt({
+      dogName: 'Both',
+      personality: BOTH_PERSONALITY,
+      intentId: 'christmas',
+      intentDescription: 'Christmas',
+      slotLabel: 'Costume walk',
+    })
+    const walk = suggestClipPrompt({
+      dogName: 'Murphy',
+      personality: MURPHY_PERSONALITY,
+      intentId: 'walk',
+      intentDescription: 'Walk',
+      slotLabel: 'Alert, tail energy',
+    })
+
+    expect(thanksgiving.startsWith('AUDIO (read first):')).toBe(true)
+    expect(thanksgiving).toMatch(/Silence-first/)
+    expect(thanksgiving).toMatch(/LOCKED CAMERA/)
+    expect(thanksgiving).toMatch(/10s/)
+    expect(thanksgiving).toMatch(/15s/)
+    expect(thanksgiving).toMatch(/Pilgrim dog costume with hat and dog-jacket/)
+    expect(thanksgiving).toMatch(/walks off camera to the left/i)
+    expect(thanksgiving).toMatch(/looks right at the camera/)
+    expect(thanksgiving).toMatch(/walk off screen on the right/)
+    expect(thanksgiving).toMatch(/without any costume/)
+    expect(thanksgiving).toMatch(/exact sitting position/)
+    expect(thanksgiving).toMatch(/Do not use the usual 6s/)
+    expect(thanksgiving).not.toMatch(/peaks in the first ~2–3 seconds/)
+    expect(thanksgiving).not.toMatch(INVITING_SOUND)
+
+    expect(halloween).toMatch(/Halloween dog costume/)
+    expect(halloween).toMatch(/black huskita/)
+    expect(halloween).toMatch(/Silence-first/)
+    expect(halloween).toMatch(/10s/)
+
+    expect(bothChristmas).toMatch(/both dogs stay identifiable/i)
+    expect(bothChristmas).toMatch(/Santa hat/)
+    expect(bothChristmas).toMatch(/Do not swap coats/)
+    expect(bothChristmas).toMatch(/Silence-first/)
+
+    expect(walk).toMatch(/6s/)
+    expect(walk).toMatch(/peaks in the first ~2–3 seconds/)
+    expect(walk).not.toMatch(/Pilgrim/)
+    expect(walk).not.toMatch(/costume walk/i)
+  })
 })

@@ -9,7 +9,11 @@ import {
 } from '../data/clipStudioSeed'
 import { slugifyIntent } from '../utils/clipStudioMedia'
 import { attachedIdleSlots, chosenIdleSlot } from '../utils/callIdentity'
-import { resetStudioToSeed, sourcePhotoDisplayUrl } from '../utils/clipStudioStore'
+import {
+  countGenerationStillTargets,
+  resetStudioToSeed,
+  sourcePhotoDisplayUrl,
+} from '../utils/clipStudioStore'
 import { publicAssetUrl } from '../lib/urls'
 import { defaultPersonality } from '../utils/dogPersonality'
 import { StudioPersonalityPanel } from './StudioPersonalityPanel'
@@ -24,6 +28,7 @@ export function StudioView() {
     attachGenerationPhoto,
     saveGenerationFraming,
     promoteSlotAsGeneration,
+    applyGenerationStillToSlots,
     saveFraming,
     attachVideo,
     clearPhoto,
@@ -85,7 +90,7 @@ export function StudioView() {
             Manage reaction videos per dog. Add intents, phrases, and clip
             variants without changing code. Generation happens outside the app:
             frame a source photo, Suggest prompt, Copy, paste into Grok Imagine
-            (6s · 9:16, or Pika), then attach the MP4.
+            (6s for reactions, 10s/15s for holiday walks · 9:16, or Pika), then attach the MP4.
           </p>
           <p className="catalog-note">
             Demo persistence is local to this browser (localStorage + IndexedDB).
@@ -148,8 +153,10 @@ export function StudioView() {
           dogId={dog.id}
           dogName={dog.name}
           photo={dog.generationPhoto}
+          applyTargetCount={countGenerationStillTargets(dog)}
           onAttach={(file) => attachGenerationPhoto(dog.id, file)}
           onSaveFraming={(framing) => saveGenerationFraming(dog.id, framing)}
+          onApplyToAllSlots={() => applyGenerationStillToSlots(dog.id)}
         />
 
         <StudioPersonalityPanel
