@@ -13,6 +13,7 @@ import { resetStudioToSeed, sourcePhotoDisplayUrl } from '../utils/clipStudioSto
 import { publicAssetUrl } from '../lib/urls'
 import { defaultPersonality } from '../utils/dogPersonality'
 import { StudioPersonalityPanel } from './StudioPersonalityPanel'
+import { StudioGenerationStillPanel } from './StudioGenerationStillPanel'
 
 export function StudioView() {
   const {
@@ -20,6 +21,9 @@ export function StudioView() {
     dispatch,
     activeDog,
     attachPhoto,
+    attachGenerationPhoto,
+    saveGenerationFraming,
+    promoteSlotAsGeneration,
     saveFraming,
     attachVideo,
     clearPhoto,
@@ -140,6 +144,14 @@ export function StudioView() {
           </form>
         </div>
 
+        <StudioGenerationStillPanel
+          dogId={dog.id}
+          dogName={dog.name}
+          photo={dog.generationPhoto}
+          onAttach={(file) => attachGenerationPhoto(dog.id, file)}
+          onSaveFraming={(framing) => saveGenerationFraming(dog.id, framing)}
+        />
+
         <StudioPersonalityPanel
           dogId={dog.id}
           dogName={dog.name}
@@ -194,6 +206,11 @@ export function StudioView() {
           <button type="submit" className="btn-secondary">
             Add intent
           </button>
+          <p className="studio-add-intent-hint">
+            {dog.generationPhoto
+              ? `New slots copy ${dog.name}’s generation still at full frame.`
+              : `Set ${dog.name}’s generation still first (the portrait you generate from) so new slots match those videos.`}
+          </p>
         </form>
 
         <div className="studio-intent-list">
@@ -420,6 +437,11 @@ export function StudioView() {
                                     dogId: dog.id,
                                     slotId: slot.id,
                                   })
+                              : undefined
+                          }
+                          onUseAsGenerationStill={
+                            slot.sourcePhoto
+                              ? () => void promoteSlotAsGeneration(dog.id, slot.sourcePhoto!)
                               : undefined
                           }
                         />

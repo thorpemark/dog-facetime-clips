@@ -109,6 +109,32 @@ describe('identity stills', () => {
     }
     expect(identityStillForDog('Murphy', withIdle)?.url).toBe('blob:murphy-idle')
   })
+
+  it('keeps the home/demo avatar on the mode still when a generation still is set', () => {
+    const seed = createSeedStudioState()
+    const murphy = seed.dogs.find((dog) => dog.id === 'murphy')
+    if (!murphy) throw new Error('missing murphy')
+    const portrait = {
+      ...userPhoto('blob:murphy-portrait'),
+      blobKey: 'photo:generation:murphy:portrait',
+    }
+    const withGeneration: DogLibrary = {
+      ...murphy,
+      generationPhoto: portrait,
+      intents: murphy.intents.map((intent) =>
+        intent.id === 'idle'
+          ? {
+              ...intent,
+              clipSlots: intent.clipSlots.map((slot, index) =>
+                index === 0 ? { ...slot, sourcePhoto: { ...portrait, id: `${portrait.id}-${slot.id}` } } : slot,
+              ),
+            }
+          : intent,
+      ),
+    }
+    expect(identityStillForDog('Murphy', withGeneration)?.publicPath).toBe('modes/murphy.jpg')
+    expect(identityStillForDog('Murphy', withGeneration)?.url).toMatch(/modes\/murphy\.jpg$/)
+  })
 })
 
 describe('repairSeedIdentityPhotos', () => {

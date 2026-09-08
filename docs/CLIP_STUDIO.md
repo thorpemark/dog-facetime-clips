@@ -18,15 +18,28 @@ Murphy, Riley, and **Both** ship as seed dogs (huskitas) with baked stills in `w
 | **Riley** | `modes/riley.jpg` | Black-and-white huskita, upright ears — the black huskita |
 | **Both** | `modes/both.jpg` | Murphy on the left, Riley on the right |
 
-Those stills are the Studio avatars, the home/demo three-mode picker cards, incoming-call faces, and the default source photo on **idle + name / come / hug / howl / unknown** slots. Other slots fall back to the dog-level still until you attach a different one. Reset seed from the bottom of Studio if you want to start over in this browser. Portrait framing is a sensible default — refine crops in Studio.
+Those stills are the Studio tab avatars, the home/demo three-mode picker cards, and incoming-call faces. They are **not** the still Grok uses for new clips. Seed **idle + name / come / hug / howl / unknown** slots start with a copy of that mode photo for the first library. Set each dog’s **Generation still** to the portrait you already used for keepers so later intents match those videos. Reset seed from the bottom of Studio if you want to start over in this browser.
 
 **Call idle (looping FaceTime hold):** the `idle` intent is what you see after Accept and after every reaction. Attach a short MP4 on an idle slot, then pick it in the **Call idle loop** dropdown (or tap **Use as call idle** on the slot). First attached idle is the default until you choose. The demo loops that clip with a short crossfade back from reactions. If nothing is attached yet, the call holds the correct dog still — not the colored placeholder slab. Preference is stored on the dog in localStorage and does not wipe other attachments.
+
+## Generation still (video source)
+
+Each dog has one **clip source portrait** — the still you already used to generate videos you like (Murphy’s portrait, Riley’s, Both together). That is **not** the tab / demo picker avatar (`modes/*.jpg`).
+
+1. Pick the dog.
+2. Under **Generation still**, upload that portrait — or on a slot that already has it, tap **Use this photo as generation still**.
+3. It is stored at **full frame** (whole image, portrait and landscape). You do not re-crop for every new intent. Frame only if you want a tighter crop later.
+4. **Add intent** / **Add clip variant**. New slots copy that exact portrait at full frame so future clips match the identity and framing of the videos you already like.
+5. Slots that already have their own photo, and any attached MP4s, are left alone.
+
+Do this once per dog. Persists with the Studio library (localStorage + IndexedDB). Home cards stay on `modes/*.jpg`.
 
 ## Add an intent (bucket)
 
 1. Type a label (e.g. `belly rub`) → **Add intent**.
-2. Set **priority** (higher wins close matches), **semantic hints** (paraphrases for meaning match), and **phrases** (keyword fallback).
-3. Expand the intent to edit clip slots.
+2. New clip slots copy this dog’s **Generation still** at full frame (the portrait you generate from) when one is set — not the tab avatar.
+3. Set **priority** (higher wins close matches), **semantic hints** (paraphrases for meaning match), and **phrases** (keyword fallback).
+4. Expand the intent to edit clip slots.
 
 Intent ids are slugs (`belly-rub`). You do **not** edit TypeScript unions for each new intent.
 
@@ -38,8 +51,8 @@ In an expanded intent: type the phrase → **Add phrase**. Lowercased automatica
 
 ## Add a clip variant
 
-1. **Add clip variant** on the intent.
-2. **Add photo** (same framing feel as the still-image app: portrait + landscape/PC, crop handles, zoom, rotation).
+1. **Add clip variant** on the intent. If a generation still is set, the new slot already has that photo at full frame.
+2. **Add photo** only if you need a different still (same framing editor: portrait + landscape/PC, crop handles, zoom, rotation). **Use this photo as generation still** if this is the keeper you want on later intents.
 3. Optional: type **slot notes** for this variant (director extras).
 4. **Suggest prompt** → edit if you want → **Copy**.
 5. Generate the video in Grok Imagine / Pika / Gemini (image-to-video from the still). Label `generatorUsed` if you want (optional).

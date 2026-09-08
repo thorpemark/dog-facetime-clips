@@ -13,11 +13,13 @@ import {
   isKeySeedIntent,
 } from '../data/callModes'
 import { repairSeedIdentityPhotos } from './callIdentity'
+import { fullImageDualFraming } from './focalPoint'
 import {
   BOTH_PERSONALITY,
   MURPHY_PERSONALITY,
   RILEY_PERSONALITY,
   STUDIO_SEED_REVISION,
+  cloneGenerationStillForSlot,
   createDogLibrary,
   createSeedStudioState,
 } from '../data/clipStudioSeed'
@@ -66,10 +68,42 @@ function rehydratePhoto(photo: ClipSourcePhoto | null | undefined): ClipSourcePh
   return photo
 }
 
+function persistPhoto(photo: ClipSourcePhoto | null | undefined): void {
+  if (!photo) return
+  if (photo.blobKey) {
+    photo.url = ''
+  } else if (photo.publicPath) {
+    photo.url = publicAssetUrl(photo.publicPath)
+  }
+}
+
+export function slotHasOwnSourcePhoto(slot: ClipSlot): boolean {
+  const photo = slot.sourcePhoto
+  if (!photo) return false
+  return Boolean(photo.url || photo.publicPath || photo.blobKey)
+}
+
+/** Slot-owned IndexedDB keys (`photo:${slotId}`). Shared generation blobs must not be deleted. */
+export function isSlotOwnedPhotoBlobKey(slotId: string, blobKey?: string): boolean {
+  return Boolean(blobKey && blobKey === `photo:${slotId}`)
+}
+
+function withCopiedGenerationStill(
+  slot: ClipSlot,
+  photo: ClipSourcePhoto | null | undefined,
+): ClipSlot {
+  if (!photo || slotHasOwnSourcePhoto(slot)) return withDerivedStatus(slot)
+  return withDerivedStatus({
+    ...slot,
+    sourcePhoto: cloneGenerationStillForSlot(photo, slot.id),
+  })
+}
+
 function rehydratePublicPhotos(state: ClipStudioState): ClipStudioState {
   const next = cloneState(state)
   for (const dog of next.dogs) {
     dog.defaultPhoto = rehydratePhoto(dog.defaultPhoto)
+    dog.generationPhoto = rehydratePhoto(dog.generationPhoto)
     for (const intent of dog.intents) {
       for (const slot of intent.clipSlots) {
         if (slot.sourcePhoto) slot.sourcePhoto = rehydratePhoto(slot.sourcePhoto)
@@ -84,18 +118,11 @@ function persist(state: ClipStudioState): void {
   try {
     const serializable = cloneState(state)
     for (const dog of serializable.dogs) {
-      if (dog.defaultPhoto?.publicPath) {
-        dog.defaultPhoto.url = publicAssetUrl(dog.defaultPhoto.publicPath)
-      }
+      persistPhoto(dog.defaultPhoto)
+      persistPhoto(dog.generationPhoto)
       for (const intent of dog.intents) {
         for (const slot of intent.clipSlots) {
-          if (slot.sourcePhoto) {
-            if (slot.sourcePhoto.blobKey) {
-              slot.sourcePhoto.url = ''
-            } else if (slot.sourcePhoto.publicPath) {
-              slot.sourcePhoto.url = publicAssetUrl(slot.sourcePhoto.publicPath)
-            }
-          }
+          persistPhoto(slot.sourcePhoto)
           if (slot.resultVideo) {
             delete slot.resultVideo.objectUrl
           }
@@ -306,8 +333,8 @@ export function resolveSourcePhoto(
   if (attached && (attached.url || attached.publicPath || attached.blobKey)) {
     return { ...attached, url: sourcePhotoDisplayUrl(attached) }
   }
-  if (dog?.defaultPhoto) {
-    return { ...dog.defaultPhoto, url: sourcePhotoDisplayUrl(dog.defaultPhoto) }
+  if (dog?.generationPhoto) {
+    return { ...dog.generationPhoto, url: sourcePhotoDisplayUrl(dog.generationPhoto) }
   }
   return null
 }
@@ -362,6 +389,22 @@ export function applyStudioAction(
         ...dog,
         preferredIdleSlotId: action.slotId ?? undefined,
       }))
+    case 'setGenerationPhoto':
+      return mapDog(state, action.dogId, (dog) => {
+        let photo = action.photo ? structuredClone(action.photo) : null
+        if (photo && action.fillEmptySlots !== false) {
+          photo = { ...photo, framing: fullImageDualFraming() }
+        }
+        const next: DogLibrary = { ...dog, generationPhoto: photo }
+        if (!photo || action.fillEmptySlots === false) return next
+        return {
+          ...next,
+          intents: next.intents.map((intent) => ({
+            ...intent,
+            clipSlots: intent.clipSlots.map((slot) => withCopiedGenerationStill(slot, photo)),
+          })),
+        }
+      })
     case 'removeDog': {
       const dogs = state.dogs.filter((dog) => dog.id !== action.dogId)
       if (dogs.length === 0) return state
@@ -372,7 +415,15 @@ export function applyStudioAction(
     case 'addIntent':
       return mapDog(state, action.dogId, (dog) => ({
         ...dog,
-        intents: [...dog.intents, action.intent],
+        intents: [
+          ...dog.intents,
+          {
+            ...action.intent,
+            clipSlots: action.intent.clipSlots.map((slot) =>
+              withCopiedGenerationStill(slot, dog.generationPhoto),
+            ),
+          },
+        ],
       }))
     case 'updateIntent':
       return mapDog(state, action.dogId, (dog) =>
@@ -405,7 +456,10 @@ export function applyStudioAction(
       return mapDog(state, action.dogId, (dog) =>
         mapIntent(dog, action.intentId, (intent) => ({
           ...intent,
-          clipSlots: [...intent.clipSlots, withDerivedStatus(action.slot)],
+          clipSlots: [
+            ...intent.clipSlots,
+            withCopiedGenerationStill(action.slot, dog.generationPhoto),
+          ],
         })),
       )
     case 'updateSlot':
@@ -464,6 +518,13 @@ export async function hydrateStudioMedia(loadBlob: (key: string) => Promise<Blob
       const blob = await loadBlob(dog.defaultPhoto.blobKey)
       if (blob) {
         dog.defaultPhoto.url = URL.createObjectURL(blob)
+        changed = true
+      }
+    }
+    if (dog.generationPhoto?.blobKey && !dog.generationPhoto.url) {
+      const blob = await loadBlob(dog.generationPhoto.blobKey)
+      if (blob) {
+        dog.generationPhoto.url = URL.createObjectURL(blob)
         changed = true
       }
     }
