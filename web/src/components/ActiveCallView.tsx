@@ -1,50 +1,55 @@
 import { useMemorialCall } from '../context/MemorialCallContext'
+import { callListenCue } from '../utils/callListenCue'
 import { CallControlsView } from './CallControlsView'
 import { CameraPreviewPlaceholder } from './CameraPreviewPlaceholder'
 import { DebugPanelView } from './DebugPanelView'
 import { DualMediaView } from './DualMediaView'
 import { PhotoPlaybackControls } from './PhotoPlaybackControls'
 
-function statusText(
-  behaviorState: ReturnType<typeof useMemorialCall>['behaviorState'],
-  isMuted: boolean,
-): string {
-  switch (behaviorState.type) {
-    case 'idle':
-      return 'Connected'
-    case 'listen':
-      return isMuted ? 'Muted' : 'Listening…'
-    case 'react':
-      return 'Responding…'
-    case 'cooldown':
-      return 'Connected'
-  }
-}
-
 export function ActiveCallView() {
   const {
     profile,
     behaviorState,
     isMuted,
+    isListening,
+    speechSupported,
+    speechError,
     showDebugPanel,
     mediaPlayback,
   } = useMemorialCall()
   const clipCall = mediaPlayback.mode === 'video'
+  const cue = callListenCue({
+    behavior: behaviorState.type,
+    isMuted,
+    speechActuallyListening: isListening,
+    speechSupported,
+    speechError,
+  })
 
   return (
     <div
       className={`screen active-call-screen${clipCall ? ' active-call-screen--portrait' : ''}`}
     >
-      <div className={clipCall ? 'call-stage' : 'call-stage call-stage--full'}>
+      <div
+        className={`call-stage${clipCall ? '' : ' call-stage--full'}${
+          cue.kind === 'listening' ? '' : ' call-stage--not-listening'
+        }`}
+      >
         <DualMediaView />
         <PhotoPlaybackControls />
 
         <div className="call-overlay">
           <header className="call-header">
             <h2>{profile.dogName}</h2>
-            <div className="call-status">
+            <div
+              className={`call-status call-status--${cue.kind}`}
+              aria-live="polite"
+            >
               <span className="status-dot" />
-              {statusText(behaviorState, isMuted)}
+              <span className="call-status-icon" aria-hidden>
+                {cue.icon}
+              </span>
+              <span className="call-status-label">{cue.label}</span>
             </div>
           </header>
 

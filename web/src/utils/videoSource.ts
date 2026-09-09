@@ -1,3 +1,9 @@
+import {
+  applyCallVideoSound,
+  isCallVideoSoundUnlocked,
+  playCallVideo,
+} from './callVideoSound'
+
 /**
  * Load a video from a list of URLs; skip missing/broken files.
  * Returns a cancel function.
@@ -5,12 +11,16 @@
  * Reloading the same cached URL after a reaction may not fire `canplay`
  * again — listen for `loadeddata`, clear src before reassign, and finish
  * synchronously when readyState already has data.
+ *
+ * Call `play()` right after assigning `src` (not only in `canplay`) so a
+ * debug-panel tap still counts as a user gesture for audible playback.
  */
 export function loadVideoWithFallback(
   video: HTMLVideoElement,
   urls: string[],
   options: {
     loop: boolean
+    withSound?: boolean
     onReady: () => void
     onFail: () => void
   },
@@ -54,7 +64,14 @@ export function loadVideoWithFallback(
     video.pause()
     video.removeAttribute('src')
     video.src = url
+    applyCallVideoSound(video)
+    const wantSound =
+      options.withSound !== false && isCallVideoSoundUnlocked()
+    if (!wantSound) {
+      video.muted = true
+    }
     video.load()
+    void playCallVideo(video, wantSound)
     if (video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) {
       finishReady()
     }

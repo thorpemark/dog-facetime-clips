@@ -438,6 +438,101 @@ button {
   margin-top: 2px;
 }
 
+.call-status-icon {
+  font-size: 0.85rem;
+  line-height: 1;
+}
+
+.call-status-label {
+  font-weight: 600;
+}
+
+.call-status--listening {
+  color: #7dffb3;
+  font-size: 0.95rem;
+}
+
+.call-status--listening .status-dot {
+  background: #34c759;
+  box-shadow: 0 0 8px #34c759;
+  animation: listen-dot-pulse 1.2s ease-in-out infinite;
+}
+
+.call-status--getting-ready {
+  color: #ffd60a;
+  opacity: 0.9;
+}
+
+.call-status--getting-ready .status-dot {
+  background: #ffd60a;
+  animation: ready-dot-dim 1s ease-in-out infinite;
+}
+
+.call-status--busy {
+  color: #ff9f0a;
+}
+
+.call-status--busy .call-status-label {
+  font-weight: 700;
+}
+
+.call-status--busy .status-dot {
+  background: #ff9f0a;
+  animation: busy-dot-pulse 0.7s ease-in-out infinite;
+}
+
+.call-status--muted {
+  color: rgba(255, 255, 255, 0.45);
+}
+
+.call-status--muted .status-dot {
+  background: #8e8e93;
+}
+
+.call-stage--not-listening .dual-video {
+  filter: saturate(0.92);
+}
+
+.call-audio-unlock {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+@keyframes listen-dot-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.35);
+    opacity: 0.7;
+  }
+}
+
+@keyframes ready-dot-dim {
+  0%,
+  100% {
+    opacity: 0.35;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@keyframes busy-dot-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.4;
+  }
+}
+
 .status-dot {
   width: 8px;
   height: 8px;

@@ -6,6 +6,7 @@ import { resolveIdlePlayback } from '../utils/callIdentity'
 import { getEffectiveCatalog } from '../utils/catalogOverrides'
 import { findDog, getStudioState } from '../utils/clipStudioStore'
 import { clipUrl } from '../utils/keywordRules'
+import { playCallVideo } from '../utils/callVideoSound'
 import { loadVideoWithFallback, uniqueUrls } from '../utils/videoSource'
 import {
   DEFAULT_FOCAL_X,
@@ -294,7 +295,7 @@ export function useMediaPlayback(
     ) => {
       const idleVideo = slot === 'primary' ? primaryRef.current : secondaryRef.current
       if (!idleVideo) {
-        fadeVideosToStill()
+        // DualMediaView may not have mounted yet — keep the still, retry from callPhase.
         onSettled?.()
         return
       }
@@ -305,7 +306,7 @@ export function useMediaPlayback(
         onReady: () => {
           cancelLoadRef.current = null
           setIdleVisual('video')
-          void idleVideo.play()
+          void playCallVideo(idleVideo)
           crossfadeTo(slot)
           const outgoing =
             slot === 'primary' ? secondaryRef.current : primaryRef.current
@@ -373,6 +374,10 @@ export function useMediaPlayback(
     const urls = idleUrls()
     if (urls.length === 0) {
       fadeVideosToStill()
+      return
+    }
+
+    if (!primaryRef.current && !secondaryRef.current) {
       return
     }
 
@@ -483,7 +488,7 @@ export function useMediaPlayback(
         loop: false,
         onReady: () => {
           cancelLoadRef.current = null
-          void incomingVideo.play()
+          void playCallVideo(incomingVideo)
           crossfadeTo(incomingSlot)
           incomingVideo.addEventListener('ended', onEnded)
         },
