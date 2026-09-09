@@ -4,8 +4,18 @@ import { SignInPanel } from './SignInPanel'
 
 export function StudioSyncPanel() {
   const { user, loading, authAvailable, signOut } = useAuth()
-  const { phase, message, done, total, error, userVideoCount, syncNow, cloudAvailable } =
-    useStudioSync()
+  const {
+    phase,
+    message,
+    done,
+    total,
+    error,
+    userVideoCount,
+    uploadedVideos,
+    cloudVideos,
+    syncNow,
+    cloudAvailable,
+  } = useStudioSync()
 
   if (!cloudAvailable || !authAvailable) {
     return (
@@ -22,6 +32,9 @@ export function StudioSyncPanel() {
     )
   }
 
+  const statusText =
+    phase === 'syncing' && total > 0 ? `${message} (${done}/${total})` : message || 'Ready.'
+
   return (
     <section className="studio-sync" aria-label="Studio sync">
       <h2>Sync Studio across devices</h2>
@@ -36,14 +49,28 @@ export function StudioSyncPanel() {
             this browser and leaves the cloud library alone.
           </p>
           <p className="studio-sync-status" data-phase={phase}>
-            {phase === 'syncing' && total > 0
-              ? `${message} (${done}/${total})`
-              : message || 'Ready.'}
-            {phase === 'ready' && userVideoCount > 0
-              ? ` ${userVideoCount} attached video${userVideoCount === 1 ? '' : 's'} in this library.`
-              : null}
+            {statusText}
           </p>
+          {phase !== 'syncing' && (
+            <p className="studio-sync-counts">
+              {uploadedVideos > 0
+                ? `Uploaded ${uploadedVideos} video${uploadedVideos === 1 ? '' : 's'} this pass.`
+                : null}{' '}
+              {cloudVideos > 0
+                ? `${cloudVideos} attached video${cloudVideos === 1 ? '' : 's'} in the cloud library.`
+                : userVideoCount > 0
+                  ? `${userVideoCount} attached video${userVideoCount === 1 ? '' : 's'} in this browser — they still need to upload.`
+                  : 'No attached videos in the cloud yet.'}
+            </p>
+          )}
           {error && <p className="form-error">{error}</p>}
+          {phase === 'ready' && cloudVideos === 0 && userVideoCount === 0 && (
+            <p className="studio-sync-warn">
+              JSON sync without MP4s is not enough. On the PC that already has
+              Murphy’s videos, stay signed in and tap <strong>Sync now</strong> until
+              this banner says how many videos uploaded.
+            </p>
+          )}
           <div className="studio-sync-actions">
             <button
               type="button"
@@ -62,9 +89,10 @@ export function StudioSyncPanel() {
         <>
           <p>
             Sign in on the computer that already has Murphy’s videos, wait until
-            upload finishes, then sign in with the <strong>same account</strong> on
-            your phone (Chrome, not Keep’s in-app browser). This browser’s library
-            is uploaded and merged — attached MP4s are kept.
+            the banner says how many videos uploaded, then sign in with the{' '}
+            <strong>same account</strong> on your phone (Chrome, not Keep’s in-app
+            browser). This browser’s library is uploaded and merged — attached MP4s
+            are kept.
           </p>
           <SignInPanel
             compact

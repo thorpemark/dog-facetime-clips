@@ -14,6 +14,8 @@ export interface ClipSourcePhoto {
   url: string
   /** IndexedDB / cloud storage key when the file is not a publicPath seed still. */
   blobKey?: string
+  /** Private `studio-media` object path (`{userId}/{encodedBlobKey}`) when uploaded. */
+  storagePath?: string
   /** Path under `web/public/` for baked seed stills (e.g. `modes/murphy.jpg`). */
   publicPath?: string
   framing: DualFraming
@@ -26,6 +28,8 @@ export interface ClipResultVideo {
   objectUrl?: string
   /** IndexedDB / cloud storage key when persisted. */
   blobKey?: string
+  /** Private `studio-media` object path when this MP4 is in the cloud. */
+  storagePath?: string
   fileName?: string
   origin: VideoOrigin
 }

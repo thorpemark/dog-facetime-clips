@@ -2507,6 +2507,19 @@ button {
   color: #ffb4b4;
 }
 
+.studio-sync-status[data-phase='ready'] {
+  color: #b8f0c2;
+}
+
+.studio-sync-counts {
+  font-weight: 500;
+  color: rgba(230, 236, 248, 0.9);
+}
+
+.studio-sync-warn {
+  color: #ffd9a0;
+}
+
 .studio-sync-actions {
   display: flex;
   flex-wrap: wrap;

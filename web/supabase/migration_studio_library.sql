@@ -69,7 +69,7 @@ VALUES (
   'studio-media',
   'studio-media',
   false,
-  52428800,
+  104857600,
   ARRAY[
     'image/jpeg',
     'image/png',
@@ -80,6 +80,10 @@ VALUES (
     'video/mp4',
     'video/quicktime',
     'video/webm',
+    'video/x-m4v',
+    'video/mpeg',
+    'video/3gpp',
+    'application/mp4',
     'application/octet-stream'
   ]
 )

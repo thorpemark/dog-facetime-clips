@@ -15,7 +15,8 @@ import {
   listRemoteStudioBlobKeys,
   mapPool,
   readLastSyncedUserId,
-  saveRemoteStudioLibrary,
+  saveStudioLibraryPreservingAttachments,
+  studioMediaPath,
   uploadStudioMediaBlob,
   writeLastSyncedUserId,
 } from '../services/studioLibraryService'
@@ -27,10 +28,15 @@ import {
 } from '../utils/clipStudioMedia'
 import { createSeedStudioState } from '../data/clipStudioSeed'
 import {
+  adoptLocalStudioBlobs,
   collectStudioBlobKeys,
+  countLocalVideoBlobKeys,
   countUserAttachedVideos,
   isDifferentAccountLocalLibrary,
+  isStudioMediaBlobKey,
+  isStudioVideoBlobKey,
   mergeStudioLibraries,
+  stampCloudMediaPaths,
 } from '../utils/studioLibraryMerge'
 import {
   getStudioState,
@@ -55,6 +61,8 @@ export interface StudioSyncStatus {
   error: string | null
   lastSyncedAt: string | null
   userVideoCount: number
+  uploadedVideos: number
+  cloudVideos: number
 }
 
 interface StudioSyncContextValue extends StudioSyncStatus {
@@ -70,6 +78,8 @@ const defaultStatus: StudioSyncStatus = {
   error: null,
   lastSyncedAt: null,
   userVideoCount: 0,
+  uploadedVideos: 0,
+  cloudVideos: 0,
 }
 
 const StudioSyncContext = createContext<StudioSyncContextValue | null>(null)
@@ -79,8 +89,19 @@ function snapshotStatus(partial: Partial<StudioSyncStatus>): StudioSyncStatus {
   return {
     ...defaultStatus,
     userVideoCount: countUserAttachedVideos(state),
+    cloudVideos: countUserAttachedVideos(state),
     ...partial,
   }
+}
+
+function readyMessage(uploadedVideos: number, cloudVideos: number): string {
+  if (uploadedVideos > 0) {
+    return `Uploaded ${uploadedVideos} video${uploadedVideos === 1 ? '' : 's'} to this account.`
+  }
+  if (cloudVideos > 0) {
+    return `Studio library is synced — ${cloudVideos} video${cloudVideos === 1 ? '' : 's'} in the cloud.`
+  }
+  return 'Library JSON is synced. No attached videos in this browser to upload.'
 }
 
 async function hydrateWithCloud(userId: string | null): Promise<void> {
@@ -92,6 +113,10 @@ async function hydrateWithCloud(userId: string | null): Promise<void> {
     if (remote) await putStudioBlob(key, remote)
     return remote
   })
+}
+
+function uniqueKeys(keys: Iterable<string>): string[] {
+  return [...new Set(keys)]
 }
 
 export function StudioSyncProvider({ children }: { children: ReactNode }) {
@@ -145,12 +170,17 @@ export function StudioSyncProvider({ children }: { children: ReactNode }) {
     )
 
     try {
-      const local = getStudioState()
+      const lastUser = readLastSyncedUserId()
+      const switchedAccount = isDifferentAccountLocalLibrary(lastUser, userId)
+      const localKeys = new Set(await listStudioBlobKeys())
       const remote = await fetchRemoteStudioLibrary(userId)
       lastRemoteUpdatedAt.current = remote?.updatedAt ?? null
 
-      const lastUser = readLastSyncedUserId()
-      const switchedAccount = isDifferentAccountLocalLibrary(lastUser, userId)
+      let local = getStudioState()
+      if (!switchedAccount) {
+        local = adoptLocalStudioBlobs(local, localKeys)
+      }
+
       let next: ClipStudioState
       if (switchedAccount) {
         next = remote?.library
@@ -158,38 +188,65 @@ export function StudioSyncProvider({ children }: { children: ReactNode }) {
           : createSeedStudioState()
       } else {
         next = mergeStudioLibraries(local, remote?.library ?? null)
+        if (
+          countUserAttachedVideos(next) < countUserAttachedVideos(local) &&
+          countLocalVideoBlobKeys(localKeys) > 0
+        ) {
+          next = local
+        }
       }
 
       replaceStudioState(next, { syncCloud: false })
 
       const neededKeys = collectStudioBlobKeys(next)
-      const localKeys = new Set(await listStudioBlobKeys())
       const remoteKeys = await listRemoteStudioBlobKeys(userId)
-
-      const toUpload = neededKeys.filter((key) => localKeys.has(key) && !remoteKeys.has(key))
+      const toUpload = uniqueKeys([
+        ...neededKeys.filter((key) => localKeys.has(key) && !remoteKeys.has(key)),
+        ...[...localKeys].filter(
+          (key) => isStudioMediaBlobKey(key) && !remoteKeys.has(key),
+        ),
+      ])
       const toDownload = neededKeys.filter((key) => !localKeys.has(key))
       const total = toUpload.length + toDownload.length
       let done = 0
+      const uploadedKeys = new Set(remoteKeys)
+      const failed: string[] = []
+      let uploadedVideos = 0
 
       if (toUpload.length > 0) {
+        const videoUploads = toUpload.filter(isStudioVideoBlobKey).length
         setStatus(
           snapshotStatus({
             phase: 'syncing',
-            message: `Uploading ${toUpload.length} photo${toUpload.length === 1 ? '' : 's'}/video${toUpload.length === 1 ? '' : 's'} from this browser…`,
+            message:
+              videoUploads > 0
+                ? `Uploading ${videoUploads} video${videoUploads === 1 ? '' : 's'} from this browser…`
+                : `Uploading ${toUpload.length} photo${toUpload.length === 1 ? '' : 's'}/video${toUpload.length === 1 ? '' : 's'} from this browser…`,
             done,
             total,
           }),
         )
         await mapPool(toUpload, 2, async (key) => {
-          const blob = await getStudioBlob(key)
-          if (blob) await uploadStudioMediaBlob(userId, key, blob)
+          try {
+            const blob = await getStudioBlob(key)
+            if (!blob) {
+              failed.push(`${key} is missing from this browser’s IndexedDB`)
+            } else {
+              await uploadStudioMediaBlob(userId, key, blob)
+              uploadedKeys.add(key)
+              if (isStudioVideoBlobKey(key)) uploadedVideos += 1
+            }
+          } catch (err) {
+            failed.push(err instanceof Error ? err.message : String(err))
+          }
           done += 1
           setStatus(
             snapshotStatus({
               phase: 'syncing',
-              message: `Uploading ${done}/${total} from this browser…`,
+              message: `Uploading media ${done}/${toUpload.length} from this browser…`,
               done,
               total,
+              uploadedVideos,
             }),
           )
         })
@@ -202,11 +259,15 @@ export function StudioSyncProvider({ children }: { children: ReactNode }) {
             message: `Downloading ${toDownload.length} clip${toDownload.length === 1 ? '' : 's'} to this device…`,
             done,
             total,
+            uploadedVideos,
           }),
         )
         await mapPool(toDownload, 2, async (key) => {
           const blob = await downloadStudioMediaBlob(userId, key)
           if (blob) await putStudioBlob(key, blob)
+          else if (uploadedKeys.has(key) || remoteKeys.has(key)) {
+            failed.push(`${key} is in the library JSON but missing from studio-media`)
+          }
           done += 1
           setStatus(
             snapshotStatus({
@@ -214,25 +275,65 @@ export function StudioSyncProvider({ children }: { children: ReactNode }) {
               message: `Downloading ${done}/${total} to this device…`,
               done,
               total,
+              uploadedVideos,
             }),
           )
         })
       }
 
+      const stamped = stampCloudMediaPaths(
+        getStudioState(),
+        (blobKey) => studioMediaPath(userId, blobKey),
+        uploadedKeys,
+      )
+      replaceStudioState(stamped, { syncCloud: false })
       await hydrateWithCloud(userId)
 
-      const savedAt = await saveRemoteStudioLibrary(userId, getStudioState())
-      lastRemoteUpdatedAt.current = savedAt
+      const saved = await saveStudioLibraryPreservingAttachments(userId, getStudioState())
+      if (saved.wrote) {
+        replaceStudioState(saved.library, { syncCloud: false })
+      }
+      lastRemoteUpdatedAt.current = saved.savedAt
       writeLastSyncedUserId(userId)
       ignorePullUntil.current = Date.now() + 2500
+
+      const cloudVideos = countUserAttachedVideos(getStudioState())
+      const localVideoBlobs = countLocalVideoBlobKeys(localKeys)
+      const mediaFailed = failed.length > 0
+      const uploadedNoneWithLocalVideos =
+        localVideoBlobs > 0 &&
+        [...localKeys].filter(isStudioVideoBlobKey).every((key) => !uploadedKeys.has(key)) &&
+        uploadedVideos === 0 &&
+        !remoteKeys.size
+
+      if (mediaFailed || uploadedNoneWithLocalVideos) {
+        const error =
+          failed[0] ??
+          'This browser has attached MP4s in IndexedDB, but none uploaded to studio-media. Tap Sync now on the PC that has Murphy’s videos.'
+        setStatus(
+          snapshotStatus({
+            phase: 'error',
+            message: error,
+            error,
+            done: total,
+            total,
+            uploadedVideos,
+            cloudVideos,
+            lastSyncedAt: saved.savedAt,
+          }),
+        )
+        return
+      }
 
       setStatus(
         snapshotStatus({
           phase: 'ready',
-          message: 'Studio library is synced for this account.',
+          message: readyMessage(uploadedVideos, cloudVideos),
           done: total,
           total,
-          lastSyncedAt: savedAt,
+          uploadedVideos,
+          cloudVideos,
+          lastSyncedAt: saved.savedAt,
         }),
       )
     } catch (err) {
@@ -257,24 +358,63 @@ export function StudioSyncProvider({ children }: { children: ReactNode }) {
       void (async () => {
         if (syncingRef.current) return
         try {
-          const keys = collectStudioBlobKeys(state)
           const localKeys = new Set(await listStudioBlobKeys())
+          const adopted = adoptLocalStudioBlobs(state, localKeys)
+          const keys = uniqueKeys([
+            ...collectStudioBlobKeys(adopted),
+            ...[...localKeys].filter(isStudioMediaBlobKey),
+          ])
           const remoteKeys = await listRemoteStudioBlobKeys(userId)
           const toUpload = keys.filter((key) => localKeys.has(key) && !remoteKeys.has(key))
+          const uploadedKeys = new Set(remoteKeys)
+          const failed: string[] = []
+          let uploadedVideos = 0
           await mapPool(toUpload, 2, async (key) => {
-            const blob = await getStudioBlob(key)
-            if (blob) await uploadStudioMediaBlob(userId, key, blob)
+            try {
+              const blob = await getStudioBlob(key)
+              if (!blob) {
+                failed.push(`${key} is missing from this browser’s IndexedDB`)
+                return
+              }
+              await uploadStudioMediaBlob(userId, key, blob)
+              uploadedKeys.add(key)
+              if (isStudioVideoBlobKey(key)) uploadedVideos += 1
+            } catch (err) {
+              failed.push(err instanceof Error ? err.message : String(err))
+            }
           })
-          const savedAt = await saveRemoteStudioLibrary(userId, state)
-          lastRemoteUpdatedAt.current = savedAt
+          const stamped = stampCloudMediaPaths(
+            adopted,
+            (blobKey) => studioMediaPath(userId, blobKey),
+            uploadedKeys,
+          )
+          replaceStudioState(stamped, { syncCloud: false })
+          const saved = await saveStudioLibraryPreservingAttachments(userId, stamped)
+          lastRemoteUpdatedAt.current = saved.savedAt
           ignorePullUntil.current = Date.now() + 2500
+          const cloudVideos = countUserAttachedVideos(getStudioState())
+          if (failed.length > 0) {
+            setStatus(
+              snapshotStatus({
+                phase: 'error',
+                message: failed[0],
+                error: failed[0],
+                lastSyncedAt: saved.savedAt,
+                uploadedVideos,
+                cloudVideos,
+              }),
+            )
+            return
+          }
           setStatus((current) =>
             snapshotStatus({
               ...current,
               phase: 'ready',
-              message: 'Studio library is synced for this account.',
-              lastSyncedAt: savedAt,
+              message: readyMessage(uploadedVideos, cloudVideos),
+              lastSyncedAt: saved.savedAt,
               error: null,
+              uploadedVideos,
+              cloudVideos,
             }),
           )
         } catch (err) {

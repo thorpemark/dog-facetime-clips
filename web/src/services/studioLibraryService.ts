@@ -1,6 +1,10 @@
 import type { ClipStudioState } from '../types/clipStudio'
 import { getSupabase, isSupabaseConfigured } from '../lib/supabase'
 import { toPersistedStudioState } from '../utils/clipStudioStore'
+import {
+  mergeStudioLibraries,
+  shouldWriteRemoteLibrary,
+} from '../utils/studioLibraryMerge'
 
 export const STUDIO_MEDIA_BUCKET = 'studio-media'
 export const STUDIO_SYNC_USER_KEY = 'dog-facetime-clips.studio.sync-user'
@@ -20,6 +24,44 @@ export function decodeStudioBlobKey(fileName: string): string {
 
 export function studioMediaPath(userId: string, blobKey: string): string {
   return `${userId}/${encodeStudioBlobKey(blobKey)}`
+}
+
+export function inferStudioMediaContentType(blobKey: string, blob: Blob): string {
+  const raw = (blob.type || '').split(';')[0].trim().toLowerCase()
+  if (raw && raw !== 'application/octet-stream') return raw
+  if (blobKey.startsWith('video:')) return 'video/mp4'
+  if (blobKey.startsWith('photo:')) return 'image/jpeg'
+  return raw || 'application/octet-stream'
+}
+
+export function formatStudioMediaUploadError(
+  err: unknown,
+  blobKey: string,
+  size?: number,
+): string {
+  const message = err instanceof Error ? err.message : String(err)
+  const lower = message.toLowerCase()
+  const sizeHint =
+    typeof size === 'number' && size > 0 ? ` (${Math.round(size / 1048576)} MB)` : ''
+  if (
+    lower.includes('row-level security') ||
+    lower.includes('unauthorized') ||
+    (lower.includes('not allowed') && lower.includes('policy'))
+  ) {
+    return `Could not upload ${blobKey}: storage permission denied. Re-run web/supabase/migration_studio_library.sql.`
+  }
+  if (
+    lower.includes('payload too large') ||
+    lower.includes('maximum allowed size') ||
+    lower.includes('exceeded the maximum') ||
+    lower.includes('413')
+  ) {
+    return `Could not upload ${blobKey}: file is too large${sizeHint} (max 100 MB).`
+  }
+  if (lower.includes('mime') || lower.includes('not allowed')) {
+    return `Could not upload ${blobKey}: file type not allowed. Use an MP4 for videos (JPEG/PNG for stills).`
+  }
+  return `Could not upload ${blobKey}: ${message || 'upload failed'}`
 }
 
 export function readLastSyncedUserId(): string | null {
@@ -84,21 +126,49 @@ export async function saveRemoteStudioLibrary(
   return updatedAt
 }
 
+/** Re-fetch before upsert so a phone seed cannot overwrite PC-attached MP4s. */
+export async function saveStudioLibraryPreservingAttachments(
+  userId: string,
+  local: ClipStudioState,
+): Promise<{ savedAt: string; library: ClipStudioState; wrote: boolean }> {
+  const remote = await fetchRemoteStudioLibrary(userId)
+  const merged = mergeStudioLibraries(local, remote?.library ?? null)
+  if (!shouldWriteRemoteLibrary(merged, remote?.library ?? null)) {
+    return {
+      savedAt: remote?.updatedAt ?? new Date().toISOString(),
+      library: remote?.library ?? merged,
+      wrote: false,
+    }
+  }
+  const savedAt = await saveRemoteStudioLibrary(userId, merged)
+  return { savedAt, library: merged, wrote: true }
+}
+
 export async function uploadStudioMediaBlob(
   userId: string,
   blobKey: string,
   blob: Blob,
-): Promise<void> {
+): Promise<string> {
   const supabase = getSupabase()
-  if (!supabase) return
-  const contentType = blob.type || 'application/octet-stream'
-  const { error } = await supabase.storage
-    .from(STUDIO_MEDIA_BUCKET)
-    .upload(studioMediaPath(userId, blobKey), blob, {
+  if (!supabase) throw new Error('Sign-in is not available in demo mode')
+  const path = studioMediaPath(userId, blobKey)
+  const primaryType = inferStudioMediaContentType(blobKey, blob)
+  const tryUpload = async (contentType: string) =>
+    supabase.storage.from(STUDIO_MEDIA_BUCKET).upload(path, blob, {
       contentType,
       upsert: true,
+      cacheControl: '3600',
     })
-  if (error) throw error
+
+  let { error } = await tryUpload(primaryType)
+  if (error && primaryType !== 'application/octet-stream') {
+    const retry = await tryUpload('application/octet-stream')
+    error = retry.error
+  }
+  if (error) {
+    throw new Error(formatStudioMediaUploadError(error, blobKey, blob.size))
+  }
+  return path
 }
 
 export async function downloadStudioMediaBlob(
@@ -117,15 +187,22 @@ export async function downloadStudioMediaBlob(
 export async function listRemoteStudioBlobKeys(userId: string): Promise<Set<string>> {
   const supabase = getSupabase()
   if (!supabase) return new Set()
-  const { data, error } = await supabase.storage
-    .from(STUDIO_MEDIA_BUCKET)
-    .list(userId, { limit: 1000, offset: 0 })
-  if (error || !data) return new Set()
-  return new Set(
-    data
-      .filter((item) => item.name && item.id)
-      .map((item) => decodeStudioBlobKey(item.name)),
-  )
+  const keys = new Set<string>()
+  const pageSize = 1000
+  for (let offset = 0; offset < 10000; offset += pageSize) {
+    const { data, error } = await supabase.storage
+      .from(STUDIO_MEDIA_BUCKET)
+      .list(userId, { limit: pageSize, offset })
+    if (error) throw error
+    if (!data || data.length === 0) break
+    for (const item of data) {
+      if (!item.name) continue
+      if (item.id == null && item.metadata == null) continue
+      keys.add(decodeStudioBlobKey(item.name))
+    }
+    if (data.length < pageSize) break
+  }
+  return keys
 }
 
 export async function mapPool<T>(

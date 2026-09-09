@@ -636,39 +636,70 @@ export function ensureStudioHydrated(): ClipStudioState {
 
 /** Restore object URLs for IndexedDB-backed photos/videos after a reload. */
 export async function hydrateStudioMedia(loadBlob: (key: string) => Promise<Blob | null>): Promise<void> {
-  const state = getStudioState()
-  const next = cloneState(state)
-  let changed = false
-  for (const dog of next.dogs) {
-    if (dog.defaultPhoto?.blobKey && !dog.defaultPhoto.url) {
-      const blob = await loadBlob(dog.defaultPhoto.blobKey)
-      if (blob) {
-        dog.defaultPhoto.url = URL.createObjectURL(blob)
-        changed = true
+  const keys = new Set<string>()
+  const collectKeys = (state: ClipStudioState) => {
+    for (const dog of state.dogs) {
+      if (dog.defaultPhoto?.blobKey) keys.add(dog.defaultPhoto.blobKey)
+      if (dog.generationPhoto?.blobKey) keys.add(dog.generationPhoto.blobKey)
+      for (const intent of dog.intents) {
+        for (const slot of intent.clipSlots) {
+          if (slot.sourcePhoto?.blobKey) keys.add(slot.sourcePhoto.blobKey)
+          if (slot.resultVideo?.blobKey) keys.add(slot.resultVideo.blobKey)
+        }
       }
     }
-    if (dog.generationPhoto?.blobKey && !dog.generationPhoto.url) {
-      const blob = await loadBlob(dog.generationPhoto.blobKey)
-      if (blob) {
-        dog.generationPhoto.url = URL.createObjectURL(blob)
-        changed = true
-      }
+  }
+
+  collectKeys(getStudioState())
+  const blobs = new Map<string, Blob>()
+  for (const key of keys) {
+    const blob = await loadBlob(key)
+    if (blob) blobs.set(key, blob)
+  }
+
+  collectKeys(getStudioState())
+  for (const key of keys) {
+    if (blobs.has(key)) continue
+    const blob = await loadBlob(key)
+    if (blob) blobs.set(key, blob)
+  }
+  if (blobs.size === 0) return
+
+  const next = cloneState(getStudioState())
+  let changed = false
+  const objectUrls = new Map<string, string>()
+  const urlFor = (key: string): string => {
+    const existing = objectUrls.get(key)
+    if (existing) return existing
+    const blob = blobs.get(key)
+    if (!blob) return ''
+    const url = URL.createObjectURL(blob)
+    objectUrls.set(key, url)
+    return url
+  }
+
+  for (const dog of next.dogs) {
+    if (dog.defaultPhoto?.blobKey && !dog.defaultPhoto.url && blobs.has(dog.defaultPhoto.blobKey)) {
+      dog.defaultPhoto.url = urlFor(dog.defaultPhoto.blobKey)
+      changed = true
+    }
+    if (dog.generationPhoto?.blobKey && !dog.generationPhoto.url && blobs.has(dog.generationPhoto.blobKey)) {
+      dog.generationPhoto.url = urlFor(dog.generationPhoto.blobKey)
+      changed = true
     }
     for (const intent of dog.intents) {
       for (const slot of intent.clipSlots) {
-        if (slot.sourcePhoto?.blobKey && !slot.sourcePhoto.url) {
-          const blob = await loadBlob(slot.sourcePhoto.blobKey)
-          if (blob) {
-            slot.sourcePhoto.url = URL.createObjectURL(blob)
-            changed = true
-          }
+        if (slot.sourcePhoto?.blobKey && !slot.sourcePhoto.url && blobs.has(slot.sourcePhoto.blobKey)) {
+          slot.sourcePhoto.url = urlFor(slot.sourcePhoto.blobKey)
+          changed = true
         }
-        if (slot.resultVideo?.blobKey && !slot.resultVideo.objectUrl) {
-          const blob = await loadBlob(slot.resultVideo.blobKey)
-          if (blob) {
-            slot.resultVideo.objectUrl = URL.createObjectURL(blob)
-            changed = true
-          }
+        if (
+          slot.resultVideo?.blobKey &&
+          !slot.resultVideo.objectUrl &&
+          blobs.has(slot.resultVideo.blobKey)
+        ) {
+          slot.resultVideo.objectUrl = urlFor(slot.resultVideo.blobKey)
+          changed = true
         }
       }
     }

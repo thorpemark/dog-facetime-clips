@@ -10,9 +10,13 @@ Clip Studio used to live only in **this browser**. That is why Murphy’s librar
 
 **Fix:** sign in with the **same Google (or email) account** on every device. The app reuses the existing **Dog_memorial_facetime** Supabase project (`cqmkcuchmnehnpizapqy`) — it does **not** need a second project.
 
-1. On the **PC that already has Murphy’s videos**, open Clip Studio and sign in (Google is fine). Wait until the banner says the library is synced. Attached MP4s and generation stills upload; they are **merged**, not wiped. Do **not** tap Reset seed.
-2. On the **phone**, open the site in **Chrome** (not Keep’s in-app browser). Sign in with the **same account**. The phone downloads that library. Sample Call / Debug then play the real MP4s, not the colored placeholders.
-3. Later edits (new videos, idle pick, holiday intents) debounce-upload from whichever device you are on.
+1. On the **PC that already has Murphy’s videos** (Chrome, the profile where you attached the MP4s), open Clip Studio and sign in (Google is fine). Do **not** tap Reset seed.
+2. Wait until the banner says **Uploaded N videos** (not only “library is synced”). JSON-only sync is a failure — the phone cannot play color-block placeholders away until `studio-media` has files.
+3. If the banner shows an upload error, tap **Sync now** on that same PC and leave the tab open until it finishes. Large MP4s upload two at a time.
+4. On the **phone**, hard-refresh in **Chrome** (not Keep’s in-app browser). Sign in with the **same account**. The phone downloads that library + MP4s. Sample Call / Debug then play the real videos.
+5. Later edits (new videos, idle pick, holiday intents) debounce-upload from whichever device you are on.
+
+**If the phone signed in first** and cloud JSON looks like the seed (no `video_attached`, empty `studio-media`): stay on the PC browser that still has IndexedDB attachments and tap **Sync now**. That pass reattaches local `video:` blobs, uploads them, then writes JSON. A phone seed cannot overwrite those attachments.
 
 **Unsigned / demo:** GitHub Pages still works with no secrets. You get the baked seed + whatever you attach in that one browser.
 
