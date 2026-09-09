@@ -390,7 +390,6 @@ export function MemorialCallProvider({
         src={SILENCE_WAV_DATA_URI}
         preload="auto"
         playsInline
-        loop={callPhase === 'active'}
         tabIndex={-1}
         aria-hidden
         className="call-audio-unlock"

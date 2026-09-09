@@ -8,10 +8,16 @@ import {
   type TranscriptMatch,
 } from '../utils/matchTranscript'
 import {
-  attachSilentMicHold,
+  SPEECH_IOS_START_COOLDOWN_MS,
+  attachMicAnalyser,
+  isIOSUserAgent,
+  isVoiceActivity,
+  rmsFromTimeDomain,
   speechRestartDelayMs,
   speechRestartMinIntervalMs,
+  speechRestartStrategy,
   stopMediaStream,
+  type SpeechEndReason,
 } from '../utils/micSession'
 import {
   holdLatestFinal,
@@ -37,8 +43,8 @@ function audioContextCtor(): typeof AudioContext | undefined {
 
 /**
  * One mic session per listen period (Accept → End / Mute).
- * Safari iOS re-shows “Microphone access allowed” (and may beep) if
- * SpeechRecognition is aborted and reconstructed on every onend.
+ * iOS Safari/Chrome beep on every SpeechRecognition.start() — do not
+ * abort/rebuild, and do not restart on benign no-speech.
  */
 export function useKeywordSpotter(onMatch: (ruleId: string) => void) {
   const [isListening, setIsListening] = useState(false)
@@ -52,8 +58,12 @@ export function useKeywordSpotter(onMatch: (ruleId: string) => void) {
   const shouldListenRef = useRef(false)
   const runningRef = useRef(false)
   const restartTimerRef = useRef<number | null>(null)
+  const vadTimerRef = useRef<number | null>(null)
   const lastStartAtRef = useRef(0)
+  const endReasonRef = useRef<SpeechEndReason>('other')
   const micStreamRef = useRef<MediaStream | null>(null)
+  const analyserRef = useRef<AnalyserNode | null>(null)
+  const vadBufferRef = useRef<Uint8Array<ArrayBuffer> | null>(null)
   const micHoldCleanupRef = useRef<(() => void) | null>(null)
   const audioContextRef = useRef<AudioContext | null>(null)
   const rulesRef = useRef<KeywordRule[]>([])
@@ -146,9 +156,19 @@ export function useKeywordSpotter(onMatch: (ruleId: string) => void) {
     }
   }, [])
 
+  const stopVadWatch = useCallback(() => {
+    if (vadTimerRef.current) {
+      window.clearTimeout(vadTimerRef.current)
+      vadTimerRef.current = null
+    }
+  }, [])
+
   const releaseMicHold = useCallback(() => {
+    stopVadWatch()
     micHoldCleanupRef.current?.()
     micHoldCleanupRef.current = null
+    analyserRef.current = null
+    vadBufferRef.current = null
     stopMediaStream(micStreamRef.current)
     micStreamRef.current = null
     const ctx = audioContextRef.current
@@ -156,7 +176,60 @@ export function useKeywordSpotter(onMatch: (ruleId: string) => void) {
     if (ctx && ctx.state !== 'closed') {
       void ctx.close().catch(() => {})
     }
-  }, [])
+  }, [stopVadWatch])
+
+  const iosDevice = useCallback(
+    () => isIOSUserAgent(navigator.userAgent, navigator.maxTouchPoints ?? 0),
+    [],
+  )
+
+  const tryStartRecognizer = useCallback((recognition: SpeechRecognition) => {
+    if (!sessionActiveRef.current || !shouldListenRef.current) return
+    if (runningRef.current) return
+    if (iosDevice()) {
+      const wait = speechRestartDelayMs(
+        lastStartAtRef.current,
+        Date.now(),
+        SPEECH_IOS_START_COOLDOWN_MS,
+      )
+      if (wait > 0) {
+        clearRestartTimer()
+        restartTimerRef.current = window.setTimeout(() => {
+          restartTimerRef.current = null
+          tryStartRecognizer(recognition)
+        }, wait)
+        return
+      }
+    }
+    try {
+      recognition.start()
+    } catch {
+      /* InvalidStateError: already started */
+    }
+  }, [clearRestartTimer, iosDevice])
+
+  const startVadWatch = useCallback((recognition: SpeechRecognition) => {
+    stopVadWatch()
+    const tick = () => {
+      vadTimerRef.current = null
+      if (!sessionActiveRef.current || !shouldListenRef.current) return
+      if (runningRef.current) return
+      const analyser = analyserRef.current
+      if (analyser) {
+        const size = analyser.fftSize
+        if (!vadBufferRef.current || vadBufferRef.current.length !== size) {
+          vadBufferRef.current = new Uint8Array(new ArrayBuffer(size))
+        }
+        analyser.getByteTimeDomainData(vadBufferRef.current)
+        if (isVoiceActivity(rmsFromTimeDomain(vadBufferRef.current))) {
+          tryStartRecognizer(recognition)
+          return
+        }
+      }
+      vadTimerRef.current = window.setTimeout(tick, 100)
+    }
+    vadTimerRef.current = window.setTimeout(tick, 100)
+  }, [stopVadWatch, tryStartRecognizer])
 
   const holdMic = useCallback(() => {
     if (micStreamRef.current) return
@@ -178,7 +251,9 @@ export function useKeywordSpotter(onMatch: (ruleId: string) => void) {
         const ctx = audioContextRef.current ?? new Ctor()
         audioContextRef.current = ctx
         void ctx.resume()
-        micHoldCleanupRef.current = attachSilentMicHold(stream, ctx)
+        const { analyser, cleanup } = attachMicAnalyser(stream, ctx)
+        analyserRef.current = analyser
+        micHoldCleanupRef.current = cleanup
       })
       .catch(() => {
         /* SpeechRecognition may still start; permission errors surface there */
@@ -193,6 +268,8 @@ export function useKeywordSpotter(onMatch: (ruleId: string) => void) {
     recognition.onstart = () => {
       runningRef.current = true
       lastStartAtRef.current = Date.now()
+      endReasonRef.current = 'other'
+      stopVadWatch()
       setIsListening(true)
       setSpeechError(null)
     }
@@ -204,6 +281,7 @@ export function useKeywordSpotter(onMatch: (ruleId: string) => void) {
         transcript += event.results[i][0].transcript
         isFinal = event.results[i].isFinal
       }
+      if (isFinal) endReasonRef.current = 'result'
       processTranscriptRef.current(transcript.trim(), { isFinal })
     }
 
@@ -217,10 +295,15 @@ export function useKeywordSpotter(onMatch: (ruleId: string) => void) {
         releaseMicHold()
         return
       }
-      // no-speech / aborted are normal; onend restarts the same instance.
-      if (event.error !== 'aborted' && event.error !== 'no-speech') {
-        setSpeechError(event.error)
+      if (event.error === 'no-speech') {
+        endReasonRef.current = 'no-speech'
+        return
       }
+      if (event.error === 'aborted') {
+        endReasonRef.current = 'aborted'
+        return
+      }
+      setSpeechError(event.error)
     }
 
     recognition.onend = () => {
@@ -230,7 +313,20 @@ export function useKeywordSpotter(onMatch: (ruleId: string) => void) {
         setIsListening(false)
         return
       }
-      // Stay in "Listening" across Safari's obligatory onend; do not rebuild.
+      // Keep the Listening cue — the mic hold is still live.
+      const isIOS = iosDevice()
+      const strategy = speechRestartStrategy({
+        isIOS,
+        reason: endReasonRef.current,
+        sessionActive: true,
+        running: false,
+      })
+      endReasonRef.current = 'other'
+      if (strategy === 'never') return
+      if (strategy === 'vad') {
+        startVadWatch(recognition)
+        return
+      }
       const delay = speechRestartDelayMs(
         lastStartAtRef.current,
         Date.now(),
@@ -243,16 +339,17 @@ export function useKeywordSpotter(onMatch: (ruleId: string) => void) {
       restartTimerRef.current = window.setTimeout(() => {
         restartTimerRef.current = null
         if (recognitionRef.current !== recognition) return
-        if (!sessionActiveRef.current || !shouldListenRef.current) return
-        if (runningRef.current) return
-        try {
-          recognition.start()
-        } catch {
-          /* InvalidStateError: already started */
-        }
+        tryStartRecognizer(recognition)
       }, delay)
     }
-  }, [clearRestartTimer, releaseMicHold])
+  }, [
+    clearRestartTimer,
+    iosDevice,
+    releaseMicHold,
+    startVadWatch,
+    stopVadWatch,
+    tryStartRecognizer,
+  ])
 
   const startRecognition = useCallback(() => {
     const Ctor = getSpeechRecognition()
@@ -268,12 +365,8 @@ export function useKeywordSpotter(onMatch: (ruleId: string) => void) {
     }
 
     if (runningRef.current) return
-    try {
-      recognition.start()
-    } catch {
-      /* already started */
-    }
-  }, [bindRecognizer, holdMic])
+    tryStartRecognizer(recognition)
+  }, [bindRecognizer, holdMic, tryStartRecognizer])
 
   const startListening = useCallback(
     (rules: KeywordRule[], dogName: string, ownerName: string) => {
@@ -295,6 +388,7 @@ export function useKeywordSpotter(onMatch: (ruleId: string) => void) {
     canProcessRef.current = false
     runningRef.current = false
     clearRestartTimer()
+    stopVadWatch()
     const recognition = recognitionRef.current
     recognitionRef.current = null
     try {
@@ -307,7 +401,7 @@ export function useKeywordSpotter(onMatch: (ruleId: string) => void) {
     if (options?.clearPending !== false) {
       pendingRef.current = null
     }
-  }, [clearRestartTimer, releaseMicHold])
+  }, [clearRestartTimer, releaseMicHold, stopVadWatch])
 
   const triggerPhrase = useCallback(
     (phrase: string) => {
@@ -321,6 +415,7 @@ export function useKeywordSpotter(onMatch: (ruleId: string) => void) {
       shouldListenRef.current = false
       sessionActiveRef.current = false
       clearRestartTimer()
+      stopVadWatch()
       try {
         recognitionRef.current?.stop()
       } catch {
@@ -329,7 +424,7 @@ export function useKeywordSpotter(onMatch: (ruleId: string) => void) {
       recognitionRef.current = null
       releaseMicHold()
     }
-  }, [clearRestartTimer, releaseMicHold])
+  }, [clearRestartTimer, releaseMicHold, stopVadWatch])
 
   return {
     isListening,
