@@ -520,7 +520,7 @@ export function variantDirectorNote(family: SuggestIntentFamily, slotLabel: stri
       return pickLabeledBeat(
         label,
         [
-          [/lick|expectant/, 'Eyes lock on the implied treat, eager lean, brief lip lick, settle to still.'],
+          [/lick|expectant/, 'Eyes lock on treat, eager lean, brief lip lick, settle to still.'],
           [/mouth open|excited/, 'Excited food-face, mouth slightly open, then close and return to the source sit.'],
           [/food interest/, 'Curious sniff toward an implied treat, bright eyes, then back to the still sit.'],
         ],

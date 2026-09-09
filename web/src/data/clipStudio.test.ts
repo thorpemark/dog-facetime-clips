@@ -842,10 +842,15 @@ describe('migrateStudioState personality radios', () => {
       ?.clipSlots.find((slot) => /lick/i.test(slot.label))
     const holiday = riley?.intents.find((intent) => intent.id === 'halloween')?.clipSlots[0]
 
-    expect(rileyNo?.notes).toMatch(/Ears pin back|guilty/i)
-    expect(rileyTreat?.notes).toMatch(/lip lick|treat/i)
-    expect(holiday?.notes).toMatch(/costume/i)
+    expect(rileyNo?.notes).toBe(
+      'Ears pin back, freeze, slight guilty eye contact, return to sit.',
+    )
+    expect(rileyTreat?.notes).toBe(
+      'Eyes lock on treat, eager lean, brief lip lick, settle to still.',
+    )
+    expect(holiday?.notes).toMatch(/off left|costume walk|exact source sit/i)
     expect(rileyNo?.prompt).toMatch(/Director notes for this slot/)
+    expect(rileyNo?.prompt).toMatch(/Ears pin back, freeze, slight guilty eye contact/)
 
     if (!murphy) throw new Error('missing murphy')
     const keeper = 'MARK WROTE THIS BEAT'
