@@ -2795,6 +2795,11 @@ button {
   gap: 12px;
 }
 
+.studio-slot-photo,
+.studio-slot-video {
+  min-width: 0;
+}
+
 .studio-photo-add {
   min-height: 140px;
 }
@@ -2833,6 +2838,17 @@ button {
   background: rgba(255, 255, 255, 0.04);
   color: rgba(255, 255, 255, 0.5);
   font-size: 0.85rem;
+}
+
+.studio-video-filename {
+  margin: 6px 0 0;
+  max-width: 100%;
+  font-size: 0.78rem;
+  font-weight: 600;
+  line-height: 1.35;
+  color: rgba(255, 255, 255, 0.82);
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .studio-default-photo-note {

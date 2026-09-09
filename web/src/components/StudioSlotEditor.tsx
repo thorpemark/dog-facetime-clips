@@ -4,6 +4,7 @@ import { GENERATOR_LABELS } from '../types/clipStudio'
 import type { DualFraming } from '../utils/focalPoint'
 import { playbackPathForSlot } from '../utils/clipStudioCatalog'
 import { resolveSourcePhoto } from '../utils/clipStudioStore'
+import { displayNameForClipVideo } from '../utils/clipVideoName'
 import { normalizeClipWeights } from '../data/reactionCatalog'
 import { isHolidayLikeIntent, suggestClipPrompt } from '../utils/suggestClipPrompt'
 import { PhotoFocalEditor } from './PhotoFocalEditor'
@@ -58,6 +59,7 @@ export function StudioSlotEditor({
   const resolvedPhoto = resolveSourcePhoto(slot, dog)
   const usingGenerationStill = !slot.sourcePhoto && Boolean(resolvedPhoto)
   const previewVideo = playbackPathForSlot(slot)
+  const attachedVideoName = displayNameForClipVideo(slot.resultVideo)
   const needsVideo = slot.status !== 'video_attached'
   const chance = normalizeClipWeights(intent.clipSlots.map((item) => ({
     path: item.id,
@@ -218,6 +220,11 @@ export function StudioSlotEditor({
             <video src={previewVideo} muted playsInline loop controls className="studio-video-preview" />
           ) : (
             <div className="studio-video-empty">No video yet — attach an MP4 after generating.</div>
+          )}
+          {attachedVideoName && (
+            <p className="studio-video-filename" title={attachedVideoName}>
+              {attachedVideoName}
+            </p>
           )}
           {slot.resultVideo?.origin === 'placeholder' && slot.status !== 'video_attached' && (
             <p className="studio-placeholder-note">Demo placeholder (colored clip)</p>
