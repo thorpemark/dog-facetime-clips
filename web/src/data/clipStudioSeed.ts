@@ -24,7 +24,7 @@ import { normalizePersonality } from '../utils/dogPersonality'
 import { fullImageDualFraming } from '../utils/focalPoint'
 
 /** Existing browsers merge this seed when their stored revision is lower. */
-export const STUDIO_SEED_REVISION = 6
+export const STUDIO_SEED_REVISION = 7
 
 export function buildClipPrompt(
   dog: { name: string; personality: DogPersonality },
@@ -159,12 +159,12 @@ export const RILEY_PERSONALITY: DogPersonality = {
   breed: 'huskita (Husky × Akita mix)',
   notes: [
     'Riley is the black huskita.',
-    'Remarkably non-vocal — expresses via face and body.',
+    'Soft Foley — faint breath, soft mouth/lick, paw on rug, tail swish. Not a barker.',
     'Independent, expressive, a bit stubborn.',
     'Does not like hugs: silent warning face, bares teeth when her side is touched or she is asked for a hug (not an attack).',
     'Awkward howl attempt — hesitant and slightly off, not a full song.',
   ],
-  vocalStyle: 'silent',
+  vocalStyle: 'soft',
   voiceSize: 'medium',
   energy: 'normal',
   eyes: 'alert',
@@ -176,11 +176,11 @@ export const BOTH_PERSONALITY: DogPersonality = {
   breed: 'huskitas (Husky × Akita mix)',
   notes: [
     'Shared memorial of Murphy (tan, folded ears, left) and Riley (black-and-white, upright ears, right).',
-    'Remarkably non-vocal — express via face and body. Howl/sing is the only vocal exception.',
+    'Soft Foley for the pair — faint breath, soft mouth/lick, paw, tail swish. Not barkers.',
     'Keep both dogs in frame. Same still as the Both mode card.',
     'Murphy loves hugs and howls well; Riley is hug-wary and has an awkward howl.',
   ],
-  vocalStyle: 'silent',
+  vocalStyle: 'soft',
   voiceSize: 'medium',
   energy: 'normal',
   eyes: 'goofy',

@@ -525,7 +525,12 @@ describe('seed modes and photos', () => {
         dog?.defaultPhoto?.publicPath,
       )
       expect(unknown?.clipSlots[0]?.prompt).toMatch(/head-tilt/i)
-      expect(unknown?.clipSlots[0]?.prompt).toMatch(/Silence-first/)
+      if (dog?.id === 'murphy') {
+        expect(unknown?.clipSlots[0]?.prompt).toMatch(/Silence-first/)
+      } else {
+        expect(unknown?.clipSlots[0]?.prompt).toMatch(/Soft Foley wanted/)
+        expect(unknown?.clipSlots[0]?.prompt).not.toMatch(/Silence-first/)
+      }
 
       for (const holidayId of HOLIDAY_INTENT_IDS) {
         const holiday = dog?.intents.find((intent) => intent.id === holidayId)
@@ -565,14 +570,15 @@ describe('seed personality', () => {
       touch: 'cuddly',
     })
     expect(riley?.personality).toMatchObject({
-      vocalStyle: 'silent',
+      vocalStyle: 'soft',
       voiceSize: 'medium',
       energy: 'normal',
       eyes: 'alert',
       mouth: 'dry',
       touch: 'grumble_hug',
     })
-    expect(both?.personality.vocalStyle).toBe('silent')
+    expect(both?.personality.vocalStyle).toBe('soft')
+    expect(murphy?.personality.vocalStyle).toBe('silent')
   })
 
   it('bakes Riley hug / howl and Murphy hug / howl into prompts', () => {
@@ -744,5 +750,85 @@ describe('migrateStudioState personality radios', () => {
     const migratedRiley = migrated.dogs.find((dog) => dog.id === 'riley')
     expect(migratedRiley?.intents.some((intent) => intent.id === 'thanksgiving')).toBe(true)
     expect(migratedRiley?.intents.some((intent) => intent.id === 'labor-day')).toBe(true)
+  })
+
+  it('flips leftover silent Riley/Both radios to soft without rewriting Murphy prompts', () => {
+    const seed = createSeedStudioState()
+    const murphy = seed.dogs.find((dog) => dog.id === 'murphy')
+    const riley = seed.dogs.find((dog) => dog.id === 'riley')
+    const both = seed.dogs.find((dog) => dog.id === 'both')
+    if (!murphy || !riley || !both) throw new Error('missing seed dogs')
+    const murphyTreatPrompt = 'MURPHY-KEEP-THIS-PROMPT'
+    const stored = {
+      ...seed,
+      seedRevision: 6,
+      dogs: [
+        {
+          ...murphy,
+          personality: { ...murphy.personality, vocalStyle: 'silent' as const },
+          intents: murphy.intents.map((intent) =>
+            intent.id === 'treat'
+              ? {
+                  ...intent,
+                  clipSlots: intent.clipSlots.map((slot, index) =>
+                    index === 0 ? { ...slot, prompt: murphyTreatPrompt } : slot,
+                  ),
+                }
+              : intent,
+          ),
+        },
+        {
+          ...riley,
+          personality: {
+            ...riley.personality,
+            vocalStyle: 'silent' as const,
+            notes: [
+              'Riley is the black huskita.',
+              'Remarkably non-vocal — expresses via face and body.',
+              'Independent, expressive, a bit stubborn.',
+            ],
+          },
+          intents: riley.intents.map((intent) =>
+            intent.id === 'treat'
+              ? {
+                  ...intent,
+                  clipSlots: intent.clipSlots.map((slot, index) =>
+                    index === 0 ? { ...slot, prompt: 'OLD-RILEY-TREAT' } : slot,
+                  ),
+                }
+              : intent,
+          ),
+        },
+        {
+          ...both,
+          personality: { ...both.personality, vocalStyle: 'silent' as const },
+        },
+      ],
+    }
+
+    const migrated = migrateStudioState(stored)
+    expect(migrated.seedRevision).toBe(STUDIO_SEED_REVISION)
+    expect(migrated.dogs.find((dog) => dog.id === 'murphy')?.personality.vocalStyle).toBe(
+      'silent',
+    )
+    expect(
+      migrated.dogs
+        .find((dog) => dog.id === 'murphy')
+        ?.intents.find((intent) => intent.id === 'treat')
+        ?.clipSlots[0]?.prompt,
+    ).toBe(murphyTreatPrompt)
+    expect(migrated.dogs.find((dog) => dog.id === 'riley')?.personality.vocalStyle).toBe(
+      'soft',
+    )
+    expect(migrated.dogs.find((dog) => dog.id === 'riley')?.personality.notes.join(' ')).not.toMatch(
+      /remarkably non-vocal/i,
+    )
+    expect(
+      migrated.dogs
+        .find((dog) => dog.id === 'riley')
+        ?.intents.find((intent) => intent.id === 'treat')
+        ?.clipSlots[0]?.prompt,
+    ).toBe('OLD-RILEY-TREAT')
+    expect(migrated.dogs.find((dog) => dog.id === 'both')?.personality.vocalStyle).toBe('soft')
   })
 })

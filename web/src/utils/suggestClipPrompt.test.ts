@@ -178,7 +178,9 @@ describe('suggestClipPrompt', () => {
     expect(samples[1]).toMatch(/Play clip/)
     expect(samples[1]).toMatch(/one short challenge huff/i)
     expect(samples[2]).toMatch(/Howl\/sing clip/)
-    expect(samples[3]).toMatch(/Silence-first/)
+    expect(samples[3]).toMatch(/Soft Foley wanted/)
+    expect(samples[3]).not.toMatch(/Silence-first/)
+    expect(samples[3]).not.toMatch(/not sound/)
     expect(samples[3]).toMatch(/attached source still/)
   })
 
@@ -203,7 +205,7 @@ describe('suggestClipPrompt', () => {
     expect(prompt).not.toMatch(/Murphy and Riley are remarkably non-vocal/)
   })
 
-  it('uses silence-first AUDIO on name / come / treat and bans inviting sound language', () => {
+  it('uses silence-first AUDIO on Murphy name / come / treat and bans inviting sound language', () => {
     const name = suggestClipPrompt({
       dogName: 'Murphy',
       personality: MURPHY_PERSONALITY,
@@ -219,8 +221,8 @@ describe('suggestClipPrompt', () => {
       slotLabel: 'Eager lean in',
     })
     const treat = suggestClipPrompt({
-      dogName: 'Riley',
-      personality: RILEY_PERSONALITY,
+      dogName: 'Murphy',
+      personality: MURPHY_PERSONALITY,
       intentId: 'treat',
       intentDescription: 'Treat / chicken',
       slotLabel: 'Excited, mouth open',
@@ -235,12 +237,73 @@ describe('suggestClipPrompt', () => {
       expect(prompt).toMatch(/face and body/i)
       expect(prompt).toMatch(/remarkably non-vocal/)
       expect(prompt).not.toMatch(INVITING_SOUND)
+      expect(prompt).not.toMatch(/Soft Foley wanted/)
       expect(prompt).not.toMatch(/Sings and howls well/)
       expect(prompt).not.toMatch(/Awkward howl attempt/)
     }
 
     expect(name).toMatch(/ears perk and eye contact only/i)
     expect(come).toMatch(/ears perk and eye contact only/i)
+  })
+
+  it('invites soft Foley on Riley treat without not-sound or Mouth closed', () => {
+    const prompt = suggestClipPrompt({
+      dogName: 'Riley',
+      personality: RILEY_PERSONALITY,
+      intentId: 'treat',
+      intentDescription: 'Treat / chicken',
+      slotLabel: 'Excited, mouth open',
+      userNotes: 'very excited, licks lips, sniffs air',
+    })
+
+    expect(prompt.startsWith('AUDIO (read first):')).toBe(true)
+    expect(prompt).toMatch(/Soft-vocal/)
+    expect(prompt).toMatch(/Soft Foley wanted/)
+    expect(prompt).toMatch(/faint breath, soft mouth\/lick sounds, paw on rug, soft tail swish/)
+    expect(prompt).toMatch(/Hard ban: bark, howl, music, speech, talking, ambience, heavy whine, growl/)
+    expect(prompt).toMatch(/black huskita/)
+    expect(prompt).toMatch(/brief lick/)
+    expect(prompt).toMatch(/very excited, licks lips, sniffs air/)
+    expect(prompt).not.toMatch(/Silence-first/)
+    expect(prompt).not.toMatch(/not sound/)
+    expect(prompt).not.toMatch(/remarkably non-vocal/)
+    expect(prompt).not.toMatch(/Mouth closed/)
+    expect(prompt).not.toMatch(/Express via face and body/)
+  })
+
+  it('still invites Foley if Riley or Both leftover seed is silent', () => {
+    const leftoverSilent = defaultPersonality({ vocalStyle: 'silent' })
+    const riley = suggestClipPrompt({
+      dogName: 'Riley',
+      personality: leftoverSilent,
+      intentId: 'treat',
+      intentDescription: 'Treat / chicken',
+      slotLabel: 'Lick / expectant',
+      userNotes: 'licks lips',
+    })
+    const both = suggestClipPrompt({
+      dogName: 'Both',
+      personality: leftoverSilent,
+      intentId: 'name',
+      intentDescription: 'Dog name',
+      slotLabel: 'Perk up / eye contact',
+    })
+    const customSilent = suggestClipPrompt({
+      dogName: 'Biscuit',
+      personality: leftoverSilent,
+      intentId: 'treat',
+      intentDescription: 'Treat / chicken',
+      slotLabel: 'Excited, mouth open',
+    })
+
+    expect(riley).toMatch(/Soft Foley wanted/)
+    expect(riley).not.toMatch(/Silence-first/)
+    expect(riley).not.toMatch(/Mouth closed/)
+    expect(both).toMatch(/Soft Foley wanted/)
+    expect(both).not.toMatch(/Silence-first/)
+    expect(customSilent).toMatch(/Silence-first/)
+    expect(customSilent).toMatch(/Mouth closed/)
+    expect(customSilent).not.toMatch(/Soft Foley wanted/)
   })
 
   it('allows dog howl only on howl/sing intents, still forbids talking and other noise', () => {
@@ -269,7 +332,9 @@ describe('suggestClipPrompt', () => {
     expect(howl).not.toMatch(INVITING_SOUND)
 
     expect(hug.startsWith('AUDIO (read first):')).toBe(true)
-    expect(hug).toMatch(/Silence-first/)
+    expect(hug).toMatch(/Soft Foley wanted/)
+    expect(hug).not.toMatch(/Silence-first/)
+    expect(hug).not.toMatch(/not sound/)
     expect(hug).toMatch(/bares (her )?teeth/)
     expect(hug).toMatch(/no growl sound/)
     expect(hug).toMatch(/Mouth closed/)
@@ -310,7 +375,10 @@ describe('suggestClipPrompt', () => {
     expect(hug).toMatch(/Murphy leans in/i)
     expect(hug).toMatch(/Riley is wary/i)
     expect(hug).toMatch(/black huskita/i)
-    expect(hug).toMatch(/Silence-first/)
+    expect(hug).toMatch(/Soft Foley wanted/)
+    expect(hug).toMatch(/Riley warning is visual/)
+    expect(hug).not.toMatch(/Silence-first/)
+    expect(hug).not.toMatch(/not sound/)
     expect(howl).toMatch(/Murphy sings/i)
     expect(howl).toMatch(/awkward weaker howl/i)
     expect(howl).toMatch(/kitchen-rug/i)
@@ -497,8 +565,11 @@ describe('suggestClipPrompt', () => {
     expect(talkName).not.toMatch(/Silence-first/)
 
     expect(softName).toMatch(/Soft-vocal/)
-    expect(softName).toMatch(/Faint whine or breath/)
+    expect(softName).toMatch(/Soft Foley wanted/)
+    expect(softName).toMatch(/faint breath, soft mouth\/lick sounds/)
     expect(softName).not.toMatch(/Silence-first/)
+    expect(softName).not.toMatch(/not sound/)
+    expect(softName).not.toMatch(/remarkably non-vocal/)
     expect(softName).not.toMatch(/Barking dog/)
 
     expect(silentHowl).toMatch(/Howl\/sing clip/)
@@ -535,20 +606,32 @@ describe('suggestClipPrompt', () => {
       slotLabel: 'Curious head-tilt',
     })
 
-    for (const prompt of [murphy, riley, both]) {
+    expect(murphy.startsWith('AUDIO (read first):')).toBe(true)
+    expect(murphy).toMatch(/Silence-first/)
+    expect(murphy).toMatch(/Hard ban: bark, howl, whine, growl, music, speech, ambience/)
+    expect(murphy).toMatch(/head-tilt/i)
+    expect(murphy).toMatch(/huh/)
+    expect(murphy).not.toMatch(/Soft Foley wanted/)
+    expect(murphy).not.toMatch(/Howl\/sing clip/)
+    expect(murphy).not.toMatch(/challenge huff/)
+    expect(murphy).not.toMatch(INVITING_SOUND)
+
+    for (const prompt of [riley, both]) {
       expect(prompt.startsWith('AUDIO (read first):')).toBe(true)
-      expect(prompt).toMatch(/Silence-first/)
-      expect(prompt).toMatch(/Hard ban: bark, howl, whine, growl, music, speech, ambience/)
+      expect(prompt).toMatch(/Soft Foley wanted/)
       expect(prompt).toMatch(/head-tilt/i)
       expect(prompt).toMatch(/huh/)
+      expect(prompt).not.toMatch(/Silence-first/)
+      expect(prompt).not.toMatch(/not sound/)
+      expect(prompt).not.toMatch(/remarkably non-vocal/)
       expect(prompt).not.toMatch(/Howl\/sing clip/)
       expect(prompt).not.toMatch(/challenge huff/)
-      expect(prompt).not.toMatch(INVITING_SOUND)
     }
 
     expect(murphy).toMatch(/slightly goofy/)
     expect(riley).toMatch(/slightly puzzled/)
     expect(both).toMatch(/keep both dogs in frame/i)
+    expect(both).toMatch(/Soft Foley ok/)
 
     const barker = suggestClipPrompt({
       dogName: 'Biscuit',
@@ -614,13 +697,16 @@ describe('suggestClipPrompt', () => {
 
     expect(halloween).toMatch(/Halloween dog costume/)
     expect(halloween).toMatch(/black huskita/)
-    expect(halloween).toMatch(/Silence-first/)
+    expect(halloween).toMatch(/Soft Foley wanted/)
+    expect(halloween).not.toMatch(/Silence-first/)
+    expect(halloween).not.toMatch(/not sound/)
     expect(halloween).toMatch(/10s/)
 
     expect(bothChristmas).toMatch(/both dogs stay identifiable/i)
     expect(bothChristmas).toMatch(/Santa hat/)
     expect(bothChristmas).toMatch(/Do not swap coats/)
-    expect(bothChristmas).toMatch(/Silence-first/)
+    expect(bothChristmas).toMatch(/Soft Foley wanted/)
+    expect(bothChristmas).not.toMatch(/Silence-first/)
 
     expect(walk).toMatch(/6s/)
     expect(walk).toMatch(/peaks in the first ~2–3 seconds/)

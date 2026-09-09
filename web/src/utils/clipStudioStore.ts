@@ -293,6 +293,34 @@ function withNormalizedPersonalities(state: ClipStudioState): ClipStudioState {
   }
 }
 
+function isRileyOrBothDog(dog: DogLibrary): boolean {
+  const key = (dog.id || dog.name).trim().toLowerCase()
+  return key === 'riley' || key === 'both'
+}
+
+/**
+ * One-time: leftover silent seed on Riley/Both → soft Foley radios.
+ * Does not rewrite slot prompts (Murphy untouched; Riley/Both Suggest next).
+ */
+function withRileyBothSoftFoleyDefaults(state: ClipStudioState): ClipStudioState {
+  return {
+    ...state,
+    dogs: state.dogs.map((dog) => {
+      if (!isRileyOrBothDog(dog)) return dog
+      if (dog.personality.vocalStyle !== 'silent') return dog
+      return {
+        ...dog,
+        personality: {
+          ...dog.personality,
+          vocalStyle: 'soft',
+          notes: dog.personality.notes.filter((note) => !/remarkably non-vocal/i.test(note)),
+        },
+      }
+    }),
+    seedRevision: STUDIO_SEED_REVISION,
+  }
+}
+
 function withHolidayIntents(state: ClipStudioState): ClipStudioState {
   return {
     ...state,
@@ -314,6 +342,14 @@ function ensureUnknownIntent(dog: DogLibrary): DogLibrary {
 }
 
 /** Fold baked Murphy/Riley/Both photos + personality radios + unknown intent into older localStorage studios. */
+function finalizeStudioMigration(state: ClipStudioState, fromRevision: number): ClipStudioState {
+  const next = withHolidayIntents(withNormalizedPersonalities(state))
+  if (fromRevision < 7) {
+    return withRileyBothSoftFoleyDefaults(next)
+  }
+  return next
+}
+
 export function migrateStudioState(state: ClipStudioState): ClipStudioState {
   const revision = state.seedRevision ?? 1
   const hasBoth = state.dogs.some((dog) => dog.id === 'both')
@@ -321,11 +357,12 @@ export function migrateStudioState(state: ClipStudioState): ClipStudioState {
     (dog) => !dog.intents.some((intent) => isUnknownIntent(intent.id)),
   )
   if (revision >= 2 && hasBoth && !missingUnknown) {
-    return withHolidayIntents(
-      withNormalizedPersonalities({
+    return finalizeStudioMigration(
+      {
         ...state,
         dogs: state.dogs.map((dog) => repairSeedIdentityPhotos(dog)),
-      }),
+      },
+      revision,
     )
   }
 
@@ -364,12 +401,13 @@ export function migrateStudioState(state: ClipStudioState): ClipStudioState {
     ),
   )
 
-  return withHolidayIntents(
-    withNormalizedPersonalities({
+  return finalizeStudioMigration(
+    {
       ...state,
       dogs: withUnknown,
       activeDogId: state.activeDogId || withUnknown[0]?.id || seed.activeDogId,
-    }),
+    },
+    revision,
   )
 }
 

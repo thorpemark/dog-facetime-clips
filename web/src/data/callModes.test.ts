@@ -85,6 +85,9 @@ describe('studio seed migration', () => {
     )
     expect(murphy?.personality.vocalStyle).toBe('silent')
     expect(murphy?.personality.touch).toBe('cuddly')
+    expect(next.dogs.find((dog) => dog.id === 'riley')?.personality.vocalStyle).toBe(
+      'soft',
+    )
     expect(next.dogs.find((dog) => dog.id === 'riley')?.personality.touch).toBe(
       'grumble_hug',
     )
@@ -178,11 +181,15 @@ describe('studio seed migration', () => {
     const murphy = seed.dogs.find((dog) => dog.id === 'murphy')
     expect(murphy?.defaultPhoto?.publicPath).toBe('modes/murphy.jpg')
     expect(murphy?.avatarPath).toBe('modes/murphy.jpg')
+    expect(murphy?.personality.vocalStyle).toBe('silent')
     expect(murphy?.intents[0]?.clipSlots[0]?.sourcePhoto?.publicPath).toBe(
       'modes/murphy.jpg',
     )
     expect(murphy?.intents[0]?.clipSlots[0]?.resultVideo?.objectUrl).toBe(
       'blob:keep-murphy-idle',
     )
+    expect(murphy?.intents[0]?.clipSlots[0]?.prompt).toBe('p')
+    expect(seed.dogs.find((dog) => dog.id === 'riley')?.personality.vocalStyle).toBe('soft')
+    expect(seed.dogs.find((dog) => dog.id === 'both')?.personality.vocalStyle).toBe('soft')
   })
 })

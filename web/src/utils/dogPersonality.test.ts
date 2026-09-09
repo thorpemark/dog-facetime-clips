@@ -33,6 +33,18 @@ describe('normalizePersonality', () => {
     expect(next.touch).toBe('grumble_hug')
   })
 
+  it('fills Riley and Both missing radios as soft Foley, Murphy as silent', () => {
+    expect(normalizePersonality({ breed: 'huskita', notes: [] }, 'riley').vocalStyle).toBe(
+      'soft',
+    )
+    expect(normalizePersonality({ breed: 'huskitas', notes: [] }, 'both').vocalStyle).toBe(
+      'soft',
+    )
+    expect(normalizePersonality({ breed: 'huskita', notes: [] }, 'murphy').vocalStyle).toBe(
+      'silent',
+    )
+  })
+
   it('defaults a new dog to silent / medium / cuddly', () => {
     const next = defaultPersonality()
     expect(next.vocalStyle).toBe('silent')
