@@ -30,7 +30,10 @@ export interface ClipResultVideo {
   blobKey?: string
   /** Private `studio-media` object path when this MP4 is in the cloud. */
   storagePath?: string
+  /** Original File.name from the last attach/replace. */
   fileName?: string
+  /** Alias of the original upload name (same value as fileName when captured). */
+  originalName?: string
   origin: VideoOrigin
 }
 

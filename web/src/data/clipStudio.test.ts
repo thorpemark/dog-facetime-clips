@@ -13,6 +13,7 @@ import {
   deriveSlotStatus,
   migrateStudioState,
   resolveSourcePhoto,
+  toPersistedStudioState,
 } from '../utils/clipStudioStore'
 import { fullImageDualFraming, type DualFraming } from '../utils/focalPoint'
 import type { ClipSlot, ClipSourcePhoto, ClipStudioState, DogPersonality } from '../types/clipStudio'
@@ -122,6 +123,61 @@ describe('applyStudioAction', () => {
     })
     const updated = withSlot.dogs[0].intents.find((intent) => intent.id === 'belly-rub')
     expect(updated?.clipSlots.length).toBe(2)
+  })
+
+  it('stores the original MP4 name on a slot without wiping sibling attachments', () => {
+    const seed = createSeedStudioState()
+    const murphy = seed.dogs[0]
+    const howl = murphy.intents.find((intent) => intent.id === 'howl')
+    const hug = murphy.intents.find((intent) => intent.id === 'hug')
+    const howlSlot = howl?.clipSlots[0]
+    const hugSlot = hug?.clipSlots[0]
+    if (!howlSlot || !hugSlot) throw new Error('missing slots')
+
+    const withHug = applyStudioAction(seed, {
+      type: 'updateSlot',
+      dogId: murphy.id,
+      intentId: 'hug',
+      slotId: hugSlot.id,
+      patch: {
+        resultVideo: {
+          objectUrl: 'blob:hug',
+          blobKey: `video:${hugSlot.id}`,
+          origin: 'user',
+          fileName: 'riley-hug.mp4',
+          originalName: 'riley-hug.mp4',
+        },
+      },
+    })
+    const withHowl = applyStudioAction(withHug, {
+      type: 'updateSlot',
+      dogId: murphy.id,
+      intentId: 'howl',
+      slotId: howlSlot.id,
+      patch: {
+        resultVideo: {
+          objectUrl: 'blob:howl',
+          blobKey: `video:${howlSlot.id}`,
+          origin: 'user',
+          fileName: 'murphy-howl-strong.mp4',
+          originalName: 'murphy-howl-strong.mp4',
+        },
+      },
+    })
+
+    const persisted = toPersistedStudioState(withHowl)
+    const persistedHowl = persisted.dogs[0].intents
+      .find((intent) => intent.id === 'howl')
+      ?.clipSlots.find((slot) => slot.id === howlSlot.id)
+    const persistedHug = persisted.dogs[0].intents
+      .find((intent) => intent.id === 'hug')
+      ?.clipSlots.find((slot) => slot.id === hugSlot.id)
+    expect(persistedHowl?.resultVideo?.objectUrl).toBeUndefined()
+    expect(persistedHowl?.resultVideo?.blobKey).toBe(`video:${howlSlot.id}`)
+    expect(persistedHowl?.resultVideo?.originalName).toBe('murphy-howl-strong.mp4')
+    expect(persistedHowl?.resultVideo?.fileName).toBe('murphy-howl-strong.mp4')
+    expect(persistedHug?.resultVideo?.blobKey).toBe(`video:${hugSlot.id}`)
+    expect(persistedHug?.resultVideo?.originalName).toBe('riley-hug.mp4')
   })
 
   it('persists a preferred call-idle slot without dropping videos', () => {

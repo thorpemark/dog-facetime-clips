@@ -270,7 +270,9 @@ function pickVideo(
       ...chosen,
       blobKey: chosen.blobKey || remote?.blobKey,
       storagePath: chosen.storagePath || remote?.storagePath,
-      fileName: chosen.fileName || remote?.fileName,
+        fileName: chosen.fileName || remote?.fileName,
+        originalName:
+          chosen.originalName || remote?.originalName || chosen.fileName || remote?.fileName,
     })
   }
   return local ? clone(local) : remote ? clone(remote) : null

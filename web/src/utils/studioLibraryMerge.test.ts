@@ -132,6 +132,31 @@ describe('mergeStudioLibraries', () => {
     ).toBe('video:murphy-idle-1')
   })
 
+  it('keeps the original upload name when merging local blobs with a named cloud copy', () => {
+    const seed = createSeedStudioState()
+    const local = withMurphyUserLibrary(seed)
+    const localIdle =
+      murphy(local).intents.find((intent) => intent.id === 'idle')?.clipSlots[0]?.resultVideo
+    if (!localIdle) throw new Error('missing local idle')
+    delete localIdle.fileName
+    delete localIdle.originalName
+
+    const remote = structuredClone(local)
+    const remoteIdle =
+      murphy(remote).intents.find((intent) => intent.id === 'idle')?.clipSlots[0]?.resultVideo
+    if (!remoteIdle) throw new Error('missing remote idle')
+    remoteIdle.originalName = 'murphy-howl-strong.mp4'
+    remoteIdle.fileName = 'murphy-howl-strong.mp4'
+    remoteIdle.storagePath = 'user/video__murphy-idle-1'
+
+    const merged = mergeStudioLibraries(local, remote)
+    const idle = murphy(merged).intents.find((intent) => intent.id === 'idle')?.clipSlots[0]
+    expect(idle?.resultVideo?.blobKey).toBe('video:murphy-idle-1')
+    expect(idle?.resultVideo?.originalName).toBe('murphy-howl-strong.mp4')
+    expect(idle?.resultVideo?.fileName).toBe('murphy-howl-strong.mp4')
+    expect(idle?.resultVideo?.storagePath).toBe('user/video__murphy-idle-1')
+  })
+
   it('unions extra user slots from both sides', () => {
     const seed = createSeedStudioState()
     const local = withMurphyUserLibrary(seed)

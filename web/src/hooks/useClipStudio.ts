@@ -17,6 +17,7 @@ import {
   isSlotOwnedPhotoBlobKey,
   subscribeStudio,
 } from '../utils/clipStudioStore'
+import { originalUploadFileName } from '../utils/clipVideoName'
 
 const DEFAULT_FRAMING: DualFraming = {
   portrait: { focalX: 0.5, focalY: 0.5, focalZoom: 1 },
@@ -165,6 +166,7 @@ export function useClipStudio() {
         URL.revokeObjectURL(slot.resultVideo.objectUrl)
       }
       const objectUrl = URL.createObjectURL(file)
+      const uploadName = originalUploadFileName(file)
       dispatchStudio({
         type: 'updateSlot',
         dogId,
@@ -174,7 +176,10 @@ export function useClipStudio() {
           resultVideo: {
             objectUrl,
             blobKey,
-            fileName: file.name,
+            storagePath:
+              slot.resultVideo?.blobKey === blobKey ? slot.resultVideo.storagePath : undefined,
+            fileName: uploadName,
+            originalName: uploadName,
             origin: 'user',
           },
           status: 'video_attached',
