@@ -203,7 +203,7 @@ describe('suggestClipPrompt', () => {
     expect(prompt).toMatch(/Goofy and food-motivated/)
     expect(prompt).toMatch(/Keep the white chest blaze sharp/)
     expect(prompt).toMatch(/Eager lean in/)
-    expect(prompt).toMatch(/lean toward the camera/i)
+    expect(prompt).toMatch(/eager lean toward the phone/i)
     expect(prompt).toMatch(/Silence-first/)
     expect(prompt).not.toMatch(/Murphy and Riley are remarkably non-vocal/)
   })
@@ -245,8 +245,10 @@ describe('suggestClipPrompt', () => {
       expect(prompt).not.toMatch(/Awkward howl attempt/)
     }
 
-    expect(name).toMatch(/ears perk and eye contact only/i)
-    expect(come).toMatch(/ears perk and eye contact only/i)
+    expect(name).toMatch(/Name-call spark/)
+    expect(come).toMatch(/Recall lean/)
+    expect(name).not.toMatch(/Intent \(treat\)/)
+    expect(come).not.toMatch(/Intent \(no\)/)
   })
 
   it('invites soft Foley on Riley treat without not-sound or Mouth closed', () => {
@@ -689,9 +691,11 @@ describe('suggestClipPrompt', () => {
     expect(thanksgiving).toMatch(/10s/)
     expect(thanksgiving).toMatch(/15s/)
     expect(thanksgiving).toMatch(/Pilgrim dog costume with hat and dog-jacket/)
-    expect(thanksgiving).toMatch(/walks off camera to the left/i)
-    expect(thanksgiving).toMatch(/looks right at the camera/)
-    expect(thanksgiving).toMatch(/walk off screen on the right/)
+    expect(thanksgiving).toMatch(/walks completely off camera to the left/i)
+    expect(thanksgiving).toMatch(/look right at the camera/)
+    expect(thanksgiving).toMatch(/walk completely off screen on the right/)
+    expect(thanksgiving).toMatch(/No fade, dissolve/)
+    expect(thanksgiving).toMatch(/Costume appears or vanishes the instant they re-enter/)
     expect(thanksgiving).toMatch(/without any costume/)
     expect(thanksgiving).toMatch(/exact sitting position/)
     expect(thanksgiving).toMatch(/Do not use the usual 6s/)
@@ -775,7 +779,7 @@ describe('suggestClipPrompt', () => {
       expect(prompt).not.toMatch(/soft mouth\/lick/i)
     }
 
-    expect(no).toMatch(/Variant beat: Ears Back \/ Pause/)
+    expect(no).toMatch(/Variant beat \(Ears Back \/ Pause\)/)
     expect(no).toMatch(/Soft Foley wanted/)
     expect(no).toMatch(/No lick, no treat or food sounds/)
     expect(no).not.toMatch(/Silence-first/)
@@ -784,7 +788,7 @@ describe('suggestClipPrompt', () => {
 
     expect(treat).toMatch(/Intent \(treat\): Treat \/ chicken/)
     expect(treat).toMatch(/brief lick/)
-    expect(treat).toMatch(/Variant beat: Lick \/ expectant/)
+    expect(treat).toMatch(/Variant beat \(Lick \/ expectant\)/)
     expect(treat).not.toMatch(/Correction beat/)
     expect(treat).not.toMatch(/No lick, no treat or food sounds/)
 
@@ -852,5 +856,36 @@ describe('suggestClipPrompt', () => {
     )
     expect(murphyNo?.clipSlots[0]?.prompt).toMatch(/Silence-first/)
     expect(murphyNo?.clipSlots[0]?.prompt).toMatch(/Correction beat/)
+  })
+
+  it('gives each seed intent a distinct fun beat and returns to the source sit', () => {
+    const samples = [
+      { intentId: 'name', intentDescription: 'Dog name', slotLabel: 'Perk up / eye contact', must: /Name-call spark/, mustNot: /Food-interest|Correction beat|Recall lean/ },
+      { intentId: 'come', intentDescription: 'Come here', slotLabel: 'Eager lean in', must: /Recall lean/, mustNot: /Name-call spark|Food-interest|Correction beat/ },
+      { intentId: 'here', intentDescription: 'Here / this way', slotLabel: 'Glance this way', must: /Orientation flick/, mustNot: /Recall lean|Food-interest/ },
+      { intentId: 'owner', intentDescription: 'Owner name', slotLabel: 'Soft owner gaze', must: /Person-recognition/, mustNot: /Food-interest|Correction beat/ },
+      { intentId: 'good', intentDescription: 'Good dog', slotLabel: 'Happy wag', must: /Praise wriggle/, mustNot: /Food-interest|Correction beat/ },
+      { intentId: 'treat', intentDescription: 'Treat / chicken', slotLabel: 'Lick / expectant', must: /Food-interest/, mustNot: /Correction beat|Name-call spark/ },
+      { intentId: 'walk', intentDescription: 'Walk', slotLabel: 'Door / leash excitement', must: /Leash-word voltage/, mustNot: /Food-interest|Correction beat/ },
+      { intentId: 'no', intentDescription: 'No / Stop', slotLabel: 'Guilty settle', must: /Correction beat/, mustNot: /Food-interest|Name-call spark/ },
+      { intentId: 'quiet', intentDescription: 'Quiet (future)', slotLabel: 'Settle / rest', must: /Settle and calm/, mustNot: /Correction beat|Food-interest/ },
+      { intentId: 'play', intentDescription: 'Play / play-bow', slotLabel: 'Play-bow (front low, rear up)', must: /Play-bow/, mustNot: /Food-interest|Correction beat/ },
+    ] as const
+
+    for (const row of samples) {
+      const prompt = suggestClipPrompt({
+        dogName: 'Riley',
+        personality: RILEY_PERSONALITY,
+        intentId: row.intentId,
+        intentDescription: row.intentDescription,
+        slotLabel: row.slotLabel,
+      })
+      expect(prompt, row.intentId).toMatch(new RegExp(`Intent \\(${row.intentId}\\)`))
+      expect(prompt, row.intentId).toMatch(row.must)
+      expect(prompt, row.intentId).not.toMatch(row.mustNot)
+      expect(prompt, row.intentId).toMatch(/exact sitting pose of the source still/)
+      expect(prompt, row.intentId).toMatch(/Do not freeze mid-lick, mid-bow, or off-center/)
+      expect(classifySuggestIntent(row)).toBe(row.intentId === 'play' ? 'play' : row.intentId)
+    }
   })
 })

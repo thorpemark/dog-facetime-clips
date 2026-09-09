@@ -459,29 +459,202 @@ function holidayCostumeWalkMotion(
   spec: HolidayIntentSpec,
   together: boolean,
 ): string {
+  const noFade =
+    'No fade, dissolve, transition, cut, or morph — one continuous shot. Costume appears or vanishes the instant they re-enter, not a dissolve. '
   if (together) {
     return (
       `Together shot: both dogs stay identifiable (Murphy left, Riley right). ` +
-      `This exact pair walks off camera to the left side and instantly returns wearing ${spec.costume}, ` +
-      `looks right at the camera as they walk off screen on the right, then instantly returns without any costume, ` +
-      `still the exact same two dogs, and returns to the exact sitting positions in the source image. ` +
+      `This exact pair walks completely off camera to the left (fully out of frame). ${noFade}` +
+      `They instantly return wearing ${spec.costume}, look right at the camera with eye contact as they walk completely off screen on the right, ` +
+      `then instantly return without any costume, still the exact same two dogs, and sit in the exact sitting positions in the source image. ` +
       `Do not swap coats or places. Keep both in frame whenever they are on screen.`
     )
   }
   return (
-    `this exact dog walks off camera to the left side and instantly returns wearing ${spec.costume} ` +
-    `and looks right at the camera as they walk off screen on the right, then instantly returns without any costume, ` +
-    `still the exact same dog, and returns to the exact sitting position in the source image`
+    `this exact dog walks completely off camera to the left (fully out of frame). ${noFade}` +
+    `They instantly return wearing ${spec.costume} and look right at the camera as they walk completely off screen on the right, ` +
+    `then instantly return without any costume, still the exact same dog, and sit in the exact sitting position in the source image.`
   )
 }
 
 function holidayDurationLine(): string {
   return (
     'Grok Imagine image-to-video, 10s, 9:16. One continuous shot — locked camera; only the dog moves. ' +
-    'Costume walk (choose 10s or 15s in Grok Imagine; do not use 6s): walk off, return in costume, ' +
-    'walk across with eye contact, return without costume to the exact sitting pose in the source still. ' +
+    'No fades, dissolves, transitions, cuts, or morphs. Costume walk (choose 10s or 15s in Grok Imagine; do not use 6s): ' +
+    'walk completely off one side, instantly re-enter in costume, walk across with eye contact, walk completely off the other side, ' +
+    'instantly re-enter without costume and sit in the exact sitting pose in the source still. ' +
     'Do not use the usual 6s react-then-idle arc.'
   )
+}
+
+function pickLabeledBeat(label: string, pairs: Array<[RegExp, string]>, fallback: string): string {
+  const key = label.trim().toLowerCase()
+  for (const [pattern, beat] of pairs) {
+    if (pattern.test(key)) return beat
+  }
+  return fallback
+}
+
+/**
+ * Short director line for a clip variant. Used as seed Slot notes and as the
+ * Suggest variant beat so labels stay intent-correct and not samey.
+ */
+export function variantDirectorNote(family: SuggestIntentFamily, slotLabel: string): string {
+  const label = slotLabel.trim()
+  switch (family) {
+    case 'no':
+      return pickLabeledBeat(
+        label,
+        [
+          [/ears back|pause/, 'Ears pin back, freeze, slight guilty eye contact, return to sit.'],
+          [/guilty|settle/, 'Guilty settle: shrinks into a sorry sit, eyes flick up, hold the source pose.'],
+        ],
+        'Correction: ears back, pause, guilty settle — then the exact source sit. No treat, no lick.',
+      )
+    case 'treat':
+      return pickLabeledBeat(
+        label,
+        [
+          [/lick|expectant/, 'Eyes lock on the implied treat, eager lean, brief lip lick, settle to still.'],
+          [/mouth open|excited/, 'Excited food-face, mouth slightly open, then close and return to the source sit.'],
+          [/food interest/, 'Curious sniff toward an implied treat, bright eyes, then back to the still sit.'],
+        ],
+        'Food-interest spark, then return to the exact source sit. Not a correction.',
+      )
+    case 'name':
+      return pickLabeledBeat(
+        label,
+        [
+          [/perk|eye contact/, 'Name-call spark: ears pop forward, eyes find the phone — “that’s me!”'],
+          [/head turn/, 'A little “did you say me?” head turn into camera, then the source sit.'],
+          [/soft recognition/, 'Slow sweet blink of recognition, tiny smile in the eyes, hold the still.'],
+        ],
+        'Recognition of their name — not a treat, not a recall. Back to the source sit.',
+      )
+    case 'come':
+      return pickLabeledBeat(
+        label,
+        [
+          [/head tilt|step forward/, 'Head tilt plus a weight-shift half-step closer — stay in portrait.'],
+          [/eager lean/, 'Big eager lean toward the phone like a recall, then back to sit.'],
+          [/get up|approach/, 'Starts to rise as if coming, then settles back to the exact source sit.'],
+        ],
+        'Recall lean toward camera; do not walk out of frame. Return to the source sit.',
+      )
+    case 'here':
+      return pickLabeledBeat(
+        label,
+        [
+          [/look toward/, 'Quick “over here?” orientation — eyes and ears snap to the speaker.'],
+          [/glance/, 'A cheeky glance this way, not a full come-here, then the still sit.'],
+        ],
+        'Attention flick toward the speaker. Not a recall. Hold the source sit.',
+      )
+    case 'owner':
+      return pickLabeledBeat(
+        label,
+        [
+          [/lean/, 'Soft recognition of their person, a fond lean-in, warm eyes, back to sit.'],
+          [/gaze/, 'Long soft owner-gaze, then blink and hold the source pose.'],
+        ],
+        'They heard their person’s name — fond, not food-crazy. Return to the source sit.',
+      )
+    case 'good':
+      return pickLabeledBeat(
+        label,
+        [
+          [/wag/, 'Happy praise wriggle / tail energy, proud face, then the still sit.'],
+          [/proud/, 'Soft proud eyes, a pleased “I know I’m good” hold, back to pose.'],
+          [/wriggle/, 'Pleased little wriggle for “good dog,” then settle to the source sit.'],
+        ],
+        'Praise glow — proud, not treat-crazy. Return to the exact source sit.',
+      )
+    case 'walk':
+      return pickLabeledBeat(
+        label,
+        [
+          [/tail/, 'Leash-word voltage: bright eyes, tail energy, paws planted in frame.'],
+          [/door|leash/, 'Door / leash excitement — “OUTSIDE?!” — then sit back on the still.'],
+          [/ready/, 'Ready-to-go perk, a little bounce in place, return to the source sit.'],
+        ],
+        'Walk-word excitement while staying in frame. Back to the exact source sit.',
+      )
+    case 'hug':
+      return pickLabeledBeat(
+        label,
+        [
+          [/side-touch|side touch/, 'Side-touch reaction: body language when a hand finds their ribs.'],
+          [/hug/, 'Small FaceTime hug beat, then return to the exact source sit.'],
+        ],
+        'Hug / cuddle body-language change, then the source sit. Not a come-here.',
+      )
+    case 'howl':
+      return pickLabeledBeat(
+        label,
+        [
+          [/attempt/, 'Awkward or committed howl attempt, then mouth closes and they sit the still.'],
+          [/howl|sing/, 'Head lifts into a howl/sing, then back to the exact source sit.'],
+        ],
+        'Brief howl/sing, then return to the source sit. Not a name-call.',
+      )
+    case 'play':
+      return pickLabeledBeat(
+        label,
+        [
+          [/huff|challenge/, 'Drop into a play-bow with one short challenge huff, then sit the still.'],
+          [/play-bow|play bow|front low/, 'Downward-dog play-bow (front low, rear up), then return to sit.'],
+        ],
+        'Play-bow invite, then back to the exact source sit. Not a zoomie.',
+      )
+    case 'quiet':
+      return pickLabeledBeat(
+        label,
+        [
+          [/calm/, 'Exhale and soften — “okay, I’ll settle” — hold the source sit.'],
+          [/settle|rest/, 'Quiet downshift into rest, eyes heavy, exact source pose.'],
+        ],
+        'Settle and calm. Return to the exact source sit. Not a correction freeze.',
+      )
+    case 'unknown':
+      return pickLabeledBeat(
+        label,
+        [
+          [/huh/, 'Confused “huh?” face, head cocked, then the still sit.'],
+          [/tilt/, 'Classic curious head-tilt toward the phone, then hold the source pose.'],
+        ],
+        'Curious “huh?” head-tilt. Not a command. Back to the source sit.',
+      )
+    case 'idle':
+      return pickLabeledBeat(
+        label,
+        [
+          [/blink|breathe/, 'Soft blink and breathe — alive FaceTime hold, same sit as the still.'],
+          [/calm|look/, 'Calm look at camera, tiny micro-moves, exact source pose.'],
+        ],
+        'Calm FaceTime hold. Stay in the exact sitting pose of the source still.',
+      )
+    case 'holiday':
+      return pickLabeledBeat(
+        label,
+        [
+          [/look at camera|eye contact/, 'Costume walk with a clear look-at-camera as they cross, then sit the still.'],
+          [/costume|walk/, 'Off left, instant costume, cross, off right, instant no-costume, exact source sit.'],
+        ],
+        'Holiday costume walk, then sit in the exact original position of the source still.',
+      )
+    default:
+      return label
+        ? `${label} — a short, readable beat, then the exact source sit.`
+        : 'A short, readable reaction, then the exact source sit.'
+  }
+}
+
+export function seedDirectorNote(
+  intentId: string,
+  intentDescription: string,
+  slotLabel: string,
+): string {
+  return variantDirectorNote(classifySuggestIntent({ intentId, intentDescription }), slotLabel)
 }
 
 /** Trait-driven hug / howl / play beats. Together-shot (Both) keeps the pair-specific lines. */
@@ -534,7 +707,12 @@ function intentMotion(
   family: SuggestIntentFamily,
 ): string {
   const variant = input.slotLabel.trim()
-  const variantBit = variant ? ` Variant beat: ${variant}.` : ''
+  const director = variantDirectorNote(family, variant)
+  const variantBit = variant
+    ? ` Variant beat (${variant}): ${director}`
+    : director
+      ? ` ${director}`
+      : ''
   const openMouthTreat = family === 'treat' && softFoley && wantsOpenMouthOrExcited(input)
   const skipClosedMouth = allowHowl || allowPlayHuff || openMouthTreat
   const silent = skipClosedMouth ? '' : ' Mouth closed. Face and body only.'
@@ -547,23 +725,24 @@ function intentMotion(
   }
 
   const motions: Partial<Record<SuggestIntentFamily, string>> = {
-    treat: `Ears perk, eyes lock on an implied treat, slight eager lean, maybe a brief lick — food-interest while looking at the phone camera.${silent}`,
-    hug: `Small FaceTime-scale hug reaction: body-language change when asked for a hug or when a hand touches the side.${silent}`,
+    treat: `Food-interest: eyes lock on an implied treat, eager lean, maybe a brief lick — snack-crazy, not a scolding.${silent}`,
+    hug: `Hug / cuddle body-language: a FaceTime-scale change when asked for a hug or when a hand touches their side.${silent}`,
     howl: allowHowl
-      ? 'Head lifts into a howl or sing, mouth opening, still framed as a short FaceTime reaction — not a wide shot.'
-      : `Ears perk and look toward camera only.${silent}`,
-    come: `Ears perk and eye contact only: head tilt and eager lean toward the camera as if recalling. Stay in portrait; do not walk out of frame.${silent}`,
-    here: `Ears perk and eye contact only: glance toward the speaker/camera, ears orient this way. Attention shift, not a full recall.${silent}`,
-    name: `Ears perk and eye contact only: ears forward, a small head lift of recognition toward the phone.${silent}`,
-    owner: `Ears perk and eye contact only: soft recognition of the familiar person, lean in, warm eyes.${silent}`,
-    good: `Happy praise reaction: soft proud eyes, a pleased wriggle or tail energy, relaxed expression.${silent}`,
-    walk: `Alert walk excitement: ears up, bright eyes, a little body energy as if the leash or door was mentioned. Stay in frame.${silent}`,
-    no: `Correction beat: ears back, pause, a guilty or settling expression. Small, readable, not cowering out of frame.${silent}`,
+      ? 'Howl/sing: head lifts, mouth opens for a brief song — still a short FaceTime reaction, not a wide shot.'
+      : `Look toward camera only.${silent}`,
+    come: `Recall lean: head tilt and an eager load-forward as if they might come. Stay in portrait; do not walk out of frame.${silent}`,
+    here: `Orientation flick: glance toward the speaker, ears snap this way. Attention only — not a full recall.${silent}`,
+    name: `Name-call spark: ears forward, a tiny “that’s me!” head lift toward the phone. Not a treat, not a come-here.${silent}`,
+    owner: `Person-recognition glow: they heard their person’s name — fond lean, warm eyes.${silent}`,
+    good: `Praise wriggle: proud eyes and a pleased show-off for “good dog” — happy, not food-crazy.${silent}`,
+    walk: `Leash-word voltage: bright “outside?!” energy as if the door or leash was mentioned. Stay in frame.${silent}`,
+    no: `Correction beat: ears back, pause, a guilty or settling expression. Small, readable, not cowering out of frame. Not a treat, not a lick.${silent}`,
     play: allowPlayHuff
       ? 'Play-bow (downward-dog stretch): front low, rear up, expressive body, bright eyes. One short challenge huff/chuff as they drop into the bow — not a bark. Stay in portrait; not a zoomie.'
       : `Play-bow (downward-dog stretch): front low, rear up, expressive body, bright eyes. Stay in portrait; not a zoomie.${silent}`,
     quiet: `Settle and calm: breath slows, eyes soften, a quiet downshift while still facing the camera.${silent}`,
-    unknown: `Classic curious dog head-tilt: ears perk, head cocks to one side as if asking “huh?”, face toward the phone camera. Small, readable, not a command reaction.${silent}`,
+    unknown: `Classic curious dog head-tilt: head cocks to one side as if asking “huh?”, face toward the phone camera. Not a command reaction.${silent}`,
+    idle: `Calm FaceTime hold: tiny blink and breathe, same sit as the source still.${silent}`,
   }
 
   const mapped = motions[family]
@@ -649,7 +828,7 @@ export function suggestClipPrompt(input: SuggestPromptInput): string {
     lockedCameraBlock(),
     holiday
       ? holidayDurationLine()
-      : 'Grok Imagine image-to-video, 6s, 9:16. One continuous shot: reaction peaks in the first ~2–3 seconds, then return to a calm FaceTime idle and hold. Camera stays perfectly still; only the dog moves. Same crop first-to-last — no cut, no morph.',
+      : 'Grok Imagine image-to-video, 6s, 9:16. One continuous shot: reaction peaks in the first ~2–3 seconds, then return to a calm FaceTime idle — the exact sitting pose of the source still — and hold. Do not freeze mid-lick, mid-bow, or off-center. Camera stays perfectly still; only the dog moves. Same crop first-to-last — no cut, no morph, no fade.',
     'Natural lighting, no text, no extra animals.',
     breedLine(dogName, personality),
     beat ? `Personality: ${beat}` : '',

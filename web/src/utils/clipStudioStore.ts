@@ -26,6 +26,7 @@ import {
 } from '../data/clipStudioSeed'
 import { isUnknownIntent, UNKNOWN_INTENT_ID } from '../data/reactionCatalog'
 import { normalizePersonality } from './dogPersonality'
+import { seedDirectorNote } from './suggestClipPrompt'
 import { publicAssetUrl } from '../lib/urls'
 
 export const STUDIO_STORAGE_KEY = 'dog-facetime-clips.studio.v1'
@@ -302,6 +303,28 @@ function isRileyOrBothDog(dog: DogLibrary): boolean {
  * One-time: leftover silent seed on Riley/Both → soft Foley radios.
  * Does not rewrite slot prompts (Murphy untouched; Riley/Both Suggest next).
  */
+/**
+ * Prefill empty slot notes with variant director beats.
+ * Does not overwrite notes someone already typed (Murphy keepers stay).
+ */
+function withSeedDirectorNotes(state: ClipStudioState): ClipStudioState {
+  return {
+    ...state,
+    dogs: state.dogs.map((dog) => ({
+      ...dog,
+      intents: dog.intents.map((intent) => ({
+        ...intent,
+        clipSlots: intent.clipSlots.map((slot) => {
+          if (slot.notes?.trim()) return slot
+          const notes = seedDirectorNote(intent.id, intent.description, slot.label)
+          return notes ? { ...slot, notes } : slot
+        }),
+      })),
+    })),
+    seedRevision: STUDIO_SEED_REVISION,
+  }
+}
+
 function withRileyBothSoftFoleyDefaults(state: ClipStudioState): ClipStudioState {
   return {
     ...state,
@@ -343,9 +366,12 @@ function ensureUnknownIntent(dog: DogLibrary): DogLibrary {
 
 /** Fold baked Murphy/Riley/Both photos + personality radios + unknown intent into older localStorage studios. */
 function finalizeStudioMigration(state: ClipStudioState, fromRevision: number): ClipStudioState {
-  const next = withHolidayIntents(withNormalizedPersonalities(state))
+  let next = withHolidayIntents(withNormalizedPersonalities(state))
   if (fromRevision < 7) {
-    return withRileyBothSoftFoleyDefaults(next)
+    next = withRileyBothSoftFoleyDefaults(next)
+  }
+  if (fromRevision < 8) {
+    next = withSeedDirectorNotes(next)
   }
   return next
 }
