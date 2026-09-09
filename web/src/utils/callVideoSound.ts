@@ -19,6 +19,7 @@ export function markCallVideoSoundUnlocked(): void {
 type AudioContextCtor = typeof AudioContext
 
 function audioContextCtor(): AudioContextCtor | undefined {
+  if (typeof window === 'undefined') return undefined
   const w = window as Window & { webkitAudioContext?: AudioContextCtor }
   return window.AudioContext ?? w.webkitAudioContext
 }
@@ -35,14 +36,32 @@ export function resumeCallAudioContext(): void {
   }
 }
 
+export type PlayableVideo = {
+  muted: boolean
+  volume: number
+  play: () => Promise<void>
+  removeAttribute?: (name: string) => void
+}
+
+/** Unmute + volume 1, and drop the HTML `muted` attribute so browsers do not keep it silent. */
+export function setVideoAudible(media: PlayableVideo, audible: boolean): void {
+  if (audible) {
+    media.volume = 1
+    media.muted = false
+    media.removeAttribute?.('muted')
+    return
+  }
+  media.muted = true
+}
+
 export function unlockCallVideoSound(unlockAudio?: HTMLAudioElement | null): void {
   markCallVideoSoundUnlocked()
   resumeCallAudioContext()
   if (!unlockAudio) return
-  // Play once, muted — looping a tiny WAV on iOS can click/beep for the whole call.
+  // Unmuted silent WAV in the user gesture — iOS will not unlock later
+  // <video> sound if this warmup stays muted or volume 0.
   unlockAudio.loop = false
-  unlockAudio.muted = true
-  unlockAudio.volume = 0
+  setVideoAudible(unlockAudio, true)
   void unlockAudio
     .play()
     .then(() => {
@@ -69,27 +88,26 @@ export function releaseCallAudioUnlock(unlockAudio?: HTMLAudioElement | null): v
 
 export function applyCallVideoSound(video: HTMLVideoElement | null): void {
   if (!video) return
-  video.volume = 1
-  video.muted = !soundUnlocked
+  setVideoAudible(video, soundUnlocked)
 }
 
-export type PlayableVideo = {
-  muted: boolean
-  volume: number
-  play: () => Promise<void>
+/** Studio slot preview: user hit play, so Foley / howl audio should be audible. */
+export function applyStudioPreviewSound(video: HTMLVideoElement | null): void {
+  if (!video) return
+  setVideoAudible(video, true)
 }
 
 /**
  * Play a call clip with sound after the user has interacted (Accept / debug tap).
  * Applies to every reaction with an audio track (howl, soft Foley, bark) — not howl-only.
+ * Idle and reaction paths share this helper so the app does not force-mute clips.
  * If unmuted autoplay is blocked, start muted so the picture still plays, then unmute.
  */
 export async function playCallVideo(
   video: PlayableVideo,
-  soundUnlocked = isCallVideoSoundUnlocked(),
+  unlocked = isCallVideoSoundUnlocked(),
 ): Promise<void> {
-  video.volume = 1
-  video.muted = !soundUnlocked
+  setVideoAudible(video, unlocked)
   try {
     await video.play()
   } catch {
@@ -99,8 +117,8 @@ export async function playCallVideo(
     } catch {
       return
     }
-    if (soundUnlocked) {
-      video.muted = false
+    if (unlocked) {
+      setVideoAudible(video, true)
     }
   }
 }

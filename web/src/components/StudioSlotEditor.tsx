@@ -6,6 +6,7 @@ import { playbackPathForSlot } from '../utils/clipStudioCatalog'
 import { resolveSourcePhoto } from '../utils/clipStudioStore'
 import { displayNameForClipVideo } from '../utils/clipVideoName'
 import { normalizeClipWeights } from '../data/reactionCatalog'
+import { applyStudioPreviewSound } from '../utils/callVideoSound'
 import { isHolidayLikeIntent, suggestClipPrompt } from '../utils/suggestClipPrompt'
 import { PhotoFocalEditor } from './PhotoFocalEditor'
 
@@ -217,7 +218,14 @@ export function StudioSlotEditor({
 
         <div className="studio-slot-video">
           {previewVideo ? (
-            <video src={previewVideo} muted playsInline loop controls className="studio-video-preview" />
+            <video
+              src={previewVideo}
+              playsInline
+              loop
+              controls
+              className="studio-video-preview"
+              onPlay={(event) => applyStudioPreviewSound(event.currentTarget)}
+            />
           ) : (
             <div className="studio-video-empty">No video yet — attach an MP4 after generating.</div>
           )}

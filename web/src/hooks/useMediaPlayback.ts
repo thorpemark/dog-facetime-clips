@@ -303,6 +303,7 @@ export function useMediaPlayback(
       cancelLoadRef.current?.()
       cancelLoadRef.current = loadVideoWithFallback(idleVideo, urls, {
         loop: true,
+        withSound: true,
         onReady: () => {
           cancelLoadRef.current = null
           setIdleVisual('video')
@@ -486,6 +487,7 @@ export function useMediaPlayback(
       cancelLoadRef.current?.()
       cancelLoadRef.current = loadVideoWithFallback(incomingVideo, urls, {
         loop: false,
+        withSound: true,
         onReady: () => {
           cancelLoadRef.current = null
           void playCallVideo(incomingVideo)

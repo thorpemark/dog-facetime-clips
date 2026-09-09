@@ -165,7 +165,7 @@ export const REACTION_CATALOG: ReactionBucket[] = [
       legacyClip('react_no.mp4', 10),
     ],
     priority: 6,
-    description: 'No',
+    description: 'No / Stop',
     semanticHints:
       'No, no no, stop that, uh uh, don’t, leave it, ah ah, knock it off, stop it. A correction or prohibition — not praise.',
   },
