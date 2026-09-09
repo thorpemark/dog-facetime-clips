@@ -25,6 +25,7 @@ import { hydrateStudioMedia, subscribeStudio } from '../utils/clipStudioStore'
 import type { TranscriptMatch } from '../utils/matchTranscript'
 import {
   applyCallVideoSound,
+  releaseCallAudioUnlock,
   resetCallVideoSoundUnlock,
   SILENCE_WAV_DATA_URI,
   unlockCallVideoSound,
@@ -204,11 +205,16 @@ export function MemorialCallProvider({
   }, [loadIdle, rulesConfig])
 
   useEffect(() => {
+    if (callPhase === 'active' && !isMuted) {
+      startListening()
+    }
+  }, [callPhase, isMuted, startListening])
+
+  useEffect(() => {
     if (callPhase !== 'active' || isMuted) {
       setCanProcessMatches(false)
       return
     }
-    startListening()
     const busy =
       behaviorState.type === 'react' || behaviorState.type === 'cooldown'
     if (busy) {
@@ -234,7 +240,6 @@ export function MemorialCallProvider({
     setCanProcessMatches,
     speechError,
     speechSupported,
-    startListening,
   ])
 
   useEffect(() => {
@@ -283,6 +288,7 @@ export function MemorialCallProvider({
     stopListening()
     stopPlayback()
     setCanProcessMatches(false)
+    releaseCallAudioUnlock(unlockAudioRef.current)
     resetCallVideoSoundUnlock()
     setVideoSoundUnlocked(false)
     setShowDebugPanel(false)

@@ -43,6 +43,7 @@ export function ActiveCallView() {
             <h2>{profile.dogName}</h2>
             <div
               className={`call-status call-status--${cue.kind}`}
+              role="status"
               aria-live="polite"
             >
               <span className="status-dot" />

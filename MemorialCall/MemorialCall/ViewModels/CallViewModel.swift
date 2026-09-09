@@ -18,6 +18,7 @@ final class CallViewModel: ObservableObject {
     private let cooldownDuration: TimeInterval = 0.8
     private var dogName = DogProfile.defaultProfile.dogName
     private var ownerName = DogProfile.defaultProfile.ownerName
+    private var cancellables = Set<AnyCancellable>()
 
     init() {
         rulesConfig = KeywordRulesLoader.load()
@@ -30,6 +31,12 @@ final class CallViewModel: ObservableObject {
                 self?.triggerReaction(clipID: ruleID)
             }
         }
+
+        keywordSpotter.objectWillChange
+            .sink { [weak self] _ in
+                self?.objectWillChange.send()
+            }
+            .store(in: &cancellables)
     }
 
     func beginIncomingCall() {

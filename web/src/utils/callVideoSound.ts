@@ -29,11 +29,6 @@ export function resumeCallAudioContext(): void {
   if (!Ctor) return
   try {
     const ctx = new Ctor()
-    const buffer = ctx.createBuffer(1, 1, 22050)
-    const source = ctx.createBufferSource()
-    source.buffer = buffer
-    source.connect(ctx.destination)
-    source.start(0)
     void ctx.resume()
   } catch {
     /* autoplay / closed context — video path still tries */
@@ -44,9 +39,32 @@ export function unlockCallVideoSound(unlockAudio?: HTMLAudioElement | null): voi
   markCallVideoSoundUnlocked()
   resumeCallAudioContext()
   if (!unlockAudio) return
-  unlockAudio.muted = false
-  unlockAudio.volume = 0.01
-  void unlockAudio.play().catch(() => {})
+  // Play once, muted — looping a tiny WAV on iOS can click/beep for the whole call.
+  unlockAudio.loop = false
+  unlockAudio.muted = true
+  unlockAudio.volume = 0
+  void unlockAudio
+    .play()
+    .then(() => {
+      unlockAudio.pause()
+      try {
+        unlockAudio.currentTime = 0
+      } catch {
+        /* ignore */
+      }
+    })
+    .catch(() => {})
+}
+
+export function releaseCallAudioUnlock(unlockAudio?: HTMLAudioElement | null): void {
+  if (!unlockAudio) return
+  unlockAudio.loop = false
+  unlockAudio.pause()
+  try {
+    unlockAudio.currentTime = 0
+  } catch {
+    /* ignore */
+  }
 }
 
 export function applyCallVideoSound(video: HTMLVideoElement | null): void {
