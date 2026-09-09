@@ -23,6 +23,12 @@ import { getStudioBlob } from '../utils/clipStudioMedia'
 import { rulesConfigFromCatalog } from '../utils/keywordRules'
 import { hydrateStudioMedia, subscribeStudio } from '../utils/clipStudioStore'
 import type { TranscriptMatch } from '../utils/matchTranscript'
+import {
+  applyCallVideoSound,
+  resetCallVideoSoundUnlock,
+  SILENCE_WAV_DATA_URI,
+  unlockCallVideoSound,
+} from '../utils/callVideoSound'
 
 interface MemorialCallContextValue {
   profile: DogProfile
@@ -34,6 +40,8 @@ interface MemorialCallContextValue {
   rulesConfig: KeywordRulesConfig | null
   lastTranscript: string
   lastMatch: TranscriptMatch | null
+  isListening: boolean
+  videoSoundUnlocked: boolean
   speechSupported: boolean
   speechError: string | null
   mediaPlayback: ReturnType<typeof useMediaPlayback>
@@ -47,6 +55,7 @@ interface MemorialCallContextValue {
   toggleMute: () => void
   triggerReaction: (clipId: string) => void
   triggerPhrase: (phrase: string) => void
+  unlockVideoSound: () => void
 }
 
 const MemorialCallContext = createContext<MemorialCallContextValue | null>(null)
@@ -86,15 +95,6 @@ export function MemorialCallProvider({
   behaviorStateRef.current = behaviorState
   isMutedRef.current = isMuted
 
-  const enterCooldown = useCallback(() => {
-    setBehaviorState({ type: 'cooldown' })
-    if (cooldownRef.current) window.clearTimeout(cooldownRef.current)
-    cooldownRef.current = window.setTimeout(() => {
-      if (callPhaseRef.current !== 'active') return
-      setBehaviorState({ type: 'listen' })
-    }, 800)
-  }, [])
-
   const triggerReactionRef = useRef<(clipId: string) => void>(() => {})
   const onKeywordMatch = useCallback((ruleId: string) => {
     triggerReactionRef.current(ruleId)
@@ -103,12 +103,27 @@ export function MemorialCallProvider({
   const {
     lastTranscript,
     lastMatch,
+    isListening,
     speechSupported,
     speechError,
     startListening: startSpotter,
     stopListening,
+    setCanProcessMatches,
     triggerPhrase,
   } = useKeywordSpotter(onKeywordMatch)
+
+  const [videoSoundUnlocked, setVideoSoundUnlocked] = useState(false)
+  const unlockAudioRef = useRef<HTMLAudioElement>(null)
+
+  const enterCooldown = useCallback(() => {
+    setCanProcessMatches(false)
+    setBehaviorState({ type: 'cooldown' })
+    if (cooldownRef.current) window.clearTimeout(cooldownRef.current)
+    cooldownRef.current = window.setTimeout(() => {
+      if (callPhaseRef.current !== 'active') return
+      setBehaviorState({ type: 'listen' })
+    }, 800)
+  }, [setCanProcessMatches])
 
   const {
     speed: kenBurnsSpeed,
@@ -128,6 +143,13 @@ export function MemorialCallProvider({
   const loadIdle = mediaPlayback.loadIdle
   const stopPlayback = mediaPlayback.stop
 
+  const unlockVideoSound = useCallback(() => {
+    unlockCallVideoSound(unlockAudioRef.current)
+    setVideoSoundUnlocked(true)
+    applyCallVideoSound(mediaPlayback.primaryRef.current)
+    applyCallVideoSound(mediaPlayback.secondaryRef.current)
+  }, [mediaPlayback.primaryRef, mediaPlayback.secondaryRef])
+
   const startListening = useCallback(() => {
     if (
       !rulesConfig ||
@@ -137,7 +159,6 @@ export function MemorialCallProvider({
       return
     }
     startSpotter(rulesConfig.rules, profile.dogName, profile.ownerName)
-    setBehaviorState((prev) => (prev.type === 'listen' ? prev : { type: 'listen' }))
   }, [startSpotter, profile.dogName, profile.ownerName, rulesConfig])
 
   const triggerReaction = useCallback(
@@ -146,13 +167,14 @@ export function MemorialCallProvider({
       const state = behaviorStateRef.current
       if (state.type === 'react' || state.type === 'cooldown') return
 
+      setCanProcessMatches(false, { skipBucketId: clipId })
       setBehaviorState({ type: 'react', clipId })
-      stopListening()
+      unlockVideoSound()
       if ('vibrate' in navigator) navigator.vibrate(30)
 
       playReaction(clipId, enterCooldown)
     },
-    [enterCooldown, playReaction, stopListening],
+    [enterCooldown, playReaction, setCanProcessMatches, unlockVideoSound],
   )
 
   triggerReactionRef.current = triggerReaction
@@ -182,10 +204,59 @@ export function MemorialCallProvider({
   }, [loadIdle, rulesConfig])
 
   useEffect(() => {
-    if (behaviorState.type === 'listen' && callPhase === 'active' && !isMuted) {
-      startListening()
+    if (callPhase !== 'active' || isMuted) {
+      setCanProcessMatches(false)
+      return
     }
-  }, [behaviorState.type, callPhase, isMuted, startListening])
+    startListening()
+    const busy =
+      behaviorState.type === 'react' || behaviorState.type === 'cooldown'
+    if (busy) {
+      setCanProcessMatches(false)
+      return
+    }
+    const speechReady = !speechSupported || isListening || Boolean(speechError)
+    if (behaviorState.type === 'idle' && speechReady) {
+      setBehaviorState({ type: 'listen' })
+      setCanProcessMatches(true)
+      return
+    }
+    if (behaviorState.type === 'listen' && speechReady) {
+      setCanProcessMatches(true)
+    } else {
+      setCanProcessMatches(false)
+    }
+  }, [
+    behaviorState.type,
+    callPhase,
+    isListening,
+    isMuted,
+    setCanProcessMatches,
+    speechError,
+    speechSupported,
+    startListening,
+  ])
+
+  useEffect(() => {
+    if (callPhase !== 'active') return
+    const state = behaviorStateRef.current.type
+    if (state === 'react' || state === 'cooldown') return
+    loadIdle()
+  }, [callPhase, loadIdle])
+
+  useEffect(() => {
+    if (callPhase !== 'active' || isMuted) return
+    if (behaviorState.type !== 'idle') return
+    const timer = window.setTimeout(() => {
+      if (
+        callPhaseRef.current === 'active' &&
+        behaviorStateRef.current.type === 'idle'
+      ) {
+        setBehaviorState({ type: 'listen' })
+      }
+    }, 3000)
+    return () => window.clearTimeout(timer)
+  }, [behaviorState.type, callPhase, isMuted])
 
   useEffect(() => {
     return () => {
@@ -199,29 +270,38 @@ export function MemorialCallProvider({
   }, [])
 
   const acceptCall = useCallback(() => {
+    callPhaseRef.current = 'active'
+    behaviorStateRef.current = { type: 'idle' }
     setCallPhase('active')
     setBehaviorState({ type: 'idle' })
+    unlockVideoSound()
     loadIdle()
     startListening()
-  }, [startListening, loadIdle])
+  }, [startListening, loadIdle, unlockVideoSound])
+
+  const resetCallMedia = useCallback(() => {
+    stopListening()
+    stopPlayback()
+    setCanProcessMatches(false)
+    resetCallVideoSoundUnlock()
+    setVideoSoundUnlocked(false)
+    setShowDebugPanel(false)
+    if (cooldownRef.current) window.clearTimeout(cooldownRef.current)
+  }, [setCanProcessMatches, stopListening, stopPlayback])
 
   const endCall = useCallback(() => {
+    callPhaseRef.current = 'ended'
     setCallPhase('ended')
     setBehaviorState({ type: 'idle' })
-    stopListening()
-    stopPlayback()
-    setShowDebugPanel(false)
-    if (cooldownRef.current) window.clearTimeout(cooldownRef.current)
-  }, [stopListening, stopPlayback])
+    resetCallMedia()
+  }, [resetCallMedia])
 
   const declineCall = useCallback(() => {
+    callPhaseRef.current = 'home'
     setCallPhase('home')
     setBehaviorState({ type: 'idle' })
-    stopListening()
-    stopPlayback()
-    setShowDebugPanel(false)
-    if (cooldownRef.current) window.clearTimeout(cooldownRef.current)
-  }, [stopListening, stopPlayback])
+    resetCallMedia()
+  }, [resetCallMedia])
 
   const returnToIdleAfterEnd = useCallback(() => {
     setCallPhase('home')
@@ -230,14 +310,16 @@ export function MemorialCallProvider({
   const toggleMute = useCallback(() => {
     setIsMuted((prev) => {
       const next = !prev
+      isMutedRef.current = next
       if (next) {
         stopListening()
+        setCanProcessMatches(false)
       } else if (callPhaseRef.current === 'active') {
         startListening()
       }
       return next
     })
-  }, [startListening, stopListening])
+  }, [setCanProcessMatches, startListening, stopListening])
 
   const value = useMemo<MemorialCallContextValue>(
     () => ({
@@ -250,6 +332,8 @@ export function MemorialCallProvider({
       rulesConfig,
       lastTranscript,
       lastMatch,
+      isListening,
+      videoSoundUnlocked,
       speechSupported,
       speechError,
       mediaPlayback,
@@ -263,6 +347,7 @@ export function MemorialCallProvider({
       toggleMute,
       triggerReaction,
       triggerPhrase,
+      unlockVideoSound,
     }),
     [
       profile,
@@ -273,6 +358,8 @@ export function MemorialCallProvider({
       rulesConfig,
       lastTranscript,
       lastMatch,
+      isListening,
+      videoSoundUnlocked,
       speechSupported,
       speechError,
       mediaPlayback,
@@ -286,11 +373,21 @@ export function MemorialCallProvider({
       toggleMute,
       triggerReaction,
       triggerPhrase,
+      unlockVideoSound,
     ],
   )
 
   return (
     <MemorialCallContext.Provider value={value}>
+      <audio
+        ref={unlockAudioRef}
+        src={SILENCE_WAV_DATA_URI}
+        preload="auto"
+        playsInline
+        tabIndex={-1}
+        aria-hidden
+        className="call-audio-unlock"
+      />
       {children}
     </MemorialCallContext.Provider>
   )

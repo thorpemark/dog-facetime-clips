@@ -17,7 +17,8 @@ function photoLayerWrapperStyle(
 }
 
 export function DualMediaView() {
-  const { mediaPlayback, profile } = useMemorialCall()
+  const { mediaPlayback, profile, videoSoundUnlocked, unlockVideoSound } =
+    useMemorialCall()
   const windowOrientation = useDisplayOrientation()
   const [studioTick, setStudioTick] = useState(0)
 
@@ -39,6 +40,15 @@ export function DualMediaView() {
     idleAnimationMs,
     crossfadeMs,
   } = mediaPlayback
+
+  useEffect(() => {
+    const videos = [primaryRef.current, secondaryRef.current]
+    for (const video of videos) {
+      if (!video) continue
+      video.volume = 1
+      video.muted = !videoSoundUnlocked
+    }
+  }, [videoSoundUnlocked, primaryRef, secondaryRef])
 
   void studioTick
   const displayOrientation = orientationForClipCall(mode, windowOrientation)
@@ -102,6 +112,7 @@ export function DualMediaView() {
     <div
       className={`dual-video dual-video--clip${idleVisual === 'still' ? ' dual-video--still-idle' : ''}`}
       style={kenBurnsStyle}
+      onPointerDown={unlockVideoSound}
     >
       {idleStillUrl && (
         <div className="call-idle-still-layer photo-layer" aria-hidden>
@@ -123,14 +134,14 @@ export function DualMediaView() {
         ref={primaryRef}
         className="video-layer"
         playsInline
-        muted
+        muted={!videoSoundUnlocked}
         style={{ opacity: primaryOpacity, transition }}
       />
       <video
         ref={secondaryRef}
         className="video-layer"
         playsInline
-        muted
+        muted={!videoSoundUnlocked}
         style={{ opacity: secondaryOpacity, transition }}
       />
     </div>

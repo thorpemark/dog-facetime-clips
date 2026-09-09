@@ -7,6 +7,7 @@ export function DebugPanelView() {
     behaviorState,
     lastTranscript,
     lastMatch,
+    isListening,
     speechSupported,
     speechError,
     rulesConfig,
@@ -35,6 +36,10 @@ export function DebugPanelView() {
       </div>
 
       <p className="debug-meta">State: {stateLabel}</p>
+      <p className="debug-meta">
+        Mic: {isListening ? 'listening' : 'not listening'}
+        {speechSupported ? '' : ' (speech API unavailable)'}
+      </p>
       {lastTranscript && (
         <p className="debug-meta">Heard: &ldquo;{lastTranscript}&rdquo;</p>
       )}

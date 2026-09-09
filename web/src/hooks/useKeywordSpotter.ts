@@ -7,6 +7,12 @@ import {
   matchTranscript,
   type TranscriptMatch,
 } from '../utils/matchTranscript'
+import {
+  holdLatestFinal,
+  isEchoOfLastReaction,
+  takePendingIfFresh,
+  type PendingTranscript,
+} from '../utils/pendingTranscript'
 
 type SpeechRecognitionCtor = new () => SpeechRecognition
 
@@ -32,6 +38,9 @@ export function useKeywordSpotter(onMatch: (ruleId: string) => void) {
   const ownerNameRef = useRef('')
   const lastMatchTimeRef = useRef(0)
   const onMatchRef = useRef(onMatch)
+  const canProcessRef = useRef(false)
+  const pendingRef = useRef<PendingTranscript | null>(null)
+  const skipBucketRef = useRef<string | null>(null)
   const matchCooldownMs = 2000
   onMatchRef.current = onMatch
 
@@ -39,44 +48,97 @@ export function useKeywordSpotter(onMatch: (ruleId: string) => void) {
     setSpeechSupported(getSpeechRecognition() !== null)
   }, [])
 
-  const processTranscript = useCallback((transcript: string) => {
-    setLastTranscript(transcript)
-    const now = Date.now()
-    if (now - lastMatchTimeRef.current < matchCooldownMs) return
+  const processTranscript = useCallback(
+    (transcript: string, options?: { isFinal?: boolean; ignoreMatchCooldown?: boolean }) => {
+      const trimmed = transcript.trim()
+      if (trimmed) setLastTranscript(trimmed)
 
-    const match = matchTranscript(transcript, {
-      dogName: dogNameRef.current,
-      ownerName: ownerNameRef.current,
-      catalog: catalogForDogName(dogNameRef.current),
-    })
-    if (match) {
-      const known = rulesRef.current.some((rule) => rule.id === match.bucketId)
-      const allowUnknown =
-        match.method === 'fallback' || isUnknownIntent(match.bucketId)
-      if (!known && rulesRef.current.length > 0 && !allowUnknown) return
-      lastMatchTimeRef.current = now
-      setLastMatch(match)
-      onMatchRef.current(match.bucketId)
+      const isFinal = options?.isFinal ?? true
+      if (!canProcessRef.current) {
+        if (isFinal) {
+          pendingRef.current = holdLatestFinal(
+            pendingRef.current,
+            trimmed,
+            Date.now(),
+          )
+        }
+        return
+      }
+
+      const now = Date.now()
+      if (!options?.ignoreMatchCooldown && now - lastMatchTimeRef.current < matchCooldownMs) {
+        return
+      }
+
+      const match = matchTranscript(trimmed, {
+        dogName: dogNameRef.current,
+        ownerName: ownerNameRef.current,
+        catalog: catalogForDogName(dogNameRef.current),
+      })
+      if (match) {
+        const known = rulesRef.current.some((rule) => rule.id === match.bucketId)
+        const allowUnknown =
+          match.method === 'fallback' || isUnknownIntent(match.bucketId)
+        if (!known && rulesRef.current.length > 0 && !allowUnknown) return
+        if (isEchoOfLastReaction(match.bucketId, skipBucketRef.current)) {
+          skipBucketRef.current = null
+          return
+        }
+        lastMatchTimeRef.current = now
+        setLastMatch(match)
+        onMatchRef.current(match.bucketId)
+      }
+    },
+    [],
+  )
+
+  const processTranscriptRef = useRef(processTranscript)
+  processTranscriptRef.current = processTranscript
+
+  const flushPending = useCallback(() => {
+    const pending = pendingRef.current
+    pendingRef.current = null
+    const transcript = takePendingIfFresh(pending, Date.now())
+    if (transcript) {
+      processTranscript(transcript, { isFinal: true, ignoreMatchCooldown: true })
     }
-  }, [])
+    skipBucketRef.current = null
+  }, [processTranscript])
+
+  const setCanProcessMatches = useCallback(
+    (enabled: boolean, options?: { skipBucketId?: string | null }) => {
+      if (options && 'skipBucketId' in options) {
+        skipBucketRef.current = options.skipBucketId ?? null
+      }
+      canProcessRef.current = enabled
+      if (enabled) flushPending()
+    },
+    [flushPending],
+  )
 
   const startRecognition = useCallback(() => {
     const Ctor = getSpeechRecognition()
     if (!Ctor || !shouldListenRef.current) return
-
-    recognitionRef.current?.abort()
+    if (recognitionRef.current) return
 
     const recognition = new Ctor()
     recognition.continuous = true
     recognition.interimResults = true
     recognition.lang = 'en-US'
 
+    recognition.onstart = () => {
+      setIsListening(true)
+      setSpeechError(null)
+    }
+
     recognition.onresult = (event: SpeechRecognitionEvent) => {
       let transcript = ''
+      let isFinal = false
       for (let i = event.resultIndex; i < event.results.length; i++) {
         transcript += event.results[i][0].transcript
+        isFinal = event.results[i].isFinal
       }
-      processTranscript(transcript.trim())
+      processTranscriptRef.current(transcript.trim(), { isFinal })
     }
 
     recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
@@ -90,6 +152,7 @@ export function useKeywordSpotter(onMatch: (ruleId: string) => void) {
     }
 
     recognition.onend = () => {
+      recognitionRef.current = null
       if (shouldListenRef.current) {
         window.setTimeout(() => startRecognition(), 300)
       } else {
@@ -100,13 +163,12 @@ export function useKeywordSpotter(onMatch: (ruleId: string) => void) {
     recognitionRef.current = recognition
     try {
       recognition.start()
-      setIsListening(true)
-      setSpeechError(null)
     } catch {
+      recognitionRef.current = null
       setSpeechError('Could not start speech recognition')
       setIsListening(false)
     }
-  }, [processTranscript])
+  }, [])
 
   const startListening = useCallback(
     (rules: KeywordRule[], dogName: string, ownerName: string) => {
@@ -119,16 +181,20 @@ export function useKeywordSpotter(onMatch: (ruleId: string) => void) {
     [startRecognition],
   )
 
-  const stopListening = useCallback(() => {
+  const stopListening = useCallback((options?: { clearPending?: boolean }) => {
     shouldListenRef.current = false
+    canProcessRef.current = false
     recognitionRef.current?.stop()
     recognitionRef.current = null
     setIsListening(false)
+    if (options?.clearPending !== false) {
+      pendingRef.current = null
+    }
   }, [])
 
   const triggerPhrase = useCallback(
     (phrase: string) => {
-      processTranscript(phrase)
+      processTranscript(phrase, { isFinal: true })
     },
     [processTranscript],
   )
@@ -149,6 +215,7 @@ export function useKeywordSpotter(onMatch: (ruleId: string) => void) {
     speechError,
     startListening,
     stopListening,
+    setCanProcessMatches,
     triggerPhrase,
   }
 }
