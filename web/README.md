@@ -120,8 +120,10 @@ After the next push to `main`, the site will be live at:
 | **Create flow** | Memorial name → Dog 1 photos → optional Dog 2 → optional Together → copy links |
 | **Share page** | Pick who to call (when multiple dogs), optional your name |
 | **Incoming Call** | FaceTime-style ring — Accept or Decline |
-| **Active Call** | Crossfading photos with Ken Burns motion, side-drawer speed control + swipe/button photo nav, keyword reactions, debug panel |
+| **Active Call** | Dog video or photos, mirrored front-camera self-view PiP, keyword listening, debug panel |
 | **Edit page** | Upload photos, set portrait focal points, rename dogs, regenerate share link |
+
+After **Accept**, the corner PiP uses the front camera (`facingMode: 'user'`, video only so the listening mic stays with speech recognition). Deny camera permission to keep the silhouette plus a short “Camera blocked” note. **End** stops the camera tracks.
 
 ### Photo Playback (v1)
 

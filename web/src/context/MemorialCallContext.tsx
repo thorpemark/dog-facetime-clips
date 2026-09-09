@@ -30,6 +30,11 @@ import {
   SILENCE_WAV_DATA_URI,
   unlockCallVideoSound,
 } from '../utils/callVideoSound'
+import { stopMediaStream } from '../utils/micSession'
+import {
+  requestSelfViewStream,
+  selfViewErrorMessage,
+} from '../utils/selfViewCamera'
 
 interface MemorialCallContextValue {
   profile: DogProfile
@@ -45,6 +50,8 @@ interface MemorialCallContextValue {
   videoSoundUnlocked: boolean
   speechSupported: boolean
   speechError: string | null
+  selfViewStream: MediaStream | null
+  selfViewError: string | null
   mediaPlayback: ReturnType<typeof useMediaPlayback>
   kenBurnsSpeed: KenBurnsSpeed
   setKenBurnsSpeed: (speed: KenBurnsSpeed) => void
@@ -115,6 +122,10 @@ export function MemorialCallProvider({
 
   const [videoSoundUnlocked, setVideoSoundUnlocked] = useState(false)
   const unlockAudioRef = useRef<HTMLAudioElement>(null)
+  const [selfViewStream, setSelfViewStream] = useState<MediaStream | null>(null)
+  const [selfViewError, setSelfViewError] = useState<string | null>(null)
+  const selfViewStreamRef = useRef<MediaStream | null>(null)
+  const selfViewGenerationRef = useRef(0)
 
   const enterCooldown = useCallback(() => {
     setCanProcessMatches(false)
@@ -263,9 +274,45 @@ export function MemorialCallProvider({
     return () => window.clearTimeout(timer)
   }, [behaviorState.type, callPhase, isMuted])
 
+  const stopSelfView = useCallback(() => {
+    selfViewGenerationRef.current += 1
+    stopMediaStream(selfViewStreamRef.current)
+    selfViewStreamRef.current = null
+    setSelfViewStream(null)
+    setSelfViewError(null)
+  }, [])
+
+  const startSelfView = useCallback(() => {
+    stopMediaStream(selfViewStreamRef.current)
+    selfViewStreamRef.current = null
+    setSelfViewStream(null)
+    setSelfViewError(null)
+    const generation = ++selfViewGenerationRef.current
+    // Fire from Accept's user-gesture stack — do not await before getUserMedia.
+    void requestSelfViewStream()
+      .then((stream) => {
+        if (
+          generation !== selfViewGenerationRef.current ||
+          callPhaseRef.current !== 'active'
+        ) {
+          stopMediaStream(stream)
+          return
+        }
+        selfViewStreamRef.current = stream
+        setSelfViewStream(stream)
+      })
+      .catch((error: unknown) => {
+        if (generation !== selfViewGenerationRef.current) return
+        setSelfViewError(selfViewErrorMessage(error))
+      })
+  }, [])
+
   useEffect(() => {
     return () => {
       if (cooldownRef.current) window.clearTimeout(cooldownRef.current)
+      selfViewGenerationRef.current += 1
+      stopMediaStream(selfViewStreamRef.current)
+      selfViewStreamRef.current = null
     }
   }, [])
 
@@ -280,20 +327,22 @@ export function MemorialCallProvider({
     setCallPhase('active')
     setBehaviorState({ type: 'idle' })
     unlockVideoSound()
+    startSelfView()
     loadIdle()
     startListening()
-  }, [startListening, loadIdle, unlockVideoSound])
+  }, [startListening, loadIdle, unlockVideoSound, startSelfView])
 
   const resetCallMedia = useCallback(() => {
     stopListening()
     stopPlayback()
+    stopSelfView()
     setCanProcessMatches(false)
     releaseCallAudioUnlock(unlockAudioRef.current)
     resetCallVideoSoundUnlock()
     setVideoSoundUnlocked(false)
     setShowDebugPanel(false)
     if (cooldownRef.current) window.clearTimeout(cooldownRef.current)
-  }, [setCanProcessMatches, stopListening, stopPlayback])
+  }, [setCanProcessMatches, stopListening, stopPlayback, stopSelfView])
 
   const endCall = useCallback(() => {
     callPhaseRef.current = 'ended'
@@ -342,6 +391,8 @@ export function MemorialCallProvider({
       videoSoundUnlocked,
       speechSupported,
       speechError,
+      selfViewStream,
+      selfViewError,
       mediaPlayback,
       kenBurnsSpeed,
       setKenBurnsSpeed,
@@ -368,6 +419,8 @@ export function MemorialCallProvider({
       videoSoundUnlocked,
       speechSupported,
       speechError,
+      selfViewStream,
+      selfViewError,
       mediaPlayback,
       kenBurnsSpeed,
       setKenBurnsSpeed,

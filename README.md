@@ -89,7 +89,7 @@ See the sections below for iOS-specific details (clips, keywords, CI).
 - Secret edit links (`/edit/:editToken`) for owners
 - Optional creator sign-in (magic link + Google) with **My memorials** dashboard
 - **Clip Studio cloud sync** — same signed-in account on PC and iPhone shares dogs, generation stills, idle pick, and attached MP4s
-- Incoming call → Accept → full-screen memorial call UI
+- Incoming call → Accept → full-screen memorial call UI with front-camera self-view PiP
 - Web Speech API keyword listening (debug panel fallback)
 - Supabase backend with localStorage demo mode when env vars are missing
 - Configurable `reactionCatalog.ts` (weighted clips + semantic matching) with `/catalog` viewer
