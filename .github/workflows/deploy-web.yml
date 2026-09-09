@@ -10,6 +10,8 @@ on:
       - '.github/workflows/deploy-web.yml'
   workflow_dispatch:
 
+# Workflow-wide GITHUB_TOKEN scopes. The deploy job also sets these at job
+# level — required by actions/deploy-pages when targeting an environment.
 permissions:
   contents: read
   pages: write
@@ -20,16 +22,25 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  # No `environment:` here so repository Actions secrets (not environment
+  # secrets) are visible — including VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY.
   build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
     steps:
       - uses: actions/checkout@v4
 
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
           cache: npm
           cache-dependency-path: web/package-lock.json
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
 
       - name: Check Supabase secrets
         run: |
@@ -65,13 +76,18 @@ jobs:
           test -d web/dist/clips
           test -f web/dist/keyword_rules.json
 
-      - uses: actions/upload-pages-artifact@v3
+      - uses: actions/upload-pages-artifact@v4
         with:
           path: web/dist
 
   deploy:
     needs: build
     runs-on: ubuntu-latest
+    # Job-level scopes are required by actions/deploy-pages (OIDC + Pages API).
+    # Unspecified scopes become none for this job, so list both explicitly.
+    permissions:
+      pages: write
+      id-token: write
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
