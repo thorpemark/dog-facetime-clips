@@ -860,16 +860,20 @@ describe('suggestClipPrompt', () => {
 
   it('gives each seed intent a distinct fun beat and returns to the source sit', () => {
     const samples = [
-      { intentId: 'name', intentDescription: 'Dog name', slotLabel: 'Perk up / eye contact', must: /Name-call spark/, mustNot: /Food-interest|Correction beat|Recall lean/ },
-      { intentId: 'come', intentDescription: 'Come here', slotLabel: 'Eager lean in', must: /Recall lean/, mustNot: /Name-call spark|Food-interest|Correction beat/ },
-      { intentId: 'here', intentDescription: 'Here / this way', slotLabel: 'Glance this way', must: /Orientation flick/, mustNot: /Recall lean|Food-interest/ },
-      { intentId: 'owner', intentDescription: 'Owner name', slotLabel: 'Soft owner gaze', must: /Person-recognition/, mustNot: /Food-interest|Correction beat/ },
-      { intentId: 'good', intentDescription: 'Good dog', slotLabel: 'Happy wag', must: /Praise wriggle/, mustNot: /Food-interest|Correction beat/ },
-      { intentId: 'treat', intentDescription: 'Treat / chicken', slotLabel: 'Lick / expectant', must: /Food-interest/, mustNot: /Correction beat|Name-call spark/ },
-      { intentId: 'walk', intentDescription: 'Walk', slotLabel: 'Door / leash excitement', must: /Leash-word voltage/, mustNot: /Food-interest|Correction beat/ },
-      { intentId: 'no', intentDescription: 'No / Stop', slotLabel: 'Guilty settle', must: /Correction beat/, mustNot: /Food-interest|Name-call spark/ },
-      { intentId: 'quiet', intentDescription: 'Quiet (future)', slotLabel: 'Settle / rest', must: /Settle and calm/, mustNot: /Correction beat|Food-interest/ },
-      { intentId: 'play', intentDescription: 'Play / play-bow', slotLabel: 'Play-bow (front low, rear up)', must: /Play-bow/, mustNot: /Food-interest|Correction beat/ },
+      { intentId: 'name', intentDescription: 'Dog name', slotLabel: 'Perk up / eye contact', family: 'name', must: /Name-call spark/, mustNot: /Food-interest|Correction beat|Recall lean/ },
+      { intentId: 'come', intentDescription: 'Come here', slotLabel: 'Eager lean in', family: 'come', must: /Recall lean/, mustNot: /Name-call spark|Food-interest|Correction beat/ },
+      { intentId: 'here', intentDescription: 'Here / this way', slotLabel: 'Glance this way', family: 'here', must: /Orientation flick/, mustNot: /Recall lean|Food-interest/ },
+      { intentId: 'owner', intentDescription: 'Owner name', slotLabel: 'Soft owner gaze', family: 'owner', must: /Person-recognition/, mustNot: /Food-interest|Correction beat/ },
+      { intentId: 'good', intentDescription: 'Good dog', slotLabel: 'Happy wag', family: 'good', must: /Praise wriggle/, mustNot: /Food-interest|Correction beat/ },
+      { intentId: 'treat', intentDescription: 'Treat / chicken', slotLabel: 'Lick / expectant', family: 'treat', must: /Food-interest/, mustNot: /Correction beat|Name-call spark/ },
+      { intentId: 'walk', intentDescription: 'Walk', slotLabel: 'Door / leash excitement', family: 'walk', must: /Leash-word voltage/, mustNot: /Food-interest|Correction beat/ },
+      { intentId: 'no', intentDescription: 'No / Stop', slotLabel: 'Guilty settle', family: 'no', must: /Correction beat/, mustNot: /Food-interest|Name-call spark/ },
+      { intentId: 'quiet', intentDescription: 'Quiet (future)', slotLabel: 'Settle / rest', family: 'quiet', must: /Settle and calm/, mustNot: /Correction beat|Food-interest/ },
+      { intentId: 'play', intentDescription: 'Play / play-bow', slotLabel: 'Play-bow (front low, rear up)', family: 'play', must: /Play-bow/, mustNot: /Food-interest|Correction beat/ },
+      { intentId: 'hug', intentDescription: 'Hug / cuddle', slotLabel: 'Side-touch reaction', family: 'hug', must: /Hug \/ cuddle|Side-touch/, mustNot: /Food-interest|Correction beat|Name-call spark/ },
+      { intentId: 'howl', intentDescription: 'Howl / sing', slotLabel: 'Howl attempt', family: 'howl', must: /Howl\/sing|howl attempt/i, mustNot: /Food-interest|Correction beat|Name-call spark/ },
+      { intentId: 'unknown', intentDescription: 'Unknown / confused head-tilt', slotLabel: 'Curious head-tilt', family: 'unknown', must: /head-tilt|huh/i, mustNot: /Food-interest|Correction beat/ },
+      { intentId: 'idle', intentDescription: 'Idle FaceTime hold', slotLabel: 'Calm look at camera', family: 'idle', must: /Calm FaceTime hold/, mustNot: /Food-interest|Correction beat|Name-call spark/ },
     ] as const
 
     for (const row of samples) {
@@ -885,7 +889,41 @@ describe('suggestClipPrompt', () => {
       expect(prompt, row.intentId).not.toMatch(row.mustNot)
       expect(prompt, row.intentId).toMatch(/exact sitting pose of the source still/)
       expect(prompt, row.intentId).toMatch(/Do not freeze mid-lick, mid-bow, or off-center/)
-      expect(classifySuggestIntent(row)).toBe(row.intentId === 'play' ? 'play' : row.intentId)
+      expect(classifySuggestIntent(row)).toBe(row.family)
+      if (row.intentId !== 'howl' && row.intentId !== 'play') {
+        expect(prompt, row.intentId).toMatch(/Soft Foley wanted/)
+        expect(prompt, row.intentId).not.toMatch(/Silence-first/)
+      }
     }
+
+    const murphyName = suggestClipPrompt({
+      dogName: 'Murphy',
+      personality: MURPHY_PERSONALITY,
+      intentId: 'name',
+      intentDescription: 'Dog name',
+      slotLabel: 'Perk up / eye contact',
+    })
+    expect(murphyName).toMatch(/Silence-first/)
+    expect(murphyName).toMatch(/Name-call spark/)
+    expect(murphyName).not.toMatch(/Soft Foley wanted/)
+
+    const halloween = suggestClipPrompt({
+      dogName: 'Riley',
+      personality: RILEY_PERSONALITY,
+      intentId: 'halloween',
+      intentDescription: 'Halloween',
+      slotLabel: 'Costume walk',
+    })
+    expect(halloween).toMatch(/Intent \(halloween\)/)
+    expect(halloween).toMatch(/walks completely off camera/)
+    expect(halloween).toMatch(/Soft Foley wanted/)
+    expect(halloween).not.toMatch(/Silence-first/)
+    expect(halloween).not.toMatch(/Intent \(treat\)/)
+    expect(halloween).not.toMatch(/Correction beat/)
+    expect(halloween).not.toMatch(/Food-interest/)
+    expect(halloween).not.toMatch(/peaks in the first ~2–3 seconds/)
+    expect(classifySuggestIntent({ intentId: 'halloween', intentDescription: 'Halloween' })).toBe(
+      'holiday',
+    )
   })
 })
