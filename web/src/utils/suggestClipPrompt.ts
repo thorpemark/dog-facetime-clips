@@ -30,10 +30,9 @@ function dogKey(name: string): string {
   return name.trim().toLowerCase()
 }
 
-function haystackOf(input: Pick<SuggestPromptInput, 'intentId' | 'intentDescription' | 'slotLabel' | 'userNotes'>): string {
-  return [input.intentId, input.intentDescription, input.slotLabel, input.userNotes ?? '']
-    .join(' ')
-    .toLowerCase()
+/** Parent intent only — slot labels / notes must not pick the family. */
+function intentHaystack(intentId: string, intentDescription = ''): string {
+  return `${intentId} ${intentDescription}`.toLowerCase()
 }
 
 /** Howl / sing buckets (and slug variants like howl-2). */
@@ -71,8 +70,8 @@ export function allowsPlayHuff(input: SuggestPromptInput): boolean {
   return isPlayLikeIntent(input.intentId, input.intentDescription)
 }
 
-function isAttentionStyleIntent(input: SuggestPromptInput): boolean {
-  const intent = normalizeIntent(input.intentId)
+function isAttentionStyleIntent(intentId: string, intentDescription = ''): boolean {
+  const intent = normalizeIntent(intentId)
   if (
     intent === 'name' ||
     intent === 'come' ||
@@ -86,13 +85,41 @@ function isAttentionStyleIntent(input: SuggestPromptInput): boolean {
     return true
   }
   return /\b(attention|eye[-\s]?contact|perk[-\s]?up|recognition|look (this way|here)|glance)\b/.test(
-    haystackOf(input),
+    intentHaystack(intentId, intentDescription),
   )
 }
 
 function isHugLikeIntent(intentId: string): boolean {
   const intent = normalizeIntent(intentId)
   return intent.includes('hug') || intent.includes('cuddle') || intent.includes('snuggle')
+}
+
+/**
+ * Treat / food-interest family. Parent intent id (and official description) only.
+ * Slot labels such as “Lick / expectant” must not reclassify a no/hug/play slot.
+ */
+export function isTreatLikeIntent(intentId: string, intentDescription = ''): boolean {
+  const intent = normalizeIntent(intentId)
+  if (intent === 'treat' || intent.startsWith('treat-')) return true
+  const desc = intentDescription.trim().toLowerCase()
+  if (!desc) return false
+  if (/trick[-\s]?or[-\s]?treat/.test(intent) || /trick[-\s]?or[-\s]?treat/.test(desc)) return false
+  return /\b(treat|chicken|cookie|snack|nummies)\b/.test(desc)
+}
+
+/**
+ * No / stop / correction family. Never use `includes('no')` — that matches `unknown`.
+ * Slot labels (“Ears Back / Pause”) and notes do not pick this family.
+ */
+export function isNoLikeIntent(intentId: string, intentDescription = ''): boolean {
+  const intent = normalizeIntent(intentId)
+  if (isUnknownLikeIntent(intentId)) return false
+  if (intent === 'no' || intent.startsWith('no-') || intent === 'stop' || intent.startsWith('stop-')) {
+    return true
+  }
+  const desc = intentDescription.trim().toLowerCase()
+  if (!desc) return false
+  return /\b(no+|stop that|uh-?uh|uh oh|leave it|knock it off)\b/.test(desc)
 }
 
 function isRileyOrBoth(dogName: string): boolean {
@@ -110,20 +137,26 @@ export function usesSoftFoleyAudio(dogName: string, style: VocalStyle): boolean 
   return isRileyOrBoth(dogName)
 }
 
-/** Treat / lick / mouth-open / excited — do not also force "Mouth closed". */
-function wantsOpenMouthOrExcited(input: Pick<SuggestPromptInput, 'intentId' | 'intentDescription' | 'slotLabel' | 'userNotes'>): boolean {
-  const intent = normalizeIntent(input.intentId)
-  if (intent === 'treat' || intent.startsWith('treat-')) return true
-  return /\b(lick|licks|lips|mouth open|open mouth|excited)\b/i.test(haystackOf(input))
+/** Treat family only — leaked “lick / expectant” slot notes must not open the mouth on no/hug. */
+function wantsOpenMouthOrExcited(intentId: string, intentDescription = ''): boolean {
+  return isTreatLikeIntent(intentId, intentDescription)
 }
 
 function personalityNotesForIntent(
   personality: DogPersonality,
-  options: { allowHowl: boolean; softFoley: boolean },
+  options: { allowHowl: boolean; softFoley: boolean; treatLike: boolean; hugLike: boolean },
 ): string {
   let notes = personality.notes.map((note) => note.trim()).filter(Boolean)
   if (!options.allowHowl) {
     notes = notes.filter((note) => !/\b(howl|sing|aroo|awoo|bay|bark|growl|whine)\b/i.test(note))
+  }
+  if (!options.treatLike) {
+    notes = notes.filter((note) => !/\b(treat|chicken|cookie|snack|lick|licks|nummies)\b/i.test(note))
+  }
+  if (!options.hugLike) {
+    notes = notes.filter(
+      (note) => !/\b(hug|hugs|bares teeth|warning face|chest scratch|offering his neck)\b/i.test(note),
+    )
   }
   if (options.softFoley) {
     notes = notes.filter((note) => !/remarkably non-vocal|not sound/i.test(note))
@@ -323,6 +356,25 @@ function togetherUnknownBeat(softFoley: boolean): string {
   )
 }
 
+function noBeat(dogName: string, personality: DogPersonality): string {
+  const eyes = eyePhrase(personality.eyes)
+  return (
+    `${dogName} hears no/stop: ears go back, a brief pause, then a guilty settle or slight “uh oh” body language while looking at the camera. ` +
+    `${eyes}. Correction only — not treat interest, not a lick, not expectant food. ` +
+    `Small and readable, not cowering out of frame. Face and body only; no bark or growl. ${mouthBit(personality, true)}.`
+  )
+}
+
+function togetherNoBeat(softFoley: boolean): string {
+  const close = softFoley
+    ? 'Soft Foley (breath, paw) is ok; no bark or growl.'
+    : 'Silent; face and body only.'
+  return (
+    'Together shot: both dogs take a no/stop correction — ears back, pause, settle with a slight guilty or “uh oh” look at the camera. ' +
+    `Not food interest, not a lick. Keep both dogs in frame. ${close}`
+  )
+}
+
 function holidayCostumeWalkMotion(
   spec: HolidayIntentSpec,
   together: boolean,
@@ -357,14 +409,17 @@ export function personalityBeat(
   dogName: string,
   intentId: string,
   personality: DogPersonality,
-  options?: { allowHowl?: boolean; softFoley?: boolean },
+  options?: { allowHowl?: boolean; softFoley?: boolean; intentDescription?: string },
 ): string {
   const traits = normalizePersonality(personality)
   const dog = dogKey(dogName)
   const intent = normalizeIntent(intentId)
+  const description = options?.intentDescription ?? ''
   const hugLike = isHugLikeIntent(intent)
-  const howlLike = isHowlLikeIntent(intentId)
-  const playLike = isPlayLikeIntent(intentId)
+  const howlLike = isHowlLikeIntent(intentId, description)
+  const playLike = isPlayLikeIntent(intentId, description)
+  const treatLike = isTreatLikeIntent(intentId, description)
+  const noLike = isNoLikeIntent(intentId, description)
   const allowHowl = options?.allowHowl ?? howlLike
   const softFoley = options?.softFoley ?? usesSoftFoleyAudio(dogName, traits.vocalStyle)
 
@@ -375,6 +430,7 @@ export function personalityBeat(
   if (dog === 'both' && howlLike && allowHowl) return togetherHowlBeat()
   if (dog === 'both' && playLike) return togetherPlayBeat()
   if (dog === 'both' && unknownLike) return togetherUnknownBeat(softFoley)
+  if (dog === 'both' && noLike) return togetherNoBeat(softFoley)
   if (dog === 'both' && holiday) {
     return (
       'Together memorial: keep Murphy (tan, folded ears, left) and Riley (black huskita, upright ears, right) identifiable. ' +
@@ -386,10 +442,42 @@ export function personalityBeat(
   if (howlLike && allowHowl) return howlBeat(dogName, traits)
   if (playLike) return playBeat(dogName, traits)
   if (unknownLike) return unknownBeat(dogName, traits)
+  if (noLike) return noBeat(dogName, traits)
 
-  const notes = personalityNotesForIntent(traits, { allowHowl, softFoley })
+  const notes = personalityNotesForIntent(traits, { allowHowl, softFoley, treatLike, hugLike })
   const flavor = traitFlavor(traits)
   return [flavor, notes].filter(Boolean).join(' ')
+}
+
+function isTreatLikeLabel(text: string): boolean {
+  return /\b(lick|licks|expectant|treat|chicken|cookie|snack|food[-\s]?interest|mouth open|open mouth)\b/i.test(
+    text,
+  )
+}
+
+/** Echo this slot’s label unless it is another intent’s variant (e.g. treat lick on a no slot). */
+function variantBitFor(slotLabel: string, family: string | null): string {
+  const variant = slotLabel.trim()
+  if (!variant) return ''
+  if (family !== 'treat' && isTreatLikeLabel(variant)) return ''
+  return ` Variant beat: ${variant}.`
+}
+
+function motionFamily(input: SuggestPromptInput): string | null {
+  const intent = normalizeIntent(input.intentId)
+  const description = input.intentDescription
+  if (isTreatLikeIntent(input.intentId, description)) return 'treat'
+  if (isHugLikeIntent(input.intentId)) return 'hug'
+  if (isHowlLikeIntent(input.intentId, description)) return 'howl'
+  if (isPlayLikeIntent(input.intentId, description)) return 'play'
+  if (isUnknownLikeIntent(input.intentId)) {
+    return intent === 'confused' || intent.startsWith('confused-') ? 'confused' : 'unknown'
+  }
+  if (isNoLikeIntent(input.intentId, description)) return 'no'
+  for (const id of ['come', 'here', 'name', 'owner', 'good', 'walk', 'quiet'] as const) {
+    if (intent === id || intent.startsWith(`${id}-`)) return id
+  }
+  return null
 }
 
 function intentMotion(
@@ -399,10 +487,10 @@ function intentMotion(
   personality: DogPersonality,
   softFoley: boolean,
 ): string {
-  const intent = normalizeIntent(input.intentId)
-  const variant = input.slotLabel.trim()
-  const variantBit = variant ? ` Variant beat: ${variant}.` : ''
-  const skipClosedMouth = allowHowl || allowPlayHuff || (softFoley && wantsOpenMouthOrExcited(input))
+  const family = motionFamily(input)
+  const variantBit = variantBitFor(input.slotLabel, family)
+  const skipClosedMouth =
+    allowHowl || allowPlayHuff || (softFoley && wantsOpenMouthOrExcited(input.intentId, input.intentDescription))
   const silent = skipClosedMouth ? '' : ' Mouth closed. Face and body only.'
   const energy = energyMotionPhrase(personality.energy)
   const energyBit = energy ? ` ${energy}` : ''
@@ -424,7 +512,7 @@ function intentMotion(
     owner: `Ears perk and eye contact only: soft recognition of the familiar person, lean in, warm eyes.${silent}`,
     good: `Happy praise reaction: soft proud eyes, a pleased wriggle or tail energy, relaxed expression.${silent}`,
     walk: `Alert walk excitement: ears up, bright eyes, a little body energy as if the leash or door was mentioned. Stay in frame.${silent}`,
-    no: `Correction beat: ears back, pause, a guilty or settling expression. Small, readable, not cowering out of frame.${silent}`,
+    no: `Correction beat: ears back, pause, a guilty or settling expression while looking at the camera. Small, readable, not cowering out of frame. Not treat interest, not a lick.${silent}`,
     play: allowPlayHuff
       ? 'Play-bow (downward-dog stretch): front low, rear up, expressive body, bright eyes. One short challenge huff/chuff as they drop into the bow — not a bark. Stay in portrait; not a zoomie.'
       : `Play-bow (downward-dog stretch): front low, rear up, expressive body, bright eyes. Stay in portrait; not a zoomie.${silent}`,
@@ -433,13 +521,11 @@ function intentMotion(
     confused: `Classic curious dog head-tilt: ears perk, head cocks to one side as if asking “huh?”, face toward the phone camera. Small, readable, not a command reaction.${silent}`,
   }
 
-  for (const [id, motion] of Object.entries(motions)) {
-    if (intent === id || intent.startsWith(`${id}-`)) {
-      return `${motion}${energyBit}${variantBit}`
-    }
+  if (family && motions[family]) {
+    return `${motions[family]}${energyBit}${variantBit}`
   }
 
-  if (isAttentionStyleIntent(input)) {
+  if (isAttentionStyleIntent(input.intentId, input.intentDescription)) {
     return `Ears perk and eye contact only while looking toward the phone camera.${silent}${energyBit}${variantBit}`
   }
 
@@ -507,7 +593,11 @@ export function suggestClipPrompt(input: SuggestPromptInput): string {
   const allowPlayHuff = allowsPlayHuff(input)
   const softFoley = usesSoftFoleyAudio(dogName, personality.vocalStyle)
   const holiday = isHolidayLikeIntent(intentId, intentDescription)
-  const beat = personalityBeat(dogName, intentId, personality, { allowHowl, softFoley })
+  const beat = personalityBeat(dogName, intentId, personality, {
+    allowHowl,
+    softFoley,
+    intentDescription,
+  })
   const motion = intentMotion(input, allowHowl, allowPlayHuff, personality, softFoley)
   const notes = input.userNotes?.trim()
 

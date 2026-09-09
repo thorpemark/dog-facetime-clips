@@ -6,7 +6,7 @@ import {
   createSeedStudioState,
 } from '../data/clipStudioSeed'
 import { defaultPersonality } from './dogPersonality'
-import { suggestClipPrompt } from './suggestClipPrompt'
+import { isNoLikeIntent, isTreatLikeIntent, suggestClipPrompt } from './suggestClipPrompt'
 
 const framing = {
   portrait: { focalX: 0.5, focalY: 0.42, focalZoom: 1.6 },
@@ -712,5 +712,185 @@ describe('suggestClipPrompt', () => {
     expect(walk).toMatch(/peaks in the first ~2–3 seconds/)
     expect(walk).not.toMatch(/Pilgrim/)
     expect(walk).not.toMatch(/costume walk/i)
+  })
+
+  it('binds Riley soft no/stop Suggest to ears-back correction, not treat lick', () => {
+    const rileyNo = suggestClipPrompt({
+      dogName: 'Riley',
+      personality: RILEY_PERSONALITY,
+      intentId: 'no',
+      intentDescription: 'No / Stop',
+      slotLabel: 'Ears Back / Pause',
+    })
+    const rileyGuilty = suggestClipPrompt({
+      dogName: 'Riley',
+      personality: RILEY_PERSONALITY,
+      intentId: 'no',
+      intentDescription: 'No / Stop',
+      slotLabel: 'Guilty settle',
+    })
+    const murphyNo = suggestClipPrompt({
+      dogName: 'Murphy',
+      personality: MURPHY_PERSONALITY,
+      intentId: 'no',
+      intentDescription: 'No / Stop',
+      slotLabel: 'Ears Back / Pause',
+    })
+    const rileyTreat = suggestClipPrompt({
+      dogName: 'Riley',
+      personality: RILEY_PERSONALITY,
+      intentId: 'treat',
+      intentDescription: 'Treat / chicken',
+      slotLabel: 'Lick / expectant',
+    })
+
+    for (const prompt of [rileyNo, rileyGuilty]) {
+      expect(prompt.startsWith('AUDIO (read first):')).toBe(true)
+      expect(prompt).toMatch(/Soft Foley wanted/)
+      expect(prompt).toMatch(/Intent \(no\): No \/ Stop/)
+      expect(prompt).toMatch(/ears (go )?back/i)
+      expect(prompt).toMatch(/pause/i)
+      expect(prompt).toMatch(/guilty|uh oh/i)
+      expect(prompt).toMatch(/Mouth closed/)
+      expect(prompt).not.toMatch(/Intent \(treat\)/)
+      expect(prompt).not.toMatch(/Treat \/ chicken/)
+      expect(prompt).not.toMatch(/eyes lock on an implied treat/i)
+      expect(prompt).not.toMatch(/food-interest/i)
+      expect(prompt).not.toMatch(/expectant lick|Lick \/ expectant/i)
+      expect(prompt).not.toMatch(/maybe a brief lick/i)
+      expect(prompt).not.toMatch(/bares (her )?teeth/i)
+      expect(prompt).not.toMatch(/silent warning/i)
+      expect(prompt).not.toMatch(/Silence-first/)
+    }
+
+    expect(rileyNo).toMatch(/Variant beat: Ears Back \/ Pause/)
+    expect(rileyGuilty).toMatch(/Variant beat: Guilty settle/)
+
+    expect(murphyNo).toMatch(/Silence-first/)
+    expect(murphyNo).toMatch(/Intent \(no\): No \/ Stop/)
+    expect(murphyNo).toMatch(/ears (go )?back/i)
+    expect(murphyNo).toMatch(/guilty|uh oh/i)
+    expect(murphyNo).not.toMatch(/Soft Foley wanted/)
+    expect(murphyNo).not.toMatch(/Intent \(treat\)/)
+    expect(murphyNo).not.toMatch(/Treat \/ chicken/)
+    expect(murphyNo).not.toMatch(/eyes lock on an implied treat/i)
+    expect(murphyNo).not.toMatch(/Lick \/ expectant/i)
+
+    expect(rileyTreat).toMatch(/Intent \(treat\): Treat \/ chicken/)
+    expect(rileyTreat).toMatch(/eyes lock on an implied treat/i)
+    expect(rileyTreat).toMatch(/Variant beat: Lick \/ expectant/)
+    expect(rileyTreat).toMatch(/Soft Foley wanted/)
+  })
+
+  it('does not let leaked treat slot labels or notes reclassify a no parent intent', () => {
+    const leaked = suggestClipPrompt({
+      dogName: 'Riley',
+      personality: RILEY_PERSONALITY,
+      intentId: 'no',
+      intentDescription: 'No / Stop',
+      slotLabel: 'Lick / expectant',
+      userNotes: 'licks lips, treat chicken, expectant food',
+    })
+
+    expect(leaked).toMatch(/Intent \(no\): No \/ Stop/)
+    expect(leaked).toMatch(/Correction beat: ears back/i)
+    expect(leaked).toMatch(/Mouth closed/)
+    expect(leaked).not.toMatch(/Intent \(treat\)/)
+    expect(leaked).not.toMatch(/Treat \/ chicken/)
+    expect(leaked).not.toMatch(/eyes lock on an implied treat/i)
+    expect(leaked).not.toMatch(/food-interest/i)
+    expect(leaked).not.toMatch(/Variant beat: Lick \/ expectant/)
+    expect(leaked).toMatch(/Director notes for this slot: licks lips, treat chicken, expectant food/)
+  })
+
+  it('does not cross-wire hug / howl / play / unknown from treat slot copy', () => {
+    const leakedTreat = {
+      slotLabel: 'Lick / expectant',
+      userNotes: 'treat / chicken, expectant lick',
+    }
+    const hug = suggestClipPrompt({
+      dogName: 'Riley',
+      personality: RILEY_PERSONALITY,
+      intentId: 'hug',
+      intentDescription: 'Hug / cuddle',
+      ...leakedTreat,
+    })
+    const howl = suggestClipPrompt({
+      dogName: 'Riley',
+      personality: RILEY_PERSONALITY,
+      intentId: 'howl',
+      intentDescription: 'Howl / sing',
+      ...leakedTreat,
+    })
+    const play = suggestClipPrompt({
+      dogName: 'Riley',
+      personality: RILEY_PERSONALITY,
+      intentId: 'play',
+      intentDescription: 'Play / play-bow',
+      ...leakedTreat,
+    })
+    const unknown = suggestClipPrompt({
+      dogName: 'Riley',
+      personality: RILEY_PERSONALITY,
+      intentId: 'unknown',
+      intentDescription: 'Unknown / confused head-tilt',
+      ...leakedTreat,
+    })
+
+    expect(hug).toMatch(/Intent \(hug\)/)
+    expect(hug).toMatch(/bares (her )?teeth/i)
+    expect(hug).not.toMatch(/Intent \(treat\)/)
+    expect(hug).not.toMatch(/eyes lock on an implied treat/i)
+    expect(hug).not.toMatch(/Variant beat: Lick \/ expectant/)
+
+    expect(howl).toMatch(/Intent \(howl\)/)
+    expect(howl).toMatch(/awkward/i)
+    expect(howl).not.toMatch(/Intent \(treat\)/)
+    expect(howl).not.toMatch(/eyes lock on an implied treat/i)
+
+    expect(play).toMatch(/Intent \(play\)/)
+    expect(play).toMatch(/play-bow/i)
+    expect(play).not.toMatch(/Intent \(treat\)/)
+    expect(play).not.toMatch(/eyes lock on an implied treat/i)
+
+    expect(unknown).toMatch(/Intent \(unknown\)/)
+    expect(unknown).toMatch(/head-tilt/i)
+    expect(unknown).not.toMatch(/Intent \(treat\)/)
+    expect(unknown).not.toMatch(/Intent \(no\)/)
+    expect(unknown).not.toMatch(/eyes lock on an implied treat/i)
+    expect(unknown).not.toMatch(/Correction beat/i)
+  })
+
+  it('classifies no/stop and treat from the parent intent, not unknown or slot labels', () => {
+    expect(isNoLikeIntent('no', 'No / Stop')).toBe(true)
+    expect(isNoLikeIntent('no-stop', 'No / Stop')).toBe(true)
+    expect(isNoLikeIntent('stop', 'Stop that')).toBe(true)
+    expect(isNoLikeIntent('unknown', 'Unknown / confused head-tilt')).toBe(false)
+    expect(isNoLikeIntent('treat', 'Treat / chicken')).toBe(false)
+    expect(isTreatLikeIntent('treat', 'Treat / chicken')).toBe(true)
+    expect(isTreatLikeIntent('no', 'No / Stop')).toBe(false)
+    expect(isTreatLikeIntent('unknown', 'Unknown / confused head-tilt')).toBe(false)
+    expect(isTreatLikeIntent('halloween', 'Halloween')).toBe(false)
+  })
+
+  it('bakes Riley and Murphy no/stop seed slots without treat lick copy', () => {
+    const seed = createSeedStudioState()
+    const riley = seed.dogs.find((dog) => dog.id === 'riley')
+    const murphy = seed.dogs.find((dog) => dog.id === 'murphy')
+    const rileyNo = riley?.intents.find((intent) => intent.id === 'no')
+    const murphyNo = murphy?.intents.find((intent) => intent.id === 'no')
+    expect(rileyNo?.description).toMatch(/No \/ Stop/)
+    expect(rileyNo?.clipSlots[0]?.label).toMatch(/ears back/i)
+    expect(rileyNo?.clipSlots[0]?.prompt).toMatch(/Intent \(no\)/)
+    expect(rileyNo?.clipSlots[0]?.prompt).toMatch(/ears (go )?back/i)
+    expect(rileyNo?.clipSlots[0]?.prompt).toMatch(/Soft Foley wanted/)
+    expect(rileyNo?.clipSlots[0]?.prompt).not.toMatch(/Intent \(treat\)/)
+    expect(rileyNo?.clipSlots[0]?.prompt).not.toMatch(/Treat \/ chicken/)
+    expect(rileyNo?.clipSlots[0]?.prompt).not.toMatch(/eyes lock on an implied treat/i)
+    expect(rileyNo?.clipSlots[0]?.prompt).not.toMatch(/Lick \/ expectant/i)
+    expect(murphyNo?.clipSlots[0]?.prompt).toMatch(/Silence-first/)
+    expect(murphyNo?.clipSlots[0]?.prompt).toMatch(/Intent \(no\)/)
+    expect(murphyNo?.clipSlots[0]?.prompt).not.toMatch(/Intent \(treat\)/)
+    expect(murphyNo?.clipSlots[0]?.prompt).not.toMatch(/Soft Foley wanted/)
   })
 })
