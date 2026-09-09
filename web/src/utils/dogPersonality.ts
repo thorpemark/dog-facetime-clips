@@ -99,7 +99,7 @@ function seedFallbackFor(dogId?: string, dogName?: string): DogPersonality | nul
     return {
       breed: DEFAULT_BREED,
       notes: [],
-      vocalStyle: 'silent',
+      vocalStyle: 'soft',
       voiceSize: 'medium',
       energy: 'normal',
       eyes: 'alert',
@@ -111,7 +111,7 @@ function seedFallbackFor(dogId?: string, dogName?: string): DogPersonality | nul
     return {
       breed: 'huskitas (Husky × Akita mix)',
       notes: [],
-      vocalStyle: 'silent',
+      vocalStyle: 'soft',
       voiceSize: 'medium',
       energy: 'normal',
       eyes: 'goofy',

@@ -95,20 +95,56 @@ function isHugLikeIntent(intentId: string): boolean {
   return intent.includes('hug') || intent.includes('cuddle') || intent.includes('snuggle')
 }
 
-/** Drop vocal personality lines so they cannot leak into name / treat / come prompts. */
-function personalityNotesForIntent(personality: DogPersonality, allowHowl: boolean): string {
-  const notes = personality.notes.map((note) => note.trim()).filter(Boolean)
-  if (allowHowl) return notes.join(' ')
-  return notes.filter((note) => !/\b(howl|sing|aroo|awoo|bay|bark|growl|whine)\b/i.test(note)).join(' ')
+function isRileyOrBoth(dogName: string): boolean {
+  const dog = dogKey(dogName)
+  return dog === 'riley' || dog === 'both'
+}
+
+/**
+ * Soft Foley AUDIO: vocalStyle `soft`, or leftover silent seed on Riley/Both.
+ * Murphy (and other silent dogs) stay silence-first.
+ */
+export function usesSoftFoleyAudio(dogName: string, style: VocalStyle): boolean {
+  if (style === 'soft') return true
+  if (style !== 'silent') return false
+  return isRileyOrBoth(dogName)
+}
+
+/** Treat / lick / mouth-open / excited — do not also force "Mouth closed". */
+function wantsOpenMouthOrExcited(input: Pick<SuggestPromptInput, 'intentId' | 'intentDescription' | 'slotLabel' | 'userNotes'>): boolean {
+  const intent = normalizeIntent(input.intentId)
+  if (intent === 'treat' || intent.startsWith('treat-')) return true
+  return /\b(lick|licks|lips|mouth open|open mouth|excited)\b/i.test(haystackOf(input))
+}
+
+function personalityNotesForIntent(
+  personality: DogPersonality,
+  options: { allowHowl: boolean; softFoley: boolean },
+): string {
+  let notes = personality.notes.map((note) => note.trim()).filter(Boolean)
+  if (!options.allowHowl) {
+    notes = notes.filter((note) => !/\b(howl|sing|aroo|awoo|bay|bark|growl|whine)\b/i.test(note))
+  }
+  if (options.softFoley) {
+    notes = notes.filter((note) => !/remarkably non-vocal|not sound/i.test(note))
+  }
+  return notes.join(' ')
 }
 
 function voiceSizeBit(size: VoiceSize): string {
   return voiceSizePitch(size)
 }
 
+function softFoleyAudioBlock(): string {
+  return (
+    'AUDIO (read first): Soft-vocal. Soft Foley wanted: faint breath, soft mouth/lick sounds, paw on rug, soft tail swish. ' +
+    'Hard ban: bark, howl, music, speech, talking, ambience, heavy whine, growl. Keep it very quiet. No soundtrack.'
+  )
+}
+
 function audioBlock(
   personality: DogPersonality,
-  options: { allowHowl: boolean; allowPlayHuff: boolean },
+  options: { allowHowl: boolean; allowPlayHuff: boolean; softFoley: boolean },
 ): string {
   const pitch = voiceSizeBit(personality.voiceSize)
   const style: VocalStyle = personality.vocalStyle
@@ -128,11 +164,8 @@ function audioBlock(
     )
   }
 
-  if (style === 'soft') {
-    return (
-      'AUDIO (read first): Soft-vocal. Faint whine or breath is ok. ' +
-      'Hard ban: bark, howl, growl, music, speech, ambience. Keep it very quiet. No soundtrack.'
-    )
+  if (options.softFoley) {
+    return softFoleyAudioBlock()
   }
 
   if (style === 'barks') {
@@ -228,10 +261,13 @@ function traitFlavor(personality: DogPersonality): string {
   return parts.join(', ')
 }
 
-function togetherHugBeat(): string {
+function togetherHugBeat(softFoley: boolean): string {
+  const close = softFoley
+    ? 'Riley warning is visual (no growl). Soft Foley (breath, paw, tail) is ok.'
+    : 'Silent warning / affection via face and body only.'
   return (
     'Together shot: Murphy leans in and offers his neck; Riley is wary and may bare teeth if her side is touched — ' +
-    'keep both dogs in frame. Silent warning / affection via face and body only.'
+    `keep both dogs in frame. ${close}`
   )
 }
 
@@ -268,7 +304,7 @@ function unknownBeat(dogName: string, personality: DogPersonality): string {
         ? 'independent and slightly puzzled'
         : 'curious and a little unsure'
   const silent =
-    personality.vocalStyle === 'silent'
+    personality.vocalStyle === 'silent' && !usesSoftFoleyAudio(dogName, personality.vocalStyle)
       ? 'Silent “huh?” — face and body only, mouth closed, no bark.'
       : 'Curious “huh?” face toward the camera.'
   return (
@@ -277,10 +313,13 @@ function unknownBeat(dogName: string, personality: DogPersonality): string {
   )
 }
 
-function togetherUnknownBeat(): string {
+function togetherUnknownBeat(softFoley: boolean): string {
+  const close = softFoley
+    ? 'Keep both dogs in frame. Soft Foley ok; no bark.'
+    : 'Keep both dogs in frame. Silent; face and body only.'
   return (
     'Together shot: both dogs cock their heads toward the camera as if they did not catch the words — ' +
-    'curious “huh?” faces, eyes on the phone. Keep both dogs in frame. Silent; face and body only.'
+    `curious “huh?” faces, eyes on the phone. ${close}`
   )
 }
 
@@ -318,7 +357,7 @@ export function personalityBeat(
   dogName: string,
   intentId: string,
   personality: DogPersonality,
-  options?: { allowHowl?: boolean },
+  options?: { allowHowl?: boolean; softFoley?: boolean },
 ): string {
   const traits = normalizePersonality(personality)
   const dog = dogKey(dogName)
@@ -327,14 +366,15 @@ export function personalityBeat(
   const howlLike = isHowlLikeIntent(intentId)
   const playLike = isPlayLikeIntent(intentId)
   const allowHowl = options?.allowHowl ?? howlLike
+  const softFoley = options?.softFoley ?? usesSoftFoleyAudio(dogName, traits.vocalStyle)
 
   const unknownLike = isUnknownLikeIntent(intent)
   const holiday = holidaySpecFor(intentId)
 
-  if (dog === 'both' && hugLike) return togetherHugBeat()
+  if (dog === 'both' && hugLike) return togetherHugBeat(softFoley)
   if (dog === 'both' && howlLike && allowHowl) return togetherHowlBeat()
   if (dog === 'both' && playLike) return togetherPlayBeat()
-  if (dog === 'both' && unknownLike) return togetherUnknownBeat()
+  if (dog === 'both' && unknownLike) return togetherUnknownBeat(softFoley)
   if (dog === 'both' && holiday) {
     return (
       'Together memorial: keep Murphy (tan, folded ears, left) and Riley (black huskita, upright ears, right) identifiable. ' +
@@ -347,16 +387,23 @@ export function personalityBeat(
   if (playLike) return playBeat(dogName, traits)
   if (unknownLike) return unknownBeat(dogName, traits)
 
-  const notes = personalityNotesForIntent(traits, allowHowl)
+  const notes = personalityNotesForIntent(traits, { allowHowl, softFoley })
   const flavor = traitFlavor(traits)
   return [flavor, notes].filter(Boolean).join(' ')
 }
 
-function intentMotion(input: SuggestPromptInput, allowHowl: boolean, allowPlayHuff: boolean, personality: DogPersonality): string {
+function intentMotion(
+  input: SuggestPromptInput,
+  allowHowl: boolean,
+  allowPlayHuff: boolean,
+  personality: DogPersonality,
+  softFoley: boolean,
+): string {
   const intent = normalizeIntent(input.intentId)
   const variant = input.slotLabel.trim()
   const variantBit = variant ? ` Variant beat: ${variant}.` : ''
-  const silent = allowHowl || allowPlayHuff ? '' : ' Mouth closed. Face and body only.'
+  const skipClosedMouth = allowHowl || allowPlayHuff || (softFoley && wantsOpenMouthOrExcited(input))
+  const silent = skipClosedMouth ? '' : ' Mouth closed. Face and body only.'
   const energy = energyMotionPhrase(personality.energy)
   const energyBit = energy ? ` ${energy}` : ''
   const holiday = holidaySpecFor(input.intentId, input.intentDescription)
@@ -458,13 +505,14 @@ export function suggestClipPrompt(input: SuggestPromptInput): string {
   const personality = normalizePersonality(input.personality)
   const allowHowl = allowsHowlVocalization(input)
   const allowPlayHuff = allowsPlayHuff(input)
+  const softFoley = usesSoftFoleyAudio(dogName, personality.vocalStyle)
   const holiday = isHolidayLikeIntent(intentId, intentDescription)
-  const beat = personalityBeat(dogName, intentId, personality, { allowHowl })
-  const motion = intentMotion(input, allowHowl, allowPlayHuff, personality)
+  const beat = personalityBeat(dogName, intentId, personality, { allowHowl, softFoley })
+  const motion = intentMotion(input, allowHowl, allowPlayHuff, personality, softFoley)
   const notes = input.userNotes?.trim()
 
   const lines = [
-    audioBlock(personality, { allowHowl, allowPlayHuff }),
+    audioBlock(personality, { allowHowl, allowPlayHuff, softFoley }),
     lockedCameraBlock(),
     holiday
       ? holidayDurationLine()

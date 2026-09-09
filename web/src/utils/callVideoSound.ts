@@ -81,6 +81,7 @@ export type PlayableVideo = {
 
 /**
  * Play a call clip with sound after the user has interacted (Accept / debug tap).
+ * Applies to every reaction with an audio track (howl, soft Foley, bark) — not howl-only.
  * If unmuted autoplay is blocked, start muted so the picture still plays, then unmute.
  */
 export async function playCallVideo(

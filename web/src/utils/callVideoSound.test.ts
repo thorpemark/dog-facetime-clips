@@ -17,6 +17,16 @@ describe('playCallVideo', () => {
     expect(video.volume).toBe(1)
   })
 
+  it('unmutes any reaction with an audio track after Accept, not only howl', async () => {
+    const softFoley = mockVideo(async () => {})
+    const howl = mockVideo(async () => {})
+    await playCallVideo(softFoley, true)
+    await playCallVideo(howl, true)
+    expect(softFoley.muted).toBe(false)
+    expect(softFoley.volume).toBe(1)
+    expect(howl.muted).toBe(false)
+  })
+
   it('keeps the clip muted when sound is not unlocked', async () => {
     const video = mockVideo(async () => {})
     await playCallVideo(video, false)

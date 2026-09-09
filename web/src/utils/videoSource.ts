@@ -65,6 +65,7 @@ export function loadVideoWithFallback(
     video.removeAttribute('src')
     video.src = url
     applyCallVideoSound(video)
+    // Default on: soft Foley / howl / bark reactions all unmute after Accept.
     const wantSound =
       options.withSound !== false && isCallVideoSoundUnlocked()
     if (!wantSound) {

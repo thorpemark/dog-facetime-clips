@@ -82,7 +82,7 @@ export type TouchStyle = (typeof TOUCH_STYLES)[number]
 export interface DogPersonality {
   breed: string
   notes: string[]
-  /** How the dog typically uses its voice. Silent is silence-first. */
+  /** How the dog typically uses its voice. Silent is silence-first. Soft invites faint Foley. */
   vocalStyle: VocalStyle
   /** Register for allowed vocalization. Unused in AUDIO when vocalStyle is silent (except howl/play exceptions). */
   voiceSize: VoiceSize
