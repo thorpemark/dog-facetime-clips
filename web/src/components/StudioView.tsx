@@ -256,7 +256,8 @@ export function StudioView() {
                           the return after every reaction. Pick an attached
                           idle MP4 below, or tap <strong>Use as call idle</strong>{' '}
                           on a slot. Until one is attached, the call shows this
-                          dog’s still (never the colored placeholder).
+                          dog’s generation still (full-frame portrait) or the
+                          dog still — never the colored placeholder.
                         </p>
                         <label className="studio-field">
                           Call idle loop

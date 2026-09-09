@@ -27,28 +27,34 @@ export function ActiveCallView() {
     behaviorState,
     isMuted,
     showDebugPanel,
+    mediaPlayback,
   } = useMemorialCall()
+  const clipCall = mediaPlayback.mode === 'video'
 
   return (
-    <div className="screen active-call-screen">
-      <DualMediaView />
-      <PhotoPlaybackControls />
+    <div
+      className={`screen active-call-screen${clipCall ? ' active-call-screen--portrait' : ''}`}
+    >
+      <div className={clipCall ? 'call-stage' : 'call-stage call-stage--full'}>
+        <DualMediaView />
+        <PhotoPlaybackControls />
 
-      <div className="call-overlay">
-        <header className="call-header">
-          <h2>{profile.dogName}</h2>
-          <div className="call-status">
-            <span className="status-dot" />
-            {statusText(behaviorState, isMuted)}
-          </div>
-        </header>
+        <div className="call-overlay">
+          <header className="call-header">
+            <h2>{profile.dogName}</h2>
+            <div className="call-status">
+              <span className="status-dot" />
+              {statusText(behaviorState, isMuted)}
+            </div>
+          </header>
 
-        <div className="call-footer">
-          <div className="pip-row">
-            <CameraPreviewPlaceholder />
+          <div className="call-footer">
+            <div className="pip-row">
+              <CameraPreviewPlaceholder />
+            </div>
+            <CallControlsView />
+            {showDebugPanel && <DebugPanelView />}
           </div>
-          <CallControlsView />
-          {showDebugPanel && <DebugPanelView />}
         </div>
       </div>
     </div>

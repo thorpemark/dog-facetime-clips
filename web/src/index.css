@@ -316,6 +316,43 @@ button {
   background: #000;
 }
 
+.active-call-screen--portrait {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #0b0b10;
+}
+
+.active-call-screen--portrait .call-stage {
+  flex: 0 0 auto;
+}
+
+.call-stage {
+  position: relative;
+  height: 100%;
+  width: min(100%, calc(100dvh * 9 / 16));
+  max-width: 100%;
+  aspect-ratio: 9 / 16;
+  overflow: hidden;
+  background: #000;
+}
+
+.call-stage--full {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  aspect-ratio: auto;
+}
+
+@media (max-aspect-ratio: 9/16) {
+  .active-call-screen--portrait .call-stage {
+    width: 100%;
+    height: min(100%, calc(100dvw * 16 / 9));
+  }
+}
+
 .dual-video {
   position: absolute;
   inset: 0;
@@ -332,6 +369,11 @@ button {
   height: 100%;
   object-fit: cover;
   z-index: 1;
+}
+
+.dual-video--clip .video-layer {
+  object-fit: contain;
+  background: #000;
 }
 
 .call-idle-still-layer {
@@ -358,6 +400,11 @@ button {
 
 .call-idle-still--wide {
   object-position: 50% 58%;
+}
+
+.call-idle-still--contain {
+  object-fit: contain;
+  object-position: center;
 }
 
 .call-overlay {

@@ -1,10 +1,13 @@
 /**
  * Resolve which still / idle clip a demo or Studio-backed call should show.
  *
- * Seed dogs stay locked to their mode photo (`modes/murphy.jpg` tan folded-ear
- * huskita, `modes/riley.jpg` black huskita, `modes/both.jpg` together). Stale
- * localStorage publicPaths that point at another dog’s still are ignored.
- * User-attached photos/videos (IndexedDB blob) win once hydrated.
+ * Picker / incoming avatars stay on the mode photo (`modes/murphy.jpg` tan
+ * folded-ear huskita, `modes/riley.jpg` black huskita, `modes/both.jpg`
+ * together). The FaceTime hold after Accept prefers the Studio generation
+ * still (full-frame kitchen portrait) and a 9:16 clip stage — never the
+ * landscape head-crop used for desktop photo memorials. Stale localStorage
+ * publicPaths that point at another dog’s still are ignored. User-attached
+ * photos/videos (IndexedDB blob) win once hydrated.
  */
 import type { ClipSlot, ClipSourcePhoto, DogLibrary } from '../types/clipStudio'
 import {
@@ -16,7 +19,11 @@ import {
 } from '../data/callModes'
 import { IDLE_CLIP_PATHS } from '../data/reactionCatalog'
 import { publicAssetUrl } from '../lib/urls'
-import type { DualFraming } from './focalPoint'
+import {
+  fullImageDualFraming,
+  type DisplayOrientation,
+  type DualFraming,
+} from './focalPoint'
 
 export interface IdentityStill {
   url: string
@@ -115,6 +122,28 @@ function stillFromPhoto(
   }
 }
 
+function stillFromModeForCall(mode: CallMode): IdentityStill {
+  return {
+    url: modePhotoUrl(mode),
+    publicPath: mode.photoPath,
+    framing: fullImageDualFraming(mode.imageAspect),
+    imageAspect: mode.imageAspect,
+  }
+}
+
+function stillFromGenerationPhoto(
+  photo: ClipSourcePhoto | null | undefined,
+): IdentityStill | null {
+  if (!photo) return null
+  const url = displayUrlForPhoto(photo)
+  if (!url) return null
+  return {
+    url,
+    publicPath: photo.publicPath,
+    framing: structuredClone(photo.framing ?? fullImageDualFraming()),
+  }
+}
+
 function idleSlots(dog?: DogLibrary | null): ClipSlot[] {
   if (!dog) return []
   return dog.intents.find((intent) => intent.id === 'idle')?.clipSlots ?? []
@@ -157,6 +186,36 @@ export function identityStillForDog(
   }
 
   return fallback
+}
+
+/**
+ * Still shown on the FaceTime hold after Accept. Generation still (the
+ * portrait used for clips) wins; picker avatars stay on `modes/*.jpg`.
+ * Mode-photo fallback is full-frame, not the landscape head crop.
+ */
+export function callIdleStillForDog(
+  dogName?: string,
+  dog?: DogLibrary | null,
+): IdentityStill | null {
+  const generation = stillFromGenerationPhoto(dog?.generationPhoto)
+  if (generation) return generation
+
+  const identity = identityStillForDog(dogName, dog)
+  const mode =
+    callModeForName(dogName) ?? callModeForName(dog?.name) ?? callModeForName(dog?.id)
+  if (identity && isModeAssetPath(identity.publicPath) && mode) {
+    return stillFromModeForCall(mode)
+  }
+  return identity
+}
+
+/** Clip-mode Sample Call stays 9:16 even on a landscape desktop window. */
+export function orientationForClipCall(
+  mediaMode: 'photos' | 'video',
+  windowOrientation: DisplayOrientation,
+): DisplayOrientation {
+  if (mediaMode === 'video') return 'portrait'
+  return windowOrientation
 }
 
 function playableIdleSlots(dog?: DogLibrary | null): ClipSlot[] {
@@ -212,8 +271,8 @@ export function hasPendingChosenIdle(dog?: DogLibrary | null): boolean {
 
 /**
  * Looping FaceTime hold: Mark's chosen/first attached idle MP4, else the
- * identity still. Placeholder slate-blue idle MP4s are last resort when
- * there is no still at all.
+ * generation still (full-frame portrait) or dog still. Placeholder slate-blue
+ * idle MP4s are last resort when there is no still at all.
  */
 export function resolveIdlePlayback(
   dogName?: string,
@@ -223,7 +282,7 @@ export function resolveIdlePlayback(
   const userUrls = userIdlePlaybackUrls(dog)
   if (userUrls.length > 0) return { kind: 'user-video', urls: userUrls }
 
-  const still = identityStillForDog(dogName, dog)
+  const still = callIdleStillForDog(dogName, dog)
   if (still?.url || hasProfileStill || hasPendingChosenIdle(dog)) {
     return { kind: 'still', url: still?.url ?? '' }
   }

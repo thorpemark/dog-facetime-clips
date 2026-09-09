@@ -20,7 +20,7 @@ Murphy, Riley, and **Both** ship as seed dogs (huskitas) with baked stills in `w
 
 Those stills are the Studio tab avatars, the home/demo three-mode picker cards, and incoming-call faces. They are **not** the still Grok uses for new clips. Seed **idle + name / come / hug / howl / unknown** slots start with a copy of that mode photo for the first library. Set each dog’s **Generation still** to the portrait you already used for keepers so later intents match those videos. Reset seed from the bottom of Studio if you want to start over in this browser.
 
-**Call idle (looping FaceTime hold):** the `idle` intent is what you see after Accept and after every reaction. Attach a short MP4 on an idle slot, then pick it in the **Call idle loop** dropdown (or tap **Use as call idle** on the slot). First attached idle is the default until you choose. The demo loops that clip with a short crossfade back from reactions. If nothing is attached yet, the call holds the correct dog still — not the colored placeholder slab. Preference is stored on the dog in localStorage and does not wipe other attachments.
+**Call idle (looping FaceTime hold):** the `idle` intent is what you see after Accept and after every reaction. Attach a short MP4 on an idle slot, then pick it in the **Call idle loop** dropdown (or tap **Use as call idle** on the slot). First attached idle is the default until you choose. Sample Call / demo plays that clip in a **9:16 portrait** FaceTime stage (same framing as the kitchen generation still — full sit, not a landscape head crop). If nothing is attached yet, the call holds the **generation still** at full frame, or the dog still — not the colored placeholder slab and not `modes/*.jpg` landscape closeup. Preference is stored on the dog in localStorage and does not wipe other attachments.
 
 ## Generation still (video source)
 
@@ -208,4 +208,4 @@ Weights are relative (40/30/30 ≡ 4/3/3). Playback picks with `pickWeightedClip
 | `/demo` | Three-mode picker (Murphy / Riley / Both) |
 | `/demo?dog=Riley` | Sample call using that dog’s library (no memorial photos → clip mode) |
 
-Playback and matching read the Studio library for the active dog name (Murphy / Riley / Both / whatever you added). Demo calls keep **clip mode** (`photoUrls` empty) so placeholder / attached MP4s still play. The mode photo is also used as an idle still behind the video so the dog is visible if a clip file is missing.
+Playback and matching read the Studio library for the active dog name (Murphy / Riley / Both / whatever you added). Demo calls keep **clip mode** (`photoUrls` empty) so attached MP4s still play. After Accept the hold is a **9:16 portrait** stage: the chosen **Call idle loop** if one is attached, otherwise the **generation still** (full-frame portrait). Home / incoming avatars stay on `modes/*.jpg`.

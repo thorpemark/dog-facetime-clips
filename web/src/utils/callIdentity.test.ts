@@ -4,9 +4,11 @@ import { createSeedStudioState } from '../data/clipStudioSeed'
 import type { ClipSlot, ClipSourcePhoto, DogLibrary } from '../types/clipStudio'
 import {
   attachedIdleSlots,
+  callIdleStillForDog,
   chosenIdleSlot,
   identityStillForDog,
   isMismatchedModePhoto,
+  orientationForClipCall,
   repairSeedIdentityPhotos,
   resolveIdlePlayback,
   userIdlePlaybackUrls,
@@ -134,6 +136,35 @@ describe('identity stills', () => {
     }
     expect(identityStillForDog('Murphy', withGeneration)?.publicPath).toBe('modes/murphy.jpg')
     expect(identityStillForDog('Murphy', withGeneration)?.url).toMatch(/modes\/murphy\.jpg$/)
+    expect(callIdleStillForDog('Murphy', withGeneration)?.url).toBe('blob:murphy-portrait')
+    expect(callIdleStillForDog('Murphy', withGeneration)?.framing.portrait.cropWidth ?? 1).toBe(1)
+    expect(callIdleStillForDog('Murphy', withGeneration)?.framing.landscape.cropHeight ?? 1).toBe(1)
+  })
+})
+
+describe('call idle still', () => {
+  it('uses full-frame mode photo, not the landscape head crop', () => {
+    const seed = createSeedStudioState()
+    const murphy = seed.dogs.find((dog) => dog.id === 'murphy')
+    const still = callIdleStillForDog('Murphy', murphy)
+    const landscapeHeadCrop = CALL_MODES[0].framing.landscape.cropHeight
+
+    expect(still?.publicPath).toBe('modes/murphy.jpg')
+    expect(still?.framing.portrait.cropWidth).toBe(1)
+    expect(still?.framing.portrait.cropHeight).toBe(1)
+    expect(still?.framing.landscape.cropWidth).toBe(1)
+    expect(still?.framing.landscape.cropHeight).toBe(1)
+    expect(landscapeHeadCrop).toBeLessThan(1)
+    expect(still?.framing.landscape.cropHeight).not.toBe(landscapeHeadCrop)
+  })
+})
+
+describe('clip call orientation', () => {
+  it('keeps sample/clip calls in portrait on a landscape window', () => {
+    expect(orientationForClipCall('video', 'landscape')).toBe('portrait')
+    expect(orientationForClipCall('video', 'portrait')).toBe('portrait')
+    expect(orientationForClipCall('photos', 'landscape')).toBe('landscape')
+    expect(orientationForClipCall('photos', 'portrait')).toBe('portrait')
   })
 })
 
@@ -254,6 +285,62 @@ describe('idle playback plan', () => {
       kind: 'user-video',
       urls: ['blob:idle-b', 'blob:idle-a'],
     })
+  })
+
+  it('holds the generation still when no idle MP4 is attached', () => {
+    const seed = createSeedStudioState()
+    const murphy = seed.dogs.find((dog) => dog.id === 'murphy')
+    if (!murphy) throw new Error('missing murphy')
+    const withGeneration: DogLibrary = {
+      ...murphy,
+      generationPhoto: {
+        ...userPhoto('blob:kitchen'),
+        blobKey: 'photo:generation:murphy:kitchen',
+      },
+    }
+
+    expect(resolveIdlePlayback('Murphy', withGeneration)).toEqual({
+      kind: 'still',
+      url: 'blob:kitchen',
+    })
+  })
+
+  it('prefers attached idle video over the generation still', () => {
+    const seed = createSeedStudioState()
+    const murphy = seed.dogs.find((dog) => dog.id === 'murphy')
+    if (!murphy) throw new Error('missing murphy')
+    const withBoth: DogLibrary = {
+      ...murphy,
+      generationPhoto: {
+        ...userPhoto('blob:kitchen'),
+        blobKey: 'photo:generation:murphy:kitchen',
+      },
+      intents: murphy.intents.map((intent) =>
+        intent.id === 'idle'
+          ? {
+              ...intent,
+              clipSlots: intent.clipSlots.map((slot, index) =>
+                index === 0
+                  ? {
+                      ...slot,
+                      resultVideo: {
+                        objectUrl: 'blob:idle-user',
+                        origin: 'user' as const,
+                        blobKey: 'video:idle',
+                      },
+                    }
+                  : slot,
+              ),
+            }
+          : intent,
+      ),
+    }
+
+    expect(resolveIdlePlayback('Murphy', withBoth)).toEqual({
+      kind: 'user-video',
+      urls: ['blob:idle-user'],
+    })
+    expect(callIdleStillForDog('Murphy', withBoth)?.url).toBe('blob:kitchen')
   })
 
   it('falls back to the Murphy still instead of placeholder idle', () => {

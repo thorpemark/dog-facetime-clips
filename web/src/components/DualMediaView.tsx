@@ -1,8 +1,11 @@
-import type { CSSProperties } from 'react'
+import { useEffect, useState, type CSSProperties } from 'react'
 import { useMemorialCall } from '../context/MemorialCallContext'
 import { useDisplayOrientation } from '../hooks/useDisplayOrientation'
-import { identityStillForDog } from '../utils/callIdentity'
-import { findDog, getStudioState } from '../utils/clipStudioStore'
+import {
+  callIdleStillForDog,
+  orientationForClipCall,
+} from '../utils/callIdentity'
+import { findDog, getStudioState, subscribeStudio } from '../utils/clipStudioStore'
 import { focalForOrientation, photoSourceFromFraming } from '../utils/focalPoint'
 import { FocalPhotoLayer } from './FocalPhotoLayer'
 
@@ -15,10 +18,11 @@ function photoLayerWrapperStyle(
 
 export function DualMediaView() {
   const { mediaPlayback, profile } = useMemorialCall()
-  const displayOrientation = useDisplayOrientation()
-  const identityStill =
-    identityStillForDog(profile.dogName, findDog(getStudioState(), profile.dogName))
-  const idleStillUrl = identityStill?.url ?? profile.avatarUrl
+  const windowOrientation = useDisplayOrientation()
+  const [studioTick, setStudioTick] = useState(0)
+
+  useEffect(() => subscribeStudio(() => setStudioTick((tick) => tick + 1)), [])
+
   const {
     mode,
     primaryRef,
@@ -35,6 +39,14 @@ export function DualMediaView() {
     idleAnimationMs,
     crossfadeMs,
   } = mediaPlayback
+
+  void studioTick
+  const displayOrientation = orientationForClipCall(mode, windowOrientation)
+  const idleStill = callIdleStillForDog(
+    profile.dogName,
+    findDog(getStudioState(), profile.dogName),
+  )
+  const idleStillUrl = idleStill?.url ?? profile.avatarUrl
 
   const transition = `opacity ${crossfadeMs}ms ease-in-out`
   const kenBurnsStyle = {
@@ -79,16 +91,16 @@ export function DualMediaView() {
     )
   }
 
-  const idlePhoto = identityStill
-    ? photoSourceFromFraming(identityStill.url, identityStill.framing, true)
+  const idlePhoto = idleStill
+    ? photoSourceFromFraming(idleStill.url, idleStill.framing, true)
     : null
   const idleFocal = idlePhoto
-    ? focalForOrientation(idlePhoto, displayOrientation)
+    ? focalForOrientation(idlePhoto, displayOrientation, idleStill?.imageAspect)
     : null
 
   return (
     <div
-      className={`dual-video${idleVisual === 'still' ? ' dual-video--still-idle' : ''}`}
+      className={`dual-video dual-video--clip${idleVisual === 'still' ? ' dual-video--still-idle' : ''}`}
       style={kenBurnsStyle}
     >
       {idleStillUrl && (
@@ -97,17 +109,13 @@ export function DualMediaView() {
             <FocalPhotoLayer
               imageUrl={idleStillUrl}
               focal={idleFocal}
-              imageAspect={identityStill?.imageAspect}
+              imageAspect={idleStill?.imageAspect}
               displayOrientation={displayOrientation}
               className="photo-layer"
-              motionClassName="photo-layer-media motion-idle"
+              motionClassName="photo-layer-media"
             />
           ) : (
-            <img
-              className={`call-idle-still${profile.dogName.toLowerCase() === 'both' ? ' call-idle-still--wide' : ''}`}
-              src={idleStillUrl}
-              alt=""
-            />
+            <img className="call-idle-still call-idle-still--contain" src={idleStillUrl} alt="" />
           )}
         </div>
       )}
