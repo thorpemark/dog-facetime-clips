@@ -46,7 +46,19 @@ export function unlockCallVideoSound(unlockAudio?: HTMLAudioElement | null): voi
   if (!unlockAudio) return
   unlockAudio.muted = false
   unlockAudio.volume = 0.01
+  unlockAudio.loop = true
   void unlockAudio.play().catch(() => {})
+}
+
+export function releaseCallAudioUnlock(unlockAudio?: HTMLAudioElement | null): void {
+  if (!unlockAudio) return
+  unlockAudio.loop = false
+  unlockAudio.pause()
+  try {
+    unlockAudio.currentTime = 0
+  } catch {
+    /* ignore */
+  }
 }
 
 export function applyCallVideoSound(video: HTMLVideoElement | null): void {

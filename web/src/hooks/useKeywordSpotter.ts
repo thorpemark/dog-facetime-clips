@@ -8,6 +8,12 @@ import {
   type TranscriptMatch,
 } from '../utils/matchTranscript'
 import {
+  attachSilentMicHold,
+  speechRestartDelayMs,
+  speechRestartMinIntervalMs,
+  stopMediaStream,
+} from '../utils/micSession'
+import {
   holdLatestFinal,
   isEchoOfLastReaction,
   takePendingIfFresh,
@@ -24,6 +30,16 @@ function getSpeechRecognition(): SpeechRecognitionCtor | null {
   return w.SpeechRecognition ?? w.webkitSpeechRecognition ?? null
 }
 
+function audioContextCtor(): typeof AudioContext | undefined {
+  const w = window as Window & { webkitAudioContext?: typeof AudioContext }
+  return window.AudioContext ?? w.webkitAudioContext
+}
+
+/**
+ * One mic session per listen period (Accept → End / Mute).
+ * Safari iOS re-shows “Microphone access allowed” (and may beep) if
+ * SpeechRecognition is aborted and reconstructed on every onend.
+ */
 export function useKeywordSpotter(onMatch: (ruleId: string) => void) {
   const [isListening, setIsListening] = useState(false)
   const [lastTranscript, setLastTranscript] = useState('')
@@ -32,7 +48,14 @@ export function useKeywordSpotter(onMatch: (ruleId: string) => void) {
   const [speechError, setSpeechError] = useState<string | null>(null)
 
   const recognitionRef = useRef<SpeechRecognition | null>(null)
+  const sessionActiveRef = useRef(false)
   const shouldListenRef = useRef(false)
+  const runningRef = useRef(false)
+  const restartTimerRef = useRef<number | null>(null)
+  const lastStartAtRef = useRef(0)
+  const micStreamRef = useRef<MediaStream | null>(null)
+  const micHoldCleanupRef = useRef<(() => void) | null>(null)
+  const audioContextRef = useRef<AudioContext | null>(null)
   const rulesRef = useRef<KeywordRule[]>([])
   const dogNameRef = useRef('')
   const ownerNameRef = useRef('')
@@ -116,17 +139,60 @@ export function useKeywordSpotter(onMatch: (ruleId: string) => void) {
     [flushPending],
   )
 
-  const startRecognition = useCallback(() => {
-    const Ctor = getSpeechRecognition()
-    if (!Ctor || !shouldListenRef.current) return
-    if (recognitionRef.current) return
+  const clearRestartTimer = useCallback(() => {
+    if (restartTimerRef.current) {
+      window.clearTimeout(restartTimerRef.current)
+      restartTimerRef.current = null
+    }
+  }, [])
 
-    const recognition = new Ctor()
+  const releaseMicHold = useCallback(() => {
+    micHoldCleanupRef.current?.()
+    micHoldCleanupRef.current = null
+    stopMediaStream(micStreamRef.current)
+    micStreamRef.current = null
+    const ctx = audioContextRef.current
+    audioContextRef.current = null
+    if (ctx && ctx.state !== 'closed') {
+      void ctx.close().catch(() => {})
+    }
+  }, [])
+
+  const holdMic = useCallback(() => {
+    if (micStreamRef.current) return
+    if (!navigator.mediaDevices?.getUserMedia) return
+    void navigator.mediaDevices
+      .getUserMedia({ audio: true, video: false })
+      .then((stream) => {
+        if (!sessionActiveRef.current) {
+          stopMediaStream(stream)
+          return
+        }
+        if (micStreamRef.current) {
+          stopMediaStream(stream)
+          return
+        }
+        micStreamRef.current = stream
+        const Ctor = audioContextCtor()
+        if (!Ctor) return
+        const ctx = audioContextRef.current ?? new Ctor()
+        audioContextRef.current = ctx
+        void ctx.resume()
+        micHoldCleanupRef.current = attachSilentMicHold(stream, ctx)
+      })
+      .catch(() => {
+        /* SpeechRecognition may still start; permission errors surface there */
+      })
+  }, [])
+
+  const bindRecognizer = useCallback((recognition: SpeechRecognition) => {
     recognition.continuous = true
     recognition.interimResults = true
     recognition.lang = 'en-US'
 
     recognition.onstart = () => {
+      runningRef.current = true
+      lastStartAtRef.current = Date.now()
       setIsListening(true)
       setSpeechError(null)
     }
@@ -145,30 +211,69 @@ export function useKeywordSpotter(onMatch: (ruleId: string) => void) {
       if (event.error === 'not-allowed') {
         setSpeechError('Microphone permission denied')
         shouldListenRef.current = false
+        sessionActiveRef.current = false
+        runningRef.current = false
         setIsListening(false)
-      } else if (event.error !== 'aborted' && event.error !== 'no-speech') {
+        releaseMicHold()
+        return
+      }
+      // no-speech / aborted are normal; onend restarts the same instance.
+      if (event.error !== 'aborted' && event.error !== 'no-speech') {
         setSpeechError(event.error)
       }
     }
 
     recognition.onend = () => {
-      recognitionRef.current = null
-      if (shouldListenRef.current) {
-        window.setTimeout(() => startRecognition(), 300)
-      } else {
+      runningRef.current = false
+      if (recognitionRef.current !== recognition) return
+      if (!sessionActiveRef.current || !shouldListenRef.current) {
         setIsListening(false)
+        return
       }
+      // Stay in "Listening" across Safari's obligatory onend; do not rebuild.
+      const delay = speechRestartDelayMs(
+        lastStartAtRef.current,
+        Date.now(),
+        speechRestartMinIntervalMs(
+          navigator.userAgent,
+          navigator.maxTouchPoints ?? 0,
+        ),
+      )
+      clearRestartTimer()
+      restartTimerRef.current = window.setTimeout(() => {
+        restartTimerRef.current = null
+        if (recognitionRef.current !== recognition) return
+        if (!sessionActiveRef.current || !shouldListenRef.current) return
+        if (runningRef.current) return
+        try {
+          recognition.start()
+        } catch {
+          /* InvalidStateError: already started */
+        }
+      }, delay)
+    }
+  }, [clearRestartTimer, releaseMicHold])
+
+  const startRecognition = useCallback(() => {
+    const Ctor = getSpeechRecognition()
+    if (!Ctor || !shouldListenRef.current || !sessionActiveRef.current) return
+
+    holdMic()
+
+    let recognition = recognitionRef.current
+    if (!recognition) {
+      recognition = new Ctor()
+      bindRecognizer(recognition)
+      recognitionRef.current = recognition
     }
 
-    recognitionRef.current = recognition
+    if (runningRef.current) return
     try {
       recognition.start()
     } catch {
-      recognitionRef.current = null
-      setSpeechError('Could not start speech recognition')
-      setIsListening(false)
+      /* already started */
     }
-  }, [])
+  }, [bindRecognizer, holdMic])
 
   const startListening = useCallback(
     (rules: KeywordRule[], dogName: string, ownerName: string) => {
@@ -176,6 +281,9 @@ export function useKeywordSpotter(onMatch: (ruleId: string) => void) {
       dogNameRef.current = dogName
       ownerNameRef.current = ownerName
       shouldListenRef.current = true
+      const already = sessionActiveRef.current && recognitionRef.current
+      sessionActiveRef.current = true
+      if (already) return
       startRecognition()
     },
     [startRecognition],
@@ -183,14 +291,23 @@ export function useKeywordSpotter(onMatch: (ruleId: string) => void) {
 
   const stopListening = useCallback((options?: { clearPending?: boolean }) => {
     shouldListenRef.current = false
+    sessionActiveRef.current = false
     canProcessRef.current = false
-    recognitionRef.current?.stop()
+    runningRef.current = false
+    clearRestartTimer()
+    const recognition = recognitionRef.current
     recognitionRef.current = null
+    try {
+      recognition?.stop()
+    } catch {
+      /* already stopped */
+    }
+    releaseMicHold()
     setIsListening(false)
     if (options?.clearPending !== false) {
       pendingRef.current = null
     }
-  }, [])
+  }, [clearRestartTimer, releaseMicHold])
 
   const triggerPhrase = useCallback(
     (phrase: string) => {
@@ -202,9 +319,17 @@ export function useKeywordSpotter(onMatch: (ruleId: string) => void) {
   useEffect(() => {
     return () => {
       shouldListenRef.current = false
-      recognitionRef.current?.abort()
+      sessionActiveRef.current = false
+      clearRestartTimer()
+      try {
+        recognitionRef.current?.stop()
+      } catch {
+        /* unmount */
+      }
+      recognitionRef.current = null
+      releaseMicHold()
     }
-  }, [])
+  }, [clearRestartTimer, releaseMicHold])
 
   return {
     isListening,
