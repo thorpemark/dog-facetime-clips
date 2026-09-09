@@ -828,7 +828,7 @@ export function suggestClipPrompt(input: SuggestPromptInput): string {
     lockedCameraBlock(),
     holiday
       ? holidayDurationLine()
-      : 'Grok Imagine image-to-video, 6s, 9:16. One continuous shot: reaction peaks in the first ~2–3 seconds, then return to a calm FaceTime idle — the exact sitting pose of the source still — and hold. Do not freeze mid-lick, mid-bow, or off-center. Camera stays perfectly still; only the dog moves. Same crop first-to-last — no cut, no morph, no fade.',
+      : 'Grok Imagine image-to-video, 6s, 9:16. One continuous shot: reaction peaks in the first ~2–3 seconds, then return to a calm FaceTime idle — the exact sitting pose of the source still — and hold so playback can loop back to idle without a jump. Do not freeze mid-lick, mid-bow, off-center, or in a different pose. Camera stays perfectly still; only the dog moves. Same crop first-to-last — no cut, no morph, no fade.',
     'Natural lighting, no text, no extra animals.',
     breedLine(dogName, personality),
     beat ? `Personality: ${beat}` : '',

@@ -888,7 +888,8 @@ describe('suggestClipPrompt', () => {
       expect(prompt, row.intentId).toMatch(row.must)
       expect(prompt, row.intentId).not.toMatch(row.mustNot)
       expect(prompt, row.intentId).toMatch(/exact sitting pose of the source still/)
-      expect(prompt, row.intentId).toMatch(/Do not freeze mid-lick, mid-bow, or off-center/)
+      expect(prompt, row.intentId).toMatch(/loop back to idle without a jump/)
+      expect(prompt, row.intentId).toMatch(/Do not freeze mid-lick, mid-bow, off-center, or in a different pose/)
       expect(classifySuggestIntent(row)).toBe(row.family)
       if (row.intentId !== 'howl' && row.intentId !== 'play') {
         expect(prompt, row.intentId).toMatch(/Soft Foley wanted/)
@@ -922,6 +923,8 @@ describe('suggestClipPrompt', () => {
     expect(halloween).not.toMatch(/Correction beat/)
     expect(halloween).not.toMatch(/Food-interest/)
     expect(halloween).not.toMatch(/peaks in the first ~2–3 seconds/)
+    expect(halloween).not.toMatch(/loop back to idle without a jump/)
+    expect(halloween).toMatch(/exact sitting pose in the source still/)
     expect(classifySuggestIntent({ intentId: 'halloween', intentDescription: 'Halloween' })).toBe(
       'holiday',
     )
