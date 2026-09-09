@@ -460,20 +460,25 @@ function holidayCostumeWalkMotion(
   together: boolean,
 ): string {
   const noFade =
-    'No fade, dissolve, transition, cut, or morph — one continuous shot. Costume appears or vanishes the instant they re-enter, not a dissolve. '
+    'No fade, dissolve, transition, cut, or morph — one continuous shot. ' +
+    'Costume appears or vanishes the instant they re-enter, not a dissolve. '
   if (together) {
     return (
-      `Together shot: both dogs stay identifiable (Murphy left, Riley right). ` +
+      `Together shot: both dogs do this same costume-walk pattern and both dogs stay identifiable (Murphy left, Riley right). ` +
       `This exact pair walks completely off camera to the left (fully out of frame). ${noFade}` +
-      `They instantly return wearing ${spec.costume}, look right at the camera with eye contact as they walk completely off screen on the right, ` +
-      `then instantly return without any costume, still the exact same two dogs, and sit in the exact sitting positions in the source image. ` +
+      `They instantly come back wearing ${spec.costume}, look right at the camera with eye contact while crossing the screen, ` +
+      `then walk completely off screen on the right. ` +
+      `They instantly walk back in without any costume (costume gone the instant they re-enter) ` +
+      `and sit in the exact original sitting positions in the source still, still the exact same two dogs. ` +
       `Do not swap coats or places. Keep both in frame whenever they are on screen.`
     )
   }
   return (
     `this exact dog walks completely off camera to the left (fully out of frame). ${noFade}` +
-    `They instantly return wearing ${spec.costume} and look right at the camera as they walk completely off screen on the right, ` +
-    `then instantly return without any costume, still the exact same dog, and sit in the exact sitting position in the source image.`
+    `They instantly come back wearing ${spec.costume}, look right at the camera with eye contact while crossing the screen, ` +
+    `and walk completely off screen on the right. ` +
+    `They instantly walk back in without any costume (costume gone the instant they re-enter), ` +
+    `still the exact same dog, and sit in the exact original sitting position of the source still.`
   )
 }
 
@@ -481,8 +486,8 @@ function holidayDurationLine(): string {
   return (
     'Grok Imagine image-to-video, 10s, 9:16. One continuous shot — locked camera; only the dog moves. ' +
     'No fades, dissolves, transitions, cuts, or morphs. Costume walk (choose 10s or 15s in Grok Imagine; do not use 6s): ' +
-    'walk completely off one side, instantly re-enter in costume, walk across with eye contact, walk completely off the other side, ' +
-    'instantly re-enter without costume and sit in the exact sitting pose in the source still. ' +
+    '(1) walk completely off screen one side; (2) instantly come back in holiday costume, eye contact while crossing, ' +
+    'walk completely off the other side; (3) instantly walk back in without costume and sit in the exact original position of the source still. ' +
     'Do not use the usual 6s react-then-idle arc.'
   )
 }

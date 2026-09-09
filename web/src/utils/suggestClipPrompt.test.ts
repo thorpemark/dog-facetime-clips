@@ -694,10 +694,13 @@ describe('suggestClipPrompt', () => {
     expect(thanksgiving).toMatch(/walks completely off camera to the left/i)
     expect(thanksgiving).toMatch(/look right at the camera/)
     expect(thanksgiving).toMatch(/walk completely off screen on the right/)
+    expect(thanksgiving).toMatch(/eye contact while crossing/)
+    expect(thanksgiving).toMatch(/instantly come back wearing/)
+    expect(thanksgiving).toMatch(/instantly walk back in without any costume/)
     expect(thanksgiving).toMatch(/No fade, dissolve/)
     expect(thanksgiving).toMatch(/Costume appears or vanishes the instant they re-enter/)
     expect(thanksgiving).toMatch(/without any costume/)
-    expect(thanksgiving).toMatch(/exact sitting position/)
+    expect(thanksgiving).toMatch(/exact original sitting position/)
     expect(thanksgiving).toMatch(/Do not use the usual 6s/)
     expect(thanksgiving).not.toMatch(/peaks in the first ~2–3 seconds/)
     expect(thanksgiving).not.toMatch(INVITING_SOUND)
@@ -709,6 +712,7 @@ describe('suggestClipPrompt', () => {
     expect(halloween).not.toMatch(/not sound/)
     expect(halloween).toMatch(/10s/)
 
+    expect(bothChristmas).toMatch(/both dogs do this same costume-walk pattern/i)
     expect(bothChristmas).toMatch(/both dogs stay identifiable/i)
     expect(bothChristmas).toMatch(/Santa hat/)
     expect(bothChristmas).toMatch(/Do not swap coats/)
@@ -924,7 +928,7 @@ describe('suggestClipPrompt', () => {
     expect(halloween).not.toMatch(/Food-interest/)
     expect(halloween).not.toMatch(/peaks in the first ~2–3 seconds/)
     expect(halloween).not.toMatch(/loop back to idle without a jump/)
-    expect(halloween).toMatch(/exact sitting pose in the source still/)
+    expect(halloween).toMatch(/exact original sitting position of the source still/)
     expect(classifySuggestIntent({ intentId: 'halloween', intentDescription: 'Halloween' })).toBe(
       'holiday',
     )
