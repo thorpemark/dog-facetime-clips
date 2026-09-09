@@ -33,6 +33,15 @@ export const STUDIO_STORAGE_KEY = 'dog-facetime-clips.studio.v1'
 const listeners = new Set<() => void>()
 let memory: ClipStudioState | null = null
 let revision = 0
+let skipCloudPush = false
+let cloudSyncHandler: ((state: ClipStudioState) => void) | null = null
+
+/** Debounced cloud upsert; StudioSyncProvider registers this when signed in. */
+export function setStudioCloudSyncHandler(
+  handler: ((state: ClipStudioState) => void) | null,
+): void {
+  cloudSyncHandler = handler
+}
 
 function canUseStorage(): boolean {
   return typeof window !== 'undefined' && typeof window.localStorage !== 'undefined'
@@ -188,26 +197,38 @@ function rehydratePublicPhotos(state: ClipStudioState): ClipStudioState {
   return next
 }
 
-function persist(state: ClipStudioState): void {
-  if (!canUseStorage()) return
-  try {
-    const serializable = cloneState(state)
-    for (const dog of serializable.dogs) {
-      persistPhoto(dog.defaultPhoto)
-      persistPhoto(dog.generationPhoto)
-      for (const intent of dog.intents) {
-        for (const slot of intent.clipSlots) {
-          persistPhoto(slot.sourcePhoto)
-          if (slot.resultVideo) {
-            delete slot.resultVideo.objectUrl
-          }
+/** JSON-safe library (no blob: object URLs). IndexedDB / Storage hold the bytes. */
+export function toPersistedStudioState(state: ClipStudioState): ClipStudioState {
+  const serializable = cloneState(state)
+  for (const dog of serializable.dogs) {
+    persistPhoto(dog.defaultPhoto)
+    persistPhoto(dog.generationPhoto)
+    for (const intent of dog.intents) {
+      for (const slot of intent.clipSlots) {
+        persistPhoto(slot.sourcePhoto)
+        if (slot.resultVideo) {
+          delete slot.resultVideo.objectUrl
         }
       }
     }
-    window.localStorage.setItem(STUDIO_STORAGE_KEY, JSON.stringify(serializable))
+  }
+  return serializable
+}
+
+function persist(state: ClipStudioState): void {
+  if (!canUseStorage()) {
+    if (!skipCloudPush) cloudSyncHandler?.(state)
+    return
+  }
+  try {
+    window.localStorage.setItem(
+      STUDIO_STORAGE_KEY,
+      JSON.stringify(toPersistedStudioState(state)),
+    )
   } catch {
     /* quota / private mode */
   }
+  if (!skipCloudPush) cloudSyncHandler?.(state)
 }
 
 function readStored(): ClipStudioState | null {
@@ -586,8 +607,25 @@ export function dispatchStudio(action: StudioAction): ClipStudioState {
 }
 
 export function resetStudioToSeed(): ClipStudioState {
+  const previousSkip = skipCloudPush
+  skipCloudPush = true
   memory = createSeedStudioState()
   persist(memory)
+  skipCloudPush = previousSkip
+  notify()
+  return memory
+}
+
+/** Replace in-memory + local library. `syncCloud: false` skips the signed-in upsert (reset / inbound pull). */
+export function replaceStudioState(
+  state: ClipStudioState,
+  options?: { syncCloud?: boolean },
+): ClipStudioState {
+  const previousSkip = skipCloudPush
+  if (options?.syncCloud === false) skipCloudPush = true
+  memory = cloneState(state)
+  persist(memory)
+  skipCloudPush = previousSkip
   notify()
   return memory
 }

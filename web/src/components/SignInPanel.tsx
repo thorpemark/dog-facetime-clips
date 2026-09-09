@@ -6,9 +6,16 @@ import { consumePostAuthPath } from '../lib/authRedirect'
 interface SignInPanelProps {
   onSuccess?: () => void
   compact?: boolean
+  redirectTo?: string
+  lead?: string
 }
 
-export function SignInPanel({ onSuccess, compact = false }: SignInPanelProps) {
+export function SignInPanel({
+  onSuccess,
+  compact = false,
+  redirectTo = '/my',
+  lead,
+}: SignInPanelProps) {
   const navigate = useNavigate()
   const { signInWithEmail, verifyEmailOtp, signInWithGoogle, authAvailable } = useAuth()
   const [email, setEmail] = useState('')
@@ -19,7 +26,7 @@ export function SignInPanel({ onSuccess, compact = false }: SignInPanelProps) {
   if (!authAvailable) {
     return (
       <p className="auth-hint">
-        Sign-in requires Supabase. Connect your project to save memorials to your account.
+        Sign-in requires Supabase. Connect your project to sync Studio and save memorials.
       </p>
     )
   }
@@ -29,7 +36,7 @@ export function SignInPanel({ onSuccess, compact = false }: SignInPanelProps) {
     if (!trimmed) return
     setStatus('sending')
     setMessage(null)
-    const { error } = await signInWithEmail(trimmed)
+    const { error } = await signInWithEmail(trimmed, redirectTo)
     if (error) {
       setStatus('error')
       setMessage(error)
@@ -52,14 +59,14 @@ export function SignInPanel({ onSuccess, compact = false }: SignInPanelProps) {
       setMessage(error)
       return
     }
-    consumePostAuthPath()
-    navigate('/my', { replace: true })
+    const next = consumePostAuthPath() ?? redirectTo
+    navigate(next, { replace: true })
   }
 
   const signInGoogle = async () => {
     setStatus('sending')
     setMessage(null)
-    const { error } = await signInWithGoogle()
+    const { error } = await signInWithGoogle(redirectTo)
     if (error) {
       setStatus('error')
       setMessage(error)
@@ -69,9 +76,10 @@ export function SignInPanel({ onSuccess, compact = false }: SignInPanelProps) {
   return (
     <div className={`sign-in-panel${compact ? ' compact' : ''}`}>
       <p className="sign-in-lead">
-        {compact
-          ? 'Sign in to save memorials to your account and recover links anytime.'
-          : 'We’ll email you a magic link — no password needed.'}
+        {lead ??
+          (compact
+            ? 'Sign in to save memorials to your account and recover links anytime.'
+            : 'We’ll email you a magic link — no password needed.')}
       </p>
 
       {status === 'sent' || status === 'verifying' ? (

@@ -13,6 +13,7 @@ import {
 } from '../utils/clipStudioStore'
 import { MemorialCallFlow } from './MemorialCallFlow'
 import { ModePicker } from './ModePicker'
+import { StudioSyncCallNote } from './StudioSyncPanel'
 
 export function DemoCallView() {
   const navigate = useNavigate()
@@ -55,8 +56,10 @@ export function DemoCallView() {
             <h1>Sample call</h1>
             <p className="memorial-note">
               Clip demo stays on reaction videos. These stills are the Murphy /
-              Riley / Both avatars and Studio seed photos.
+              Riley / Both avatars and Studio seed photos. Sign in on Clip Studio
+              to use the same attached MP4s on this phone.
             </p>
+            <StudioSyncCallNote />
           </header>
           <ModePicker
             onSelect={(picked) =>

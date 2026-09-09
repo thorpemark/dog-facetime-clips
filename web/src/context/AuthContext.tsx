@@ -17,9 +17,9 @@ interface AuthContextValue {
   session: Session | null
   loading: boolean
   authAvailable: boolean
-  signInWithEmail: (email: string) => Promise<{ error: string | null }>
+  signInWithEmail: (email: string, redirectTo?: string) => Promise<{ error: string | null }>
   verifyEmailOtp: (email: string, code: string) => Promise<{ error: string | null }>
-  signInWithGoogle: () => Promise<{ error: string | null }>
+  signInWithGoogle: (redirectTo?: string) => Promise<{ error: string | null }>
   signOut: () => Promise<void>
   claimPending: () => Promise<number>
 }
@@ -70,11 +70,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [])
 
-  const signInWithEmail = useCallback(async (email: string) => {
+  const signInWithEmail = useCallback(async (email: string, redirectTo = '/my') => {
     const supabase = getSupabase()
     if (!supabase) return { error: 'Sign-in is not available in demo mode' }
 
-    setPostAuthPath('/my')
+    setPostAuthPath(redirectTo)
     const { error } = await supabase.auth.signInWithOtp({
       email: email.trim(),
       options: {
@@ -96,11 +96,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return { error: error?.message ?? null }
   }, [])
 
-  const signInWithGoogle = useCallback(async () => {
+  const signInWithGoogle = useCallback(async (redirectTo = '/my') => {
     const supabase = getSupabase()
     if (!supabase) return { error: 'Sign-in is not available in demo mode' }
 
-    setPostAuthPath('/my')
+    setPostAuthPath(redirectTo)
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {

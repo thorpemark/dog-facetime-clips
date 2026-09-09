@@ -45,6 +45,19 @@ export async function getStudioBlob(key: string): Promise<Blob | null> {
   return blob
 }
 
+export async function listStudioBlobKeys(): Promise<string[]> {
+  if (!canUseIndexedDb()) return []
+  const db = await openDb()
+  const keys = await new Promise<string[]>((resolve, reject) => {
+    const tx = db.transaction(STORE, 'readonly')
+    const req = tx.objectStore(STORE).getAllKeys()
+    req.onsuccess = () => resolve((req.result as IDBValidKey[]).map(String))
+    req.onerror = () => reject(req.error ?? new Error('indexedDB keys failed'))
+  })
+  db.close()
+  return keys
+}
+
 export async function deleteStudioBlob(key: string): Promise<void> {
   if (!canUseIndexedDb()) return
   const db = await openDb()
