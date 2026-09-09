@@ -1,6 +1,8 @@
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { useAuth } from '../context/AuthContext'
 import { StudioSlotEditor } from './StudioSlotEditor'
+import { StudioSyncPanel } from './StudioSyncPanel'
 import { useClipStudio } from '../hooks/useClipStudio'
 import {
   createDogLibrary,
@@ -34,6 +36,7 @@ export function StudioView() {
     clearPhoto,
     markNeedsRedo,
   } = useClipStudio()
+  const { user } = useAuth()
 
   const [expanded, setExpanded] = useState<Record<string, boolean>>({
     idle: true,
@@ -93,10 +96,13 @@ export function StudioView() {
             (6s for reactions, 10s/15s for holiday walks · 9:16, or Pika), then attach the MP4.
           </p>
           <p className="catalog-note">
-            Demo persistence is local to this browser (localStorage + IndexedDB).
+            Signed-in libraries sync through Supabase. Signed out, this browser
+            keeps a local demo copy (localStorage + IndexedDB).
             {intentSummary ? ` ${intentSummary}.` : ''}
           </p>
         </header>
+
+        <StudioSyncPanel />
 
         <div className="studio-dog-tabs" role="tablist" aria-label="Dogs">
           {state.dogs.map((item) => (
@@ -501,9 +507,12 @@ export function StudioView() {
             type="button"
             className="btn-text danger"
             onClick={() => {
-                if (
+              const signedInNote = user
+                ? ' This does not delete the cloud library. Sign in again or tap Sync now to restore attached videos.'
+                : ''
+              if (
                 window.confirm(
-                  'Reset all studio dogs in this browser to the baked Murphy / Riley / Both seed?',
+                  `Reset all studio dogs in this browser to the baked Murphy / Riley / Both seed?${signedInNote}`,
                 )
               ) {
                 resetStudioToSeed()

@@ -12,7 +12,7 @@ export interface ClipSourcePhoto {
   id: string
   /** Object URL, data URL, or resolved public URL for the editor / thumb. */
   url: string
-  /** IndexedDB key when persisted (demo mode). */
+  /** IndexedDB / cloud storage key when the file is not a publicPath seed still. */
   blobKey?: string
   /** Path under `web/public/` for baked seed stills (e.g. `modes/murphy.jpg`). */
   publicPath?: string
@@ -24,7 +24,7 @@ export interface ClipResultVideo {
   path?: string
   /** Session object URL for an uploaded file. */
   objectUrl?: string
-  /** IndexedDB key when persisted (demo mode). */
+  /** IndexedDB / cloud storage key when persisted. */
   blobKey?: string
   fileName?: string
   origin: VideoOrigin

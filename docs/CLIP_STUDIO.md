@@ -2,7 +2,30 @@
 
 Clip Studio (`/studio`) is the editor for **per-dog reaction libraries**. Generation happens **outside** the app (Grok Imagine, Pika, Gemini, or anything else). The app stores source still + framing + prompt + weight + attached MP4.
 
-Demo persistence uses **localStorage** (library JSON) and **IndexedDB** (photos/videos) when Supabase secrets are missing. Nothing here calls a live video API. **Suggest prompt** is a local template composer — no API key, works on GitHub Pages.
+Demo persistence uses **localStorage** (library JSON) and **IndexedDB** (photos/videos) when you are signed out or Supabase secrets are missing. **Signed in**, the same library syncs through the memorial Supabase project so PC Chrome and iPhone Chrome share dogs, generation stills, call idle, and attached MP4s. Nothing here calls a live video API. **Suggest prompt** is a local template composer — no API key, works on GitHub Pages.
+
+## Sync Studio across devices
+
+Clip Studio used to live only in **this browser**. That is why Murphy’s library on PC Chrome did not appear in phone Chrome or Keep’s in-app browser — those are separate localStorage / IndexedDB silos, even on the same GitHub Pages URL.
+
+**Fix:** sign in with the **same Google (or email) account** on every device. The app reuses the existing **Dog_memorial_facetime** Supabase project (`cqmkcuchmnehnpizapqy`) — it does **not** need a second project.
+
+1. On the **PC that already has Murphy’s videos**, open Clip Studio and sign in (Google is fine). Wait until the banner says the library is synced. Attached MP4s and generation stills upload; they are **merged**, not wiped. Do **not** tap Reset seed.
+2. On the **phone**, open the site in **Chrome** (not Keep’s in-app browser). Sign in with the **same account**. The phone downloads that library. Sample Call / Debug then play the real MP4s, not the colored placeholders.
+3. Later edits (new videos, idle pick, holiday intents) debounce-upload from whichever device you are on.
+
+**Unsigned / demo:** GitHub Pages still works with no secrets. You get the baked seed + whatever you attach in that one browser.
+
+**GitHub Pages secrets** (same as memorial sharing — no new names):
+
+| Secret | Value |
+|--------|--------|
+| `VITE_SUPABASE_URL` | `https://cqmkcuchmnehnpizapqy.supabase.co` |
+| `VITE_SUPABASE_ANON_KEY` | Project Settings → API → `anon` `public` key |
+
+If those secrets were never set, the live site cannot sign in and each browser stays isolated. Add them under **Settings → Secrets and variables → Actions**, then re-run **Deploy Web App to GitHub Pages**.
+
+Also in Supabase **Authentication → URL Configuration**, **add** (do not replace the stills-app URLs) redirect URL `https://thorpemark.github.io/dog-facetime-clips/` (site root, same as memorial sign-in on this fork). Keep `https://thorpemark.github.io/dog-facetime/` if that app already uses this project. Run [`web/supabase/migration_studio_library.sql`](../web/supabase/migration_studio_library.sql) once if you are applying SQL by hand.
 
 ## Add a dog
 
@@ -18,9 +41,9 @@ Murphy, Riley, and **Both** ship as seed dogs (huskitas) with baked stills in `w
 | **Riley** | `modes/riley.jpg` | Black-and-white huskita, upright ears — the black huskita |
 | **Both** | `modes/both.jpg` | Murphy on the left, Riley on the right |
 
-Those stills are the Studio tab avatars, the home/demo three-mode picker cards, and incoming-call faces. They are **not** the still Grok uses for new clips. Seed **idle + name / come / hug / howl / unknown** slots start with a copy of that mode photo for the first library. Set each dog’s **Generation still** to the portrait you already used for keepers so later intents match those videos. Reset seed from the bottom of Studio if you want to start over in this browser.
+Those stills are the Studio tab avatars, the home/demo three-mode picker cards, and incoming-call faces. They are **not** the still Grok uses for new clips. Seed **idle + name / come / hug / howl / unknown** slots start with a copy of that mode photo for the first library. Set each dog’s **Generation still** to the portrait you already used for keepers so later intents match those videos. Reset seed from the bottom of Studio if you want to start over **in this browser** (it does not delete a signed-in cloud library).
 
-**Call idle (looping FaceTime hold):** the `idle` intent is what you see after Accept and after every reaction. Attach a short MP4 on an idle slot, then pick it in the **Call idle loop** dropdown (or tap **Use as call idle** on the slot). First attached idle is the default until you choose. Sample Call / demo plays that clip in a **9:16 portrait** FaceTime stage (same framing as the kitchen generation still — full sit, not a landscape head crop). If nothing is attached yet, the call holds the **generation still** at full frame, or the dog still — not the colored placeholder slab and not `modes/*.jpg` landscape closeup. Preference is stored on the dog in localStorage and does not wipe other attachments.
+**Call idle (looping FaceTime hold):** the `idle` intent is what you see after Accept and after every reaction. Attach a short MP4 on an idle slot, then pick it in the **Call idle loop** dropdown (or tap **Use as call idle** on the slot). First attached idle is the default until you choose. Sample Call / demo plays that clip in a **9:16 portrait** FaceTime stage (same framing as the kitchen generation still — full sit, not a landscape head crop). If nothing is attached yet, the call holds the **generation still** at full frame, or the dog still — not the colored placeholder slab and not `modes/*.jpg` landscape closeup. Preference is stored on the dog (local + cloud when signed in) and does not wipe other attachments.
 
 ## Generation still (video source)
 
@@ -33,7 +56,7 @@ Each dog has one **clip source portrait** — the still you already used to gene
 5. **Apply generation still to all clip slots (full frame)** does the same pass later (for example if the still was set before this existed, or you replaced the portrait). Custom unique slot photos (a crop you uploaded that is not the seed avatar) are kept.
 6. **Add intent** / **Add clip variant**. New slots copy that exact portrait at full frame so future clips match the identity and framing of the videos you already like.
 
-Do this once per dog. Persists with the Studio library (localStorage + IndexedDB). Home cards stay on `modes/*.jpg`. The portrait binaries live in this browser’s IndexedDB — they are not uploaded by a pull request.
+Do this once per dog. Persists with the Studio library. Home cards stay on `modes/*.jpg`. Portrait and MP4 binaries live in this browser’s IndexedDB and, when you are signed in, in private Supabase Storage for that account.
 
 ### How Mark uses this (Riley / Both, then Thanksgiving)
 
@@ -131,7 +154,7 @@ Phrases include greetings such as “happy thanksgiving”, “merry christmas�
 
 ### Personality radios
 
-Each dog in the Studio library has a compact **Personality** panel. Radios are mutually exclusive within a group. They persist with the library (localStorage in demo) and drive Suggest — any added dog can use them, not just Murphy/Riley.
+Each dog in the Studio library has a compact **Personality** panel. Radios are mutually exclusive within a group. They persist with the library (local demo, or the signed-in cloud copy) and drive Suggest — any added dog can use them, not just Murphy/Riley.
 
 | Trait | Values | What Suggest does |
 |-------|--------|-------------------|

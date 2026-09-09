@@ -2378,6 +2378,52 @@ button {
   color: rgba(180, 230, 180, 0.9);
 }
 
+.studio-sync {
+  margin: 0 0 18px;
+  padding: 14px 16px;
+  border-radius: 14px;
+  background: rgba(80, 140, 255, 0.1);
+  border: 1px solid rgba(158, 192, 255, 0.28);
+}
+
+.studio-sync h2 {
+  margin: 0 0 8px;
+  font-size: 1.05rem;
+}
+
+.studio-sync p {
+  margin: 0 0 10px;
+  font-size: 0.88rem;
+  line-height: 1.45;
+  color: rgba(230, 236, 248, 0.88);
+}
+
+.studio-sync-status {
+  font-weight: 600;
+  color: #c9ddff;
+}
+
+.studio-sync-status[data-phase='error'] {
+  color: #ffb4b4;
+}
+
+.studio-sync-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.studio-sync-call-note {
+  margin: 0 16px 12px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  background: rgba(80, 140, 255, 0.16);
+  color: #d7e4ff;
+  font-size: 0.82rem;
+  text-align: center;
+}
+
 .studio-trait-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;

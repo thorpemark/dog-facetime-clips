@@ -36,9 +36,10 @@ jobs:
           if [ -z "${{ secrets.VITE_SUPABASE_URL }}" ] || [ -z "${{ secrets.VITE_SUPABASE_ANON_KEY }}" ]; then
             echo "::warning::VITE_SUPABASE_URL and/or VITE_SUPABASE_ANON_KEY are not set."
             echo "The site will deploy in demo mode (localStorage only, banner visible)."
+            echo "Clip Studio will not sync across devices until both secrets are set."
             echo "Add both secrets under Settings → Secrets and variables → Actions, then re-run this workflow."
           else
-            echo "Supabase secrets present — building with sharing enabled."
+            echo "Supabase secrets present — building with sharing and Studio sync enabled."
           fi
 
       - name: Install dependencies

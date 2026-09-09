@@ -16,7 +16,7 @@ npm run dev
 
 Open the URL Vite prints (usually `http://localhost:5173`).
 
-Without Supabase env vars, the app runs in **demo mode** (memorials saved in `localStorage`). A banner reminds you to connect Supabase for real sharing.
+Without Supabase env vars, the app runs in **demo mode** (memorials and Clip Studio saved in this browser only). A banner reminds you to connect Supabase for real sharing and Studio sync.
 
 ### Try on Your Phone Tonight
 
@@ -27,23 +27,28 @@ Without Supabase env vars, the app runs in **demo mode** (memorials saved in `lo
 
 > **Tip:** For HTTPS on mobile (some browsers require it for mic), use a tunnel like [ngrok](https://ngrok.com/) or deploy to GitHub Pages (below).
 
-## Supabase Setup (Sharing)
+## Supabase Setup (Sharing + Studio sync)
 
-1. Create a project at [supabase.com](https://supabase.com).
+Prefer the existing **Dog_memorial_facetime** project (`cqmkcuchmnehnpizapqy`) so Google auth is shared with the stills app. Clip Studio does not need a second project.
+
+1. Create or open that project at [supabase.com](https://supabase.com).
 2. In the SQL Editor, paste and run [`supabase/migration.sql`](supabase/migration.sql).
 3. Run [`supabase/migration_auth_owners.sql`](supabase/migration_auth_owners.sql) for creator accounts and **My memorials**.
-4. If upgrading an existing project, also run [`supabase/migration_focal_point.sql`](supabase/migration_focal_point.sql) for portrait focal points.
-5. In **Authentication → URL Configuration**, set:
-   - **Site URL:** `https://thorpemark.github.io/dog-facetime-clips/`
-   - **Redirect URLs:** `https://thorpemark.github.io/dog-facetime-clips/` and `http://localhost:5173/` (local dev)
-   - Magic links land on site **root** (not `/my`) so GitHub Pages serves `index.html` reliably; the app then navigates to My memorials.
-6. Enable **Email** magic links (default). Optionally enable **Google** under Authentication → Providers.
-7. Copy `web/.env.example` → `web/.env` and set:
-   - `VITE_SUPABASE_URL` — Project Settings → API → Project URL
+4. Run [`supabase/migration_studio_library.sql`](supabase/migration_studio_library.sql) for Clip Studio cloud sync (one library JSON row per user + private `studio-media` bucket; RLS so users only see their own files).
+5. If upgrading an existing project, also run [`supabase/migration_focal_point.sql`](supabase/migration_focal_point.sql) for portrait focal points.
+6. In **Authentication → URL Configuration**:
+   - **Add** Redirect URL `https://thorpemark.github.io/dog-facetime-clips/` (and `http://localhost:5173/` for local clips). Keep the stills-app URLs (`https://thorpemark.github.io/dog-facetime/`) if that project already uses this backend.
+   - Leave **Site URL** as the stills app if it is already set; this app passes `redirectTo` explicitly.
+   - Magic links land on this fork’s site **root** (not `/my`) so GitHub Pages serves `index.html` reliably; Studio sign-in then returns to `/studio`.
+7. Enable **Email** magic links (default). Enable **Google** under Authentication → Providers (same as the stills app).
+8. Copy `web/.env.example` → `web/.env` and set:
+   - `VITE_SUPABASE_URL` — `https://cqmkcuchmnehnpizapqy.supabase.co` (Project Settings → API → Project URL)
    - `VITE_SUPABASE_ANON_KEY` — Project Settings → API → `anon` `public` key
-8. Rebuild and redeploy (`npm run build` locally, or push to `main` for GitHub Pages).
+9. Rebuild and redeploy (`npm run build` locally, or push to `main` for GitHub Pages).
 
-After setup, memorials are stored in Supabase with public share links (`/m/:shareId`) and secret edit links (`/edit/:editToken`). Photos upload to the `memorial-photos` storage bucket.
+After setup, memorials are stored in Supabase with public share links (`/m/:shareId`) and secret edit links (`/edit/:editToken`). Photos upload to the `memorial-photos` storage bucket. Clip Studio libraries upload to `studio_libraries` + `studio-media` for the signed-in user.
+
+See **[Sync Studio across devices](../docs/CLIP_STUDIO.md#sync-studio-across-devices)** for the PC → phone flow.
 
 ### Creator accounts
 
@@ -69,7 +74,7 @@ Magic links redirect to `https://thorpemark.github.io/dog-facetime-clips/` (site
 | Path | Purpose |
 |------|---------|
 | `/` | Home — Murphy / Riley / Both picker, Clip Studio, memorial create, open a link, sign in |
-| `/studio` | Clip Studio — per-dog intents, phrases, photo framing, prompts, attach MP4s |
+| `/studio` | Clip Studio — per-dog intents, phrases, photo framing, prompts, attach MP4s; sign in to sync across devices |
 | `/catalog` | Reaction catalog — read-only table + phrase tester |
 | `/demo` | Three-mode picker, or `?dog=Riley` / `Murphy` / `Both` for a clip-mode sample call |
 | `/create` | Step-by-step memorial creation |

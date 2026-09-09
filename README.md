@@ -88,6 +88,7 @@ See the sections below for iOS-specific details (clips, keywords, CI).
 - Share links for family (`/m/:shareId`) — no account needed
 - Secret edit links (`/edit/:editToken`) for owners
 - Optional creator sign-in (magic link + Google) with **My memorials** dashboard
+- **Clip Studio cloud sync** — same signed-in account on PC and iPhone shares dogs, generation stills, idle pick, and attached MP4s
 - Incoming call → Accept → full-screen memorial call UI
 - Web Speech API keyword listening (debug panel fallback)
 - Supabase backend with localStorage demo mode when env vars are missing
@@ -224,16 +225,22 @@ Download artifacts from GitHub → **Actions** → select run → **Artifacts**.
 
 ## Supabase Setup (Web Sharing)
 
-See **[`web/README.md`](web/README.md)** for full details. Summary:
+See **[`web/README.md`](web/README.md)** and **[`docs/CLIP_STUDIO.md`](docs/CLIP_STUDIO.md)** (Sync Studio across devices). Summary:
 
-1. Create a Supabase project
+1. Reuse the existing **Dog_memorial_facetime** project (`cqmkcuchmnehnpizapqy`) — clips does not need its own Supabase project.
 2. Run [`web/supabase/migration.sql`](web/supabase/migration.sql) in the SQL editor
 3. Run [`web/supabase/migration_auth_owners.sql`](web/supabase/migration_auth_owners.sql) for creator accounts
-4. Configure Auth redirect URLs (site root `https://thorpemark.github.io/dog-facetime-clips/`, not `/my` — see [`web/README.md`](web/README.md))
-5. Copy `web/.env.example` → `web/.env` with your URL and anon key
-6. Rebuild / redeploy
+4. Run [`web/supabase/migration_studio_library.sql`](web/supabase/migration_studio_library.sql) for Clip Studio cloud sync (tables + private `studio-media` bucket + RLS)
+5. Configure Auth **Redirect URLs** — add `https://thorpemark.github.io/dog-facetime-clips/` (keep the stills-app URL if this project already serves dog-facetime). See [`web/README.md`](web/README.md).
+6. Copy `web/.env.example` → `web/.env` with your URL and anon key
+7. Rebuild / redeploy
 
-For GitHub Pages, add `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` as repository secrets and update the deploy workflow, or build locally with `.env` and deploy `dist/`.
+For GitHub Pages, add repository secrets (no extra names):
+
+- `VITE_SUPABASE_URL` — `https://cqmkcuchmnehnpizapqy.supabase.co`
+- `VITE_SUPABASE_ANON_KEY` — anon/public key from that project
+
+If they are missing, Pages stays in local demo mode (each browser is its own silo). Re-run the deploy workflow after adding them.
 
 ## License
 
