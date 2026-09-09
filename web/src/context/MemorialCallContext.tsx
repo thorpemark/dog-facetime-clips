@@ -22,6 +22,11 @@ import { DEFAULT_PROFILE } from '../types'
 import { getStudioBlob } from '../utils/clipStudioMedia'
 import { rulesConfigFromCatalog } from '../utils/keywordRules'
 import { hydrateStudioMedia, subscribeStudio } from '../utils/clipStudioStore'
+import type { KeywordMatchDetail } from '../hooks/useKeywordSpotter'
+import {
+  intentHudLabel,
+  type ReactionHudPin,
+} from '../utils/callReactionHud'
 import type { TranscriptMatch } from '../utils/matchTranscript'
 import {
   applyCallVideoSound,
@@ -46,6 +51,8 @@ interface MemorialCallContextValue {
   rulesConfig: KeywordRulesConfig | null
   lastTranscript: string
   lastMatch: TranscriptMatch | null
+  /** Transcript + intent that started the current (or last) reaction clip. */
+  reactionHud: ReactionHudPin | null
   isListening: boolean
   videoSoundUnlocked: boolean
   speechSupported: boolean
@@ -61,7 +68,7 @@ interface MemorialCallContextValue {
   declineCall: () => void
   returnToIdleAfterEnd: () => void
   toggleMute: () => void
-  triggerReaction: (clipId: string) => void
+  triggerReaction: (clipId: string, transcript?: string) => void
   triggerPhrase: (phrase: string) => void
   unlockVideoSound: () => void
 }
@@ -90,6 +97,7 @@ export function MemorialCallProvider({
   })
   const [isMuted, setIsMuted] = useState(false)
   const [showDebugPanel, setShowDebugPanel] = useState(false)
+  const [reactionHud, setReactionHud] = useState<ReactionHudPin | null>(null)
   const [rulesConfig, setRulesConfig] = useState<KeywordRulesConfig | null>(
     () => rulesConfigFromCatalog(profile.dogName),
   )
@@ -98,15 +106,22 @@ export function MemorialCallProvider({
   const callPhaseRef = useRef(callPhase)
   const behaviorStateRef = useRef(behaviorState)
   const isMutedRef = useRef(isMuted)
+  const rulesConfigRef = useRef(rulesConfig)
 
   callPhaseRef.current = callPhase
   behaviorStateRef.current = behaviorState
   isMutedRef.current = isMuted
+  rulesConfigRef.current = rulesConfig
 
-  const triggerReactionRef = useRef<(clipId: string) => void>(() => {})
-  const onKeywordMatch = useCallback((ruleId: string) => {
-    triggerReactionRef.current(ruleId)
-  }, [])
+  const triggerReactionRef = useRef<
+    (clipId: string, transcript?: string) => void
+  >(() => {})
+  const onKeywordMatch = useCallback(
+    (ruleId: string, detail: KeywordMatchDetail) => {
+      triggerReactionRef.current(ruleId, detail.transcript)
+    },
+    [],
+  )
 
   const {
     lastTranscript,
@@ -174,11 +189,19 @@ export function MemorialCallProvider({
   }, [startSpotter, profile.dogName, profile.ownerName, rulesConfig])
 
   const triggerReaction = useCallback(
-    (clipId: string) => {
+    (clipId: string, transcript?: string) => {
       if (callPhaseRef.current !== 'active') return
       const state = behaviorStateRef.current
       if (state.type === 'react' || state.type === 'cooldown') return
 
+      const description = rulesConfigRef.current?.rules.find(
+        (rule) => rule.id === clipId,
+      )?.description
+      setReactionHud({
+        transcript: transcript?.trim() ?? '',
+        intentId: clipId,
+        intentLabel: intentHudLabel(clipId, description),
+      })
       setCanProcessMatches(false, { skipBucketId: clipId })
       setBehaviorState({ type: 'react', clipId })
       unlockVideoSound()
@@ -205,10 +228,10 @@ export function MemorialCallProvider({
     }
   }, [profile.dogName])
 
-  const rulesConfigRef = useRef(rulesConfig)
+  const prevRulesConfigRef = useRef(rulesConfig)
   useEffect(() => {
-    const previous = rulesConfigRef.current
-    rulesConfigRef.current = rulesConfig
+    const previous = prevRulesConfigRef.current
+    prevRulesConfigRef.current = rulesConfig
     if (previous === rulesConfig) return
     if (callPhaseRef.current !== 'active') return
     if (behaviorStateRef.current.type === 'react') return
@@ -341,6 +364,7 @@ export function MemorialCallProvider({
     resetCallVideoSoundUnlock()
     setVideoSoundUnlocked(false)
     setShowDebugPanel(false)
+    setReactionHud(null)
     if (cooldownRef.current) window.clearTimeout(cooldownRef.current)
   }, [setCanProcessMatches, stopListening, stopPlayback, stopSelfView])
 
@@ -387,6 +411,7 @@ export function MemorialCallProvider({
       rulesConfig,
       lastTranscript,
       lastMatch,
+      reactionHud,
       isListening,
       videoSoundUnlocked,
       speechSupported,
@@ -415,6 +440,7 @@ export function MemorialCallProvider({
       rulesConfig,
       lastTranscript,
       lastMatch,
+      reactionHud,
       isListening,
       videoSoundUnlocked,
       speechSupported,

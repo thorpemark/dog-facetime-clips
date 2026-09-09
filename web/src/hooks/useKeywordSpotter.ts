@@ -46,7 +46,14 @@ function audioContextCtor(): typeof AudioContext | undefined {
  * iOS Safari/Chrome beep on every SpeechRecognition.start() — do not
  * abort/rebuild, and do not restart on benign no-speech.
  */
-export function useKeywordSpotter(onMatch: (ruleId: string) => void) {
+export type KeywordMatchDetail = {
+  transcript: string
+  match: TranscriptMatch
+}
+
+export function useKeywordSpotter(
+  onMatch: (ruleId: string, detail: KeywordMatchDetail) => void,
+) {
   const [isListening, setIsListening] = useState(false)
   const [lastTranscript, setLastTranscript] = useState('')
   const [lastMatch, setLastMatch] = useState<TranscriptMatch | null>(null)
@@ -84,6 +91,9 @@ export function useKeywordSpotter(onMatch: (ruleId: string) => void) {
   const processTranscript = useCallback(
     (transcript: string, options?: { isFinal?: boolean; ignoreMatchCooldown?: boolean }) => {
       const trimmed = transcript.trim()
+      // Debug "Heard" is always the latest raw phrase. The call HUD must
+      // NOT use this — a speak-early / cooldown queue can land a newer
+      // final here while the previous clip is still playing.
       if (trimmed) setLastTranscript(trimmed)
 
       const isFinal = options?.isFinal ?? true
@@ -119,7 +129,7 @@ export function useKeywordSpotter(onMatch: (ruleId: string) => void) {
         }
         lastMatchTimeRef.current = now
         setLastMatch(match)
-        onMatchRef.current(match.bucketId)
+        onMatchRef.current(match.bucketId, { transcript: trimmed, match })
       }
     },
     [],

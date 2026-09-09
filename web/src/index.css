@@ -427,6 +427,35 @@ button {
 .call-header h2 {
   font-size: 1.1rem;
   font-weight: 600;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.55);
+}
+
+.call-reaction-hud {
+  margin-top: 6px;
+  max-width: 20rem;
+  pointer-events: none;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.7);
+}
+
+.call-reaction-hud p {
+  font-size: 0.92rem;
+  line-height: 1.25;
+}
+
+.call-reaction-hud-heard {
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.95);
+}
+
+.call-reaction-hud-reacting {
+  margin-top: 2px;
+  font-weight: 700;
+  color: #ffd60a;
+}
+
+.call-reaction-hud--fade {
+  opacity: 0.62;
+  transition: opacity 0.35s ease;
 }
 
 .call-status {

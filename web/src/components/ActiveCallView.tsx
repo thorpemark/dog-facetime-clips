@@ -1,6 +1,7 @@
 import { useMemorialCall } from '../context/MemorialCallContext'
 import { callListenCue } from '../utils/callListenCue'
 import { CallControlsView } from './CallControlsView'
+import { CallReactionHud } from './CallReactionHud'
 import { CameraPreviewPlaceholder } from './CameraPreviewPlaceholder'
 import { DebugPanelView } from './DebugPanelView'
 import { DualMediaView } from './DualMediaView'
@@ -15,6 +16,7 @@ export function ActiveCallView() {
     speechSupported,
     speechError,
     showDebugPanel,
+    reactionHud,
     mediaPlayback,
   } = useMemorialCall()
   const clipCall = mediaPlayback.mode === 'video'
@@ -25,6 +27,11 @@ export function ActiveCallView() {
     speechSupported,
     speechError,
   })
+  const showReactionHud =
+    (behaviorState.type === 'react' || behaviorState.type === 'cooldown') &&
+    reactionHud != null
+  // Specific heard/reacting lines replace the generic Busy / Getting ready copy.
+  const showListenStatus = cue.kind === 'muted' || !showReactionHud
 
   return (
     <div
@@ -41,17 +48,24 @@ export function ActiveCallView() {
         <div className="call-overlay">
           <header className="call-header">
             <h2>{profile.dogName}</h2>
-            <div
-              className={`call-status call-status--${cue.kind}`}
-              role="status"
-              aria-live="polite"
-            >
-              <span className="status-dot" />
-              <span className="call-status-icon" aria-hidden>
-                {cue.icon}
-              </span>
-              <span className="call-status-label">{cue.label}</span>
-            </div>
+            {showListenStatus && (
+              <div
+                className={`call-status call-status--${cue.kind}`}
+                role="status"
+                aria-live="polite"
+              >
+                <span className="status-dot" />
+                <span className="call-status-icon" aria-hidden>
+                  {cue.icon}
+                </span>
+                <span className="call-status-label">{cue.label}</span>
+              </div>
+            )}
+            <CallReactionHud
+              dogName={profile.dogName}
+              behavior={behaviorState.type}
+              pin={reactionHud}
+            />
           </header>
 
           <div className="call-footer">
