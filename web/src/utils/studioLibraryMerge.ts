@@ -6,6 +6,7 @@ import type {
   DogLibrary,
   IntentBucket,
 } from '../types/clipStudio'
+import { fullImageDualFraming } from './focalPoint'
 import { attachedIdleSlots, chosenIdleSlot } from './callIdentity'
 import { migrateStudioState, withDerivedStatus } from './clipStudioStore'
 
@@ -13,10 +14,57 @@ function clone<T>(value: T): T {
   return structuredClone(value)
 }
 
+export function isStudioVideoBlobKey(key?: string): boolean {
+  return Boolean(key && key.startsWith('video:'))
+}
+
+export function isStudioPhotoBlobKey(key?: string): boolean {
+  return Boolean(key && key.startsWith('photo:'))
+}
+
+export function isStudioMediaBlobKey(key?: string): boolean {
+  return isStudioVideoBlobKey(key) || isStudioPhotoBlobKey(key)
+}
+
+export function slotIdFromVideoBlobKey(key: string): string | null {
+  if (!isStudioVideoBlobKey(key)) return null
+  return key.slice('video:'.length) || null
+}
+
+export function slotIdFromPhotoBlobKey(key: string): string | null {
+  if (!key.startsWith('photo:') || key.startsWith('photo:generation:')) return null
+  return key.slice('photo:'.length) || null
+}
+
+function isPlaceholderClipPath(path?: string): boolean {
+  if (!path) return false
+  const normalized = path.replace(/^\//, '')
+  return normalized.startsWith('clips/')
+}
+
+function videoIsUser(video: ClipResultVideo | null | undefined): boolean {
+  if (!video) return false
+  if (video.origin === 'user') return true
+  if (isStudioVideoBlobKey(video.blobKey)) return true
+  if (video.storagePath) return true
+  return false
+}
+
 function slotHasUserVideo(slot: ClipSlot | undefined): boolean {
   const video = slot?.resultVideo
-  if (!video || video.origin !== 'user') return false
-  return Boolean(video.blobKey || video.objectUrl || video.path)
+  if (!video || !videoIsUser(video)) return false
+  return Boolean(video.blobKey || video.objectUrl || video.storagePath || (video.path && !isPlaceholderClipPath(video.path)))
+}
+
+function asUserVideo(video: ClipResultVideo, blobKey?: string): ClipResultVideo {
+  const key = blobKey || video.blobKey
+  const path = isPlaceholderClipPath(video.path) ? undefined : video.path
+  return {
+    ...video,
+    blobKey: key,
+    path,
+    origin: 'user',
+  }
 }
 
 function photoRank(photo: ClipSourcePhoto | null | undefined): number {
@@ -58,11 +106,144 @@ export function collectStudioBlobKeys(state: ClipStudioState): string[] {
     for (const intent of dog.intents) {
       for (const slot of intent.clipSlots) {
         add(slot.sourcePhoto?.blobKey)
-        if (slot.resultVideo?.origin === 'user') add(slot.resultVideo.blobKey)
+        if (videoIsUser(slot.resultVideo) || isStudioVideoBlobKey(slot.resultVideo?.blobKey)) {
+          add(slot.resultVideo?.blobKey)
+        }
       }
     }
   }
   return [...keys]
+}
+
+export function countLocalVideoBlobKeys(localKeys: Iterable<string>): number {
+  let count = 0
+  for (const key of localKeys) {
+    if (isStudioVideoBlobKey(key)) count += 1
+  }
+  return count
+}
+
+function findSlot(state: ClipStudioState, slotId: string): ClipSlot | undefined {
+  for (const dog of state.dogs) {
+    for (const intent of dog.intents) {
+      const slot = intent.clipSlots.find((item) => item.id === slotId)
+      if (slot) return slot
+    }
+  }
+  return undefined
+}
+
+function withDerivedSlots(state: ClipStudioState): ClipStudioState {
+  return {
+    ...state,
+    dogs: state.dogs.map((dog) => ({
+      ...dog,
+      intents: dog.intents.map((intent) => ({
+        ...intent,
+        clipSlots: intent.clipSlots.map((slot) => withDerivedStatus(slot)),
+      })),
+    })),
+  }
+}
+
+/**
+ * Reattach IndexedDB `video:` / `photo:` blobs onto matching clip slots when
+ * cloud/local JSON was overwritten by a seed library (phone-first sync).
+ */
+export function adoptLocalStudioBlobs(
+  state: ClipStudioState,
+  localKeys: Iterable<string>,
+): ClipStudioState {
+  const keys = [...new Set(localKeys)].filter(isStudioMediaBlobKey)
+  if (keys.length === 0) return state
+  const next = clone(state)
+
+  for (const key of keys) {
+    const videoSlotId = slotIdFromVideoBlobKey(key)
+    if (videoSlotId) {
+      const slot = findSlot(next, videoSlotId)
+      if (!slot) continue
+      slot.resultVideo = asUserVideo(slot.resultVideo ?? { origin: 'user' }, key)
+      continue
+    }
+
+    if (key.startsWith('photo:generation:')) {
+      const rest = key.slice('photo:generation:'.length)
+      const dogId = rest.split(':')[0]
+      const dog = next.dogs.find((item) => item.id === dogId || item.name.toLowerCase() === dogId)
+      if (!dog) continue
+      if (dog.generationPhoto?.blobKey && dog.generationPhoto.blobKey !== key) continue
+      dog.generationPhoto = {
+        id: dog.generationPhoto?.id ?? rest,
+        url: dog.generationPhoto?.url ?? '',
+        blobKey: key,
+        publicPath: dog.generationPhoto?.publicPath,
+        storagePath: dog.generationPhoto?.storagePath,
+        framing: dog.generationPhoto?.framing ?? fullImageDualFraming(),
+      }
+      continue
+    }
+
+    const photoSlotId = slotIdFromPhotoBlobKey(key)
+    if (!photoSlotId) continue
+    const slot = findSlot(next, photoSlotId)
+    if (!slot) continue
+    if (slot.sourcePhoto?.blobKey && slot.sourcePhoto.blobKey !== key) continue
+    slot.sourcePhoto = {
+      id: slot.sourcePhoto?.id ?? photoSlotId,
+      url: slot.sourcePhoto?.url ?? '',
+      blobKey: key,
+      publicPath: slot.sourcePhoto?.publicPath,
+      storagePath: slot.sourcePhoto?.storagePath,
+      framing: slot.sourcePhoto?.framing ?? fullImageDualFraming(),
+    }
+  }
+
+  return withDerivedSlots(next)
+}
+
+export function stampCloudMediaPaths(
+  state: ClipStudioState,
+  pathFor: (blobKey: string) => string,
+  presentKeys: Iterable<string>,
+): ClipStudioState {
+  const present = new Set(presentKeys)
+  const next = clone(state)
+  const stampPhoto = (
+    photo: ClipSourcePhoto | null | undefined,
+  ): ClipSourcePhoto | null => {
+    if (!photo) return photo ?? null
+    if (!photo.blobKey || !present.has(photo.blobKey)) return photo
+    return { ...photo, storagePath: pathFor(photo.blobKey) }
+  }
+  for (const dog of next.dogs) {
+    dog.defaultPhoto = stampPhoto(dog.defaultPhoto)
+    dog.generationPhoto = stampPhoto(dog.generationPhoto)
+    for (const intent of dog.intents) {
+      for (const slot of intent.clipSlots) {
+        slot.sourcePhoto = stampPhoto(slot.sourcePhoto)
+        if (slot.resultVideo?.blobKey && present.has(slot.resultVideo.blobKey)) {
+          slot.resultVideo = asUserVideo({
+            ...slot.resultVideo,
+            storagePath: pathFor(slot.resultVideo.blobKey),
+          })
+        }
+      }
+    }
+  }
+  return withDerivedSlots(next)
+}
+
+/** Do not upsert a seed/placeholder library over a cloud copy that already has MP4s. */
+export function shouldWriteRemoteLibrary(
+  merged: ClipStudioState,
+  remote: ClipStudioState | null,
+): boolean {
+  if (!remote) return true
+  const mergedVideos = countUserAttachedVideos(merged)
+  const remoteVideos = countUserAttachedVideos(remote)
+  if (mergedVideos < remoteVideos) return false
+  return true
 }
 
 function pickPhoto(
@@ -79,11 +260,19 @@ function pickVideo(
   local: ClipResultVideo | null | undefined,
   remote: ClipResultVideo | null | undefined,
 ): ClipResultVideo | null {
-  const localUser = local?.origin === 'user'
-  const remoteUser = remote?.origin === 'user'
-  if (localUser && !remoteUser) return clone(local!)
-  if (remoteUser && !localUser) return clone(remote!)
-  if (localUser && remoteUser) return clone(local!)
+  const localUser = videoIsUser(local)
+  const remoteUser = videoIsUser(remote)
+  if (localUser && !remoteUser) return asUserVideo(clone(local!))
+  if (remoteUser && !localUser) return asUserVideo(clone(remote!))
+  if (localUser && remoteUser) {
+    const chosen = clone(local!)
+    return asUserVideo({
+      ...chosen,
+      blobKey: chosen.blobKey || remote?.blobKey,
+      storagePath: chosen.storagePath || remote?.storagePath,
+      fileName: chosen.fileName || remote?.fileName,
+    })
+  }
   return local ? clone(local) : remote ? clone(remote) : null
 }
 

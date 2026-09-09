@@ -4,12 +4,19 @@ import { HOLIDAY_INTENT_IDS } from '../data/holidayIntents'
 import { fullImageDualFraming } from './focalPoint'
 import type { ClipSourcePhoto, ClipStudioState, DogLibrary } from '../types/clipStudio'
 import {
+  adoptLocalStudioBlobs,
   collectStudioBlobKeys,
   countUserAttachedVideos,
   isDifferentAccountLocalLibrary,
   mergeStudioLibraries,
+  shouldWriteRemoteLibrary,
+  stampCloudMediaPaths,
 } from './studioLibraryMerge'
-import { decodeStudioBlobKey, encodeStudioBlobKey } from '../services/studioLibraryService'
+import {
+  decodeStudioBlobKey,
+  encodeStudioBlobKey,
+  inferStudioMediaContentType,
+} from '../services/studioLibraryService'
 
 function withMurphyUserLibrary(seed: ClipStudioState): ClipStudioState {
   const kitchen: ClipSourcePhoto = {
@@ -167,5 +174,77 @@ describe('mergeStudioLibraries', () => {
     expect(isDifferentAccountLocalLibrary(null, 'user-a')).toBe(false)
     expect(isDifferentAccountLocalLibrary('user-a', 'user-a')).toBe(false)
     expect(isDifferentAccountLocalLibrary('user-a', 'user-b')).toBe(true)
+  })
+
+  it('reattaches IndexedDB MP4s onto a seed library the phone uploaded first', () => {
+    const seed = createSeedStudioState()
+    const adopted = adoptLocalStudioBlobs(seed, [
+      'video:murphy-idle-1',
+      'video:murphy-hug-1',
+      'photo:generation:murphy:kitchen',
+    ])
+    expect(countUserAttachedVideos(adopted)).toBe(2)
+    const dog = murphy(adopted)
+    expect(dog.generationPhoto?.blobKey).toBe('photo:generation:murphy:kitchen')
+    const idle = dog.intents.find((intent) => intent.id === 'idle')?.clipSlots[0]
+    expect(idle?.resultVideo?.origin).toBe('user')
+    expect(idle?.resultVideo?.blobKey).toBe('video:murphy-idle-1')
+    expect(idle?.status).toBe('video_attached')
+    expect(idle?.resultVideo?.path).toBeUndefined()
+    expect(collectStudioBlobKeys(adopted)).toEqual(
+      expect.arrayContaining([
+        'video:murphy-idle-1',
+        'video:murphy-hug-1',
+        'photo:generation:murphy:kitchen',
+      ]),
+    )
+  })
+
+  it('keeps PC videos when merging an adopted local library over the phone seed', () => {
+    const seed = createSeedStudioState()
+    const adopted = adoptLocalStudioBlobs(seed, ['video:murphy-idle-1'])
+    const merged = mergeStudioLibraries(adopted, seed)
+    expect(countUserAttachedVideos(merged)).toBe(1)
+    expect(
+      murphy(merged).intents.find((intent) => intent.id === 'idle')?.clipSlots[0]?.resultVideo
+        ?.blobKey,
+    ).toBe('video:murphy-idle-1')
+  })
+
+  it('refuses to write a seed library over a cloud copy that already has MP4s', () => {
+    const seed = createSeedStudioState()
+    const pc = withMurphyUserLibrary(seed)
+    expect(shouldWriteRemoteLibrary(seed, pc)).toBe(false)
+    expect(shouldWriteRemoteLibrary(pc, seed)).toBe(true)
+    expect(shouldWriteRemoteLibrary(pc, null)).toBe(true)
+  })
+
+  it('stamps studio-media paths onto uploaded blob keys', () => {
+    const pc = withMurphyUserLibrary(createSeedStudioState())
+    const stamped = stampCloudMediaPaths(
+      pc,
+      (key) => `user/${key.replace(/:/g, '__')}`,
+      ['video:murphy-idle-1', 'photo:generation:murphy:kitchen'],
+    )
+    const dog = murphy(stamped)
+    expect(dog.generationPhoto?.storagePath).toBe('user/photo__generation__murphy__kitchen')
+    expect(
+      dog.intents.find((intent) => intent.id === 'idle')?.clipSlots[0]?.resultVideo?.storagePath,
+    ).toBe('user/video__murphy-idle-1')
+    expect(
+      dog.intents.find((intent) => intent.id === 'hug')?.clipSlots[0]?.resultVideo?.storagePath,
+    ).toBeUndefined()
+  })
+})
+
+describe('studio media content type', () => {
+  it('strips codecs and infers mp4 from video blob keys', () => {
+    const withCodecs = new Blob([new Uint8Array([0])], {
+      type: 'video/mp4; codecs=avc1.42E01E',
+    })
+    expect(inferStudioMediaContentType('video:murphy-idle-1', withCodecs)).toBe('video/mp4')
+    const empty = new Blob([new Uint8Array([0])])
+    expect(inferStudioMediaContentType('video:murphy-idle-1', empty)).toBe('video/mp4')
+    expect(inferStudioMediaContentType('photo:generation:murphy:x', empty)).toBe('image/jpeg')
   })
 })

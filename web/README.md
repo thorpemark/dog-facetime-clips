@@ -34,7 +34,7 @@ Prefer the existing **Dog_memorial_facetime** project (`cqmkcuchmnehnpizapqy`) s
 1. Create or open that project at [supabase.com](https://supabase.com).
 2. In the SQL Editor, paste and run [`supabase/migration.sql`](supabase/migration.sql).
 3. Run [`supabase/migration_auth_owners.sql`](supabase/migration_auth_owners.sql) for creator accounts and **My memorials**.
-4. Run [`supabase/migration_studio_library.sql`](supabase/migration_studio_library.sql) for Clip Studio cloud sync (one library JSON row per user + private `studio-media` bucket; RLS so users only see their own files).
+4. Run [`supabase/migration_studio_library.sql`](supabase/migration_studio_library.sql) for Clip Studio cloud sync (one library JSON row per user + private `studio-media` bucket; RLS so users only see their own files). If that already ran, also run [`supabase/migration_studio_media_upload.sql`](supabase/migration_studio_media_upload.sql) so MP4s up to 100 MB can upload.
 5. If upgrading an existing project, also run [`supabase/migration_focal_point.sql`](supabase/migration_focal_point.sql) for portrait focal points.
 6. In **Authentication → URL Configuration**:
    - **Add** Redirect URL `https://thorpemark.github.io/dog-facetime-clips/` (and `http://localhost:5173/` for local clips). Keep the stills-app URLs (`https://thorpemark.github.io/dog-facetime/`) if that project already uses this backend.
