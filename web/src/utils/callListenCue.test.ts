@@ -1,7 +1,27 @@
 import { describe, expect, it } from 'vitest'
 import { callListenCue } from './callListenCue'
 
+const base = {
+  isMuted: false,
+  speechSupported: true,
+  speechError: null as string | null,
+}
+
 describe('callListenCue', () => {
+  it('never uses a generic Connected label', () => {
+    const behaviors = ['idle', 'listen', 'react', 'cooldown'] as const
+    for (const behavior of behaviors) {
+      for (const speechActuallyListening of [true, false]) {
+        const cue = callListenCue({
+          ...base,
+          behavior,
+          speechActuallyListening,
+        })
+        expect(cue.label.toLowerCase()).not.toContain('connected')
+      }
+    }
+  })
+
   it('shows muted when the mic is muted, even during a reaction', () => {
     expect(
       callListenCue({
@@ -13,56 +33,61 @@ describe('callListenCue', () => {
     ).toBe('muted')
   })
 
-  it('shows a busy cue while a reaction clip is playing', () => {
+  it('shows Busy reacting while a reaction clip is playing', () => {
     const cue = callListenCue({
+      ...base,
       behavior: 'react',
-      isMuted: false,
       speechActuallyListening: true,
-      speechSupported: true,
     })
     expect(cue.kind).toBe('busy')
-    expect(cue.label).toMatch(/not listening/i)
+    expect(cue.label).toBe('Busy reacting…')
   })
 
-  it('shows getting ready while connecting or in cooldown', () => {
+  it('shows Getting ready while connecting or in cooldown', () => {
     expect(
       callListenCue({
+        ...base,
         behavior: 'idle',
-        isMuted: false,
         speechActuallyListening: false,
-        speechSupported: true,
       }).kind,
     ).toBe('getting-ready')
     expect(
       callListenCue({
+        ...base,
         behavior: 'cooldown',
-        isMuted: false,
         speechActuallyListening: true,
-        speechSupported: true,
-      }).kind,
-    ).toBe('getting-ready')
+      }),
+    ).toMatchObject({ kind: 'getting-ready', label: 'Getting ready…' })
   })
 
-  it('stays on getting ready until speech recognition has actually started', () => {
+  it('shows Listening when speech is up even if behavior is still idle', () => {
+    const cue = callListenCue({
+      ...base,
+      behavior: 'idle',
+      speechActuallyListening: true,
+    })
+    expect(cue.kind).toBe('listening')
+    expect(cue.label).toBe('Listening…')
+  })
+
+  it('stays on Getting ready until speech recognition has actually started', () => {
     expect(
       callListenCue({
+        ...base,
         behavior: 'listen',
-        isMuted: false,
         speechActuallyListening: false,
-        speechSupported: true,
       }).kind,
     ).toBe('getting-ready')
   })
 
   it('shows Listening once idle listen is actually live', () => {
     const cue = callListenCue({
+      ...base,
       behavior: 'listen',
-      isMuted: false,
       speechActuallyListening: true,
-      speechSupported: true,
     })
     expect(cue.kind).toBe('listening')
-    expect(cue.label).toMatch(/listening/i)
+    expect(cue.label).toBe('Listening…')
   })
 
   it('shows Listening if the mic failed so debug / typed phrases still look ready', () => {

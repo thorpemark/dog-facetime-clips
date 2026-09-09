@@ -8,6 +8,11 @@ export interface CallListenCue {
   icon: string
 }
 
+/**
+ * Active-call status. Never “Connected” — that hid a live mic behind a
+ * FaceTime-style idle label. Phone and PC should both read:
+ * Listening… / Getting ready… / Busy reacting…
+ */
 export function callListenCue(input: {
   behavior: BehaviorState['type']
   isMuted: boolean
@@ -20,18 +25,23 @@ export function callListenCue(input: {
   }
 
   if (input.behavior === 'react') {
-    return { kind: 'busy', label: 'Busy — not listening', icon: '💬' }
+    return { kind: 'busy', label: 'Busy reacting…', icon: '💬' }
   }
 
-  if (input.behavior === 'idle' || input.behavior === 'cooldown') {
+  if (input.behavior === 'cooldown') {
     return { kind: 'getting-ready', label: 'Getting ready…', icon: '⏳' }
   }
 
-  if (
-    input.speechSupported &&
-    !input.speechActuallyListening &&
-    !input.speechError
-  ) {
+  // Mic is actually up — even if behavior is still idle after Accept.
+  if (input.speechActuallyListening) {
+    return { kind: 'listening', label: 'Listening…', icon: '🎧' }
+  }
+
+  if (input.behavior === 'idle') {
+    return { kind: 'getting-ready', label: 'Getting ready…', icon: '⏳' }
+  }
+
+  if (input.speechSupported && !input.speechError) {
     return { kind: 'getting-ready', label: 'Getting ready…', icon: '⏳' }
   }
 

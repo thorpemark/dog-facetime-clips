@@ -433,9 +433,9 @@ button {
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 0.8rem;
+  font-size: 0.95rem;
   color: rgba(255, 255, 255, 0.7);
-  margin-top: 2px;
+  margin-top: 4px;
 }
 
 .call-status-icon {
@@ -449,7 +449,12 @@ button {
 
 .call-status--listening {
   color: #7dffb3;
-  font-size: 0.95rem;
+  font-size: 1.05rem;
+}
+
+.call-status--listening .call-status-label {
+  font-weight: 700;
+  letter-spacing: 0.01em;
 }
 
 .call-status--listening .status-dot {
