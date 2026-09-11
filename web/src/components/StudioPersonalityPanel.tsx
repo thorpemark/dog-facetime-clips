@@ -92,7 +92,7 @@ export function StudioPersonalityPanel({
     <section className="studio-personality">
       <h2>{dogName}</h2>
       <p className="studio-personality-lead">
-        Radios drive Suggest AUDIO / motion / personality. Notes stay as extra flavor and breed.
+        Radios drive Suggest SOUND / motion / personality. Slot notes can request a growl, bark, howl, or whine.
       </p>
 
       <div className="studio-trait-grid">
