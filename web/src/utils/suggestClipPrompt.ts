@@ -113,6 +113,159 @@ export function parseSlotVocals(notes?: string): SlotVocals {
   return found
 }
 
+export type GazeYaw = 'left' | 'right'
+
+export interface SlotGaze {
+  /** Notes asked for gaze / side-eye / camera lock / muzzle yaw. */
+  requested: boolean
+  sideEye: boolean
+  cameraLock: boolean
+  lookAway: boolean
+  /** Dog's left/right. Side-eye default is left (viewer's right). */
+  muzzle: GazeYaw
+  degrees: number
+}
+
+export const SLOT_NOTES_GAZE_HINT = 'GAZE: side-eye | camera lock | muzzle left/right'
+
+function positiveMatch(text: string, pattern: RegExp): boolean {
+  const re = new RegExp(pattern.source, pattern.flags.includes('g') ? pattern.flags : `${pattern.flags}g`)
+  let match: RegExpExecArray | null
+  while ((match = re.exec(text))) {
+    if (!isNegatedMatch(text, match.index)) return true
+  }
+  return false
+}
+
+/**
+ * Slot notes: `GAZE: side-eye`, `side eye`, `sclera`, `camera lock`, `muzzle left/right`.
+ * Bare `GAZE:` defaults to side-eye. `camera lock` alone does not add the 30° turn.
+ */
+export function parseSlotGaze(notes?: string): SlotGaze {
+  const empty: SlotGaze = {
+    requested: false,
+    sideEye: false,
+    cameraLock: false,
+    lookAway: false,
+    muzzle: 'left',
+    degrees: 30,
+  }
+  const text = notes?.trim() ?? ''
+  if (!text) return empty
+
+  const tagged = /\bgaze\s*:/i.test(text)
+  const sideEyeWords = positiveMatch(text, /\bside[-\s]?eyes?\b|\bsclera\b/i)
+  const cameraLockWords = positiveMatch(
+    text,
+    /\bcamera\s*locks?\b|\beyes on (the )?lens\b|\bstare at (the )?camera\b/i,
+  )
+  const lookAwayWords = positiveMatch(text, /\blook(?:s|ing)? away\b/i)
+  const muzzleRight = positiveMatch(text, /\bmuzzle right\b|\bto (his|her|their) right\b/i)
+  const muzzleLeft = positiveMatch(text, /\bmuzzle left\b|\bto (his|her|their) left\b/i)
+  const deg = text.match(/\b(\d{1,2})\s*(?:degrees?|°)\b/i)
+  const degrees = deg ? Number(deg[1]) : 30
+
+  const requested = tagged || sideEyeWords || cameraLockWords || lookAwayWords || muzzleLeft || muzzleRight
+  const sideEye =
+    sideEyeWords || muzzleLeft || muzzleRight || (tagged && !cameraLockWords && !lookAwayWords)
+
+  return {
+    requested,
+    sideEye,
+    cameraLock: cameraLockWords || sideEye,
+    lookAway: lookAwayWords && !sideEye,
+    muzzle: muzzleRight && !muzzleLeft ? 'right' : 'left',
+    degrees: degrees >= 10 && degrees <= 60 ? degrees : 30,
+  }
+}
+
+function possLower(grammar: Grammar): string {
+  if (grammar.together) return 'their'
+  if (grammar.subject === 'He') return 'his'
+  return `${grammar.name}'s`
+}
+
+function yawPhrases(gaze: SlotGaze, grammar: Grammar): { dogWay: string; viewerWay: string } {
+  const poss = possLower(grammar)
+  if (gaze.muzzle === 'right') {
+    return { dogWay: `${poss} right`, viewerWay: "viewer's left" }
+  }
+  return { dogWay: `${poss} left`, viewerWay: "viewer's right" }
+}
+
+function gazeMechanicsBlock(gaze: SlotGaze, grammar: Grammar): string {
+  if (!gaze.requested) return ''
+  const pupils = grammar.together ? "Each dog's pupils" : `${grammar.name}'s pupils`
+  const subj = grammar.together ? 'They' : grammar.subject === 'He' ? 'He' : grammar.name
+  const glance = grammar.together ? 'glance' : 'glances'
+  const look = grammar.together ? 'look' : 'looks'
+  const poss = grammar.together ? 'Their' : grammar.subject === 'He' ? 'His' : `${grammar.name}'s`
+
+  if (gaze.sideEye) {
+    const { dogWay, viewerWay } = yawPhrases(gaze, grammar)
+    const snout = grammar.together
+      ? `Their snouts / muzzles yaw about ${gaze.degrees} degrees to ${dogWay} (${viewerWay}).`
+      : `${poss} snout / muzzle yaws about ${gaze.degrees} degrees to ${dogWay} (${viewerWay}).`
+    const asTurn = grammar.together
+      ? 'As the muzzles turn, the eyeballs counter-rotate in the sockets so the stare never leaves the lens.'
+      : 'As the muzzle turns, the eyeballs counter-rotate in the sockets so the stare never leaves the lens.'
+    const result = grammar.together
+      ? 'Result: heads/snouts turn, eyes do not. You see more of one side of each face and a sliver of eye-white (sclera) — classic side-eye.'
+      : 'Result: head/snout turns, eyes do not. You see more of one side of the face and a sliver of eye-white (sclera) — classic side-eye.'
+    return (
+      `GAZE MECHANICS (do this exactly): The camera lens is a fixed point in space. ` +
+      `${pupils} stay aimed at that same point for all 6 seconds. ${snout} ${asTurn} ` +
+      `${result} ${subj} never ${glance} away. ${subj} never ${look} where the snout points. ` +
+      `Eyes and snout are not aimed the same direction after the turn.`
+    )
+  }
+
+  if (gaze.cameraLock) {
+    return (
+      `GAZE MECHANICS (do this exactly): The camera lens is a fixed point in space. ` +
+      `${pupils} stay aimed at that same point for all 6 seconds. Eyes on the lens. ` +
+      `No 30-degree side-eye muzzle yaw unless also noted. ${subj} never ${glance} away.`
+    )
+  }
+
+  if (gaze.lookAway) {
+    return (
+      `GAZE MECHANICS (do this exactly): ${subj} ${look} away from the camera lens (look-away). ` +
+      `Not a side-eye; pupils leave the lens.`
+    )
+  }
+
+  return ''
+}
+
+function gazeActionOverlay(gaze: SlotGaze, grammar: Grammar): { start: string; hold: string } {
+  if (!gaze.requested) return { start: '', hold: '' }
+  const subj = grammar.together ? 'They' : grammar.subject === 'He' ? 'He' : grammar.name
+  const glance = grammar.together ? 'glance' : 'glances'
+  if (gaze.sideEye) {
+    const { dogWay, viewerWay } = yawPhrases(gaze, grammar)
+    return {
+      start:
+        ` Muzzle yaws about ${gaze.degrees} degrees to ${dogWay} (${viewerWay}). ` +
+        `Eyeballs counter-rotate in the sockets so the stare never leaves the lens; sclera visible — classic side-eye.`,
+      hold: ` Pupils stay locked on the lens. Eyes do not look where the snout points. ${subj} never ${glance} away.`,
+    }
+  }
+  if (gaze.cameraLock) {
+    return {
+      start: ` Pupils lock on the camera lens. Eyes on the lens; no 30-degree side-eye muzzle yaw.`,
+      hold: ` Eyes stay on the lens. ${subj} never ${glance} away.`,
+    }
+  }
+  if (gaze.lookAway) {
+    return {
+      start: ` Gaze looks away from the lens (look-away), not a side-eye.`,
+      hold: ` Pupils stay off the lens.`,
+    }
+  }
+  return { start: '', hold: '' }
+}
+
 /** Howl/sing intents, or slot notes that ask for howl|sing|aroo. */
 export function allowsHowlVocalization(input: SuggestPromptInput): boolean {
   if (isHowlLikeIntent(input.intentId, input.intentDescription)) return true
@@ -707,12 +860,19 @@ function timedAction(
   const variantBit = variantBitFor(input.slotLabel, family)
   const energy = energyMotionPhrase(personality.energy)
   const energyBit = energy ? ` ${energy}` : ''
+  const gaze = parseSlotGaze(input.userNotes)
+  const gazeOverlay = gazeActionOverlay(gaze, grammar)
   const holiday = holidaySpecFor(input.intentId, input.intentDescription)
   if (holiday) {
     const together = dogKey(input.dogName) === 'both'
+    const gazeWalk = gaze.requested
+      ? gaze.sideEye
+        ? ' When they look at the camera, use GAZE MECHANICS: muzzle yaw + eyeballs counter-rotate; pupils stay on the lens.'
+        : ' When they look at the camera, use GAZE MECHANICS: pupils stay on the lens.'
+      : ''
     return (
       `ACTION, one continuous shot (10s or 15s — do not use 6s):\n` +
-      `${holidayCostumeWalkMotion(holiday, together)}${energyBit}${variantBit}`
+      `${holidayCostumeWalkMotion(holiday, together)}${energyBit}${variantBit}${gazeWalk}`
     )
   }
 
@@ -807,9 +967,9 @@ function timedAction(
 
   return (
     `ACTION, one continuous shot:\n` +
-    `0–2s: ${beats[0]}\n` +
-    `2–4s: ${beats[1]}\n` +
-    `4–6s: ${beats[2]}`
+    `0–2s: ${beats[0]}${gazeOverlay.start}\n` +
+    `2–4s: ${beats[1]}${gazeOverlay.hold}\n` +
+    `4–6s: ${beats[2]}${gazeOverlay.hold}`
   )
 }
 
@@ -858,6 +1018,7 @@ export function suggestClipPrompt(input: SuggestPromptInput): string {
   }
   const plan = soundPlanFor(resolved, personality)
   const grammar = grammarFor(dogName)
+  const gaze = parseSlotGaze(input.userNotes)
   const holiday = isHolidayLikeIntent(intentId, intentDescription)
   const notes = input.userNotes?.trim()
   const hugLike = isHugLikeIntent(intentId)
@@ -879,6 +1040,7 @@ export function suggestClipPrompt(input: SuggestPromptInput): string {
     breedLine(dogName, personality),
     flavor ? `Look: ${flavor}.` : '',
     character ? `Character: ${character}` : '',
+    gazeMechanicsBlock(gaze, grammar),
     `Intent (${intentId}): ${intentDescription}.`,
     timedAction(resolved, personality, plan, grammar),
     notes ? `Director notes for this slot: ${notes}` : '',

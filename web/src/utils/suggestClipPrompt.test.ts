@@ -9,6 +9,7 @@ import { defaultPersonality } from './dogPersonality'
 import {
   isNoLikeIntent,
   isTreatLikeIntent,
+  parseSlotGaze,
   parseSlotVocals,
   suggestClipPrompt,
 } from './suggestClipPrompt'
@@ -48,6 +49,44 @@ describe('parseSlotVocals', () => {
       bark: false,
       howl: false,
       whine: false,
+    })
+  })
+})
+
+describe('parseSlotGaze', () => {
+  it('reads side-eye and GAZE: side-eye as the default left yaw', () => {
+    for (const notes of ['side-eye', 'side eye', 'GAZE: side-eye', 'sclera']) {
+      expect(parseSlotGaze(notes), notes).toMatchObject({
+        requested: true,
+        sideEye: true,
+        cameraLock: true,
+        muzzle: 'left',
+        degrees: 30,
+      })
+    }
+  })
+
+  it('treats camera lock as eyes on lens without a side-eye turn', () => {
+    expect(parseSlotGaze('GAZE: camera lock')).toMatchObject({
+      requested: true,
+      sideEye: false,
+      cameraLock: true,
+    })
+    expect(parseSlotGaze('eyes on lens')).toMatchObject({
+      requested: true,
+      sideEye: false,
+      cameraLock: true,
+    })
+  })
+
+  it('mirrors yaw when notes say muzzle right / to his right', () => {
+    expect(parseSlotGaze('GAZE: side-eye, muzzle right')).toMatchObject({
+      sideEye: true,
+      muzzle: 'right',
+    })
+    expect(parseSlotGaze('side-eye to his right')).toMatchObject({
+      sideEye: true,
+      muzzle: 'right',
     })
   })
 })
@@ -986,6 +1025,79 @@ describe('suggestClipPrompt', () => {
     expect(prompt).toMatch(/male black huskita/)
     expect(prompt).not.toMatch(/Silence-first/)
     expect(prompt).not.toMatch(/no growl sound/)
+  })
+
+  it('inserts GAZE MECHANICS and a counter-rotate ACTION beat from side-eye notes', () => {
+    const sideEye = suggestClipPrompt({
+      dogName: 'Riley',
+      personality: RILEY_PERSONALITY,
+      intentId: 'hug',
+      intentDescription: 'Hug / cuddle',
+      slotLabel: 'Side-touch reaction',
+      userNotes: 'side-eye',
+    })
+    const tagged = suggestClipPrompt({
+      dogName: 'Riley',
+      personality: RILEY_PERSONALITY,
+      intentId: 'name',
+      intentDescription: 'Dog name',
+      slotLabel: 'Perk up / eye contact',
+      userNotes: 'GAZE: side-eye',
+    })
+    const noGaze = suggestClipPrompt({
+      dogName: 'Riley',
+      personality: RILEY_PERSONALITY,
+      intentId: 'hug',
+      intentDescription: 'Hug / cuddle',
+      slotLabel: 'Side-touch reaction',
+    })
+
+    for (const prompt of [sideEye, tagged]) {
+      expect(prompt).toMatch(/GAZE MECHANICS \(do this exactly\)/)
+      expect(prompt).toMatch(/Riley's pupils stay aimed/)
+      expect(prompt).toMatch(/counter-rotate/)
+      expect(prompt).toMatch(/his left \(viewer's right\)/)
+      expect(prompt).toMatch(/classic side-eye/)
+      expect(prompt).toMatch(/sclera/)
+      expect(prompt).toMatch(/0–2s:[\s\S]*counter-rotate/)
+      expect(prompt).toMatch(/Director notes for this slot:/)
+    }
+
+    expect(noGaze).not.toMatch(/GAZE MECHANICS/)
+    expect(noGaze).not.toMatch(/counter-rotate/)
+  })
+
+  it('camera lock keeps eyes on the lens without a 30° side-eye yaw', () => {
+    const prompt = suggestClipPrompt({
+      dogName: 'Murphy',
+      personality: MURPHY_PERSONALITY,
+      intentId: 'name',
+      intentDescription: 'Dog name',
+      slotLabel: 'Perk up / eye contact',
+      userNotes: 'GAZE: camera lock',
+    })
+    expect(prompt).toMatch(/GAZE MECHANICS \(do this exactly\)/)
+    expect(prompt).toMatch(/Murphy's pupils stay aimed/)
+    expect(prompt).toMatch(/Eyes on the lens/)
+    expect(prompt).toMatch(/No 30-degree side-eye muzzle yaw/)
+    expect(prompt).not.toMatch(/yaws about 30 degrees/)
+    expect(prompt).not.toMatch(/classic side-eye/)
+    expect(prompt).not.toMatch(/counter-rotate/)
+  })
+
+  it('muzzle right mirrors side-eye yaw to the dog’s right (viewer’s left)', () => {
+    const prompt = suggestClipPrompt({
+      dogName: 'Riley',
+      personality: RILEY_PERSONALITY,
+      intentId: 'hug',
+      intentDescription: 'Hug / cuddle',
+      slotLabel: 'Side-touch reaction',
+      userNotes: 'GAZE: side-eye, muzzle right',
+    })
+    expect(prompt).toMatch(/GAZE MECHANICS \(do this exactly\)/)
+    expect(prompt).toMatch(/his right \(viewer's left\)/)
+    expect(prompt).not.toMatch(/his left \(viewer's right\)/)
+    expect(prompt).toMatch(/counter-rotate/)
   })
 
   it('bakes Riley and Murphy no/stop seed slots without treat lick copy', () => {
