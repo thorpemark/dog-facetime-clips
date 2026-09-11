@@ -95,7 +95,7 @@ In an expanded intent: type the phrase → **Add phrase**. Lowercased automatica
 
 1. **Add clip variant** on the intent. If a generation still is set, the new slot already has that photo at full frame.
 2. **Add photo** only if you need a different still (same framing editor: portrait + landscape/PC, crop handles, zoom, rotation). **Use this photo as generation still** if this is the keeper you want on later intents.
-3. Optional: type **slot notes** for this variant (director extras). Gaze: `GAZE: side-eye | camera lock | muzzle left/right`. Vocals: growl / bark / howl / whine.
+3. Optional: type **slot notes** for this variant. Mark only needs a short phrase — e.g. **side eye** — not the GAZE MECHANICS paragraph and not a `GAZE:` prefix. Suggest expands it. Vocals: growl / bark / howl / whine.
 4. **Suggest prompt** → edit if you want → **Copy**.
 5. Generate the video in Grok Imagine / Pika / Gemini (image-to-video from the still). Label `generatorUsed` if you want (optional).
 6. **Attach MP4**. Status becomes `video_attached`.
@@ -115,7 +115,7 @@ This is the main generation loop. It is fully offline in the browser.
    - intent (treat, hug, howl, come, unknown head-tilt, …)
    - seed **Personality** radios (not dog-name ifs). Murphy ships silent / dry / huskita; Riley ships soft Foley / alert / grumble-hug. Changing radios changes Suggest. See trait table below.
    - **Play:** downward-dog play-bow (front low, rear up) plus one short sneeze-like challenge huff — not a bark (intent exception even for silent dogs)
-   - this slot’s label + optional **slot notes** (director extras; Suggest absorbs growl/bark/howl/whine into SOUND + ACTION, and `GAZE: side-eye | camera lock | muzzle left/right` into a GAZE MECHANICS block)
+   - this slot’s label + optional **slot notes**. Type a short phrase such as **side eye** (no `GAZE:` prefix, do not paste the paragraph). Suggest expands it to the canonical **GAZE MECHANICS** block and absorbs growl/bark/howl/whine into SOUND + ACTION.
    - framing context when a photo is attached (portrait FaceTime, keep identity)
    - a **6s** Grok Imagine template for ordinary reactions: length/aspect/frame 1 → MUST HAVE AUDIO → SOUND → LOCKED CAMERA → NO HUMANS → identity → timed ACTION **0–2s / 2–4s / 4–6s** (return to the exact source sit by 4–6s). Camera stays perfectly still; only the dog moves.
    - **Holiday costume-walk intents** (Thanksgiving, Halloween, …): **10s** (15s ok) locked-camera walk — off left, return in costume, walk across with eye contact, return without costume to the exact source pose. Do **not** use 6s for these. MUST HAVE AUDIO + SOUND still apply as appropriate.
@@ -137,22 +137,21 @@ Playback returns to the idle still/clip. If Grok pans, zooms, or reframes, the l
 
 Holiday costume walks use **10s or 15s** instead of the 6s timed ACTION, still with a locked camera. Reject keepers where the crop drifts.
 
-### GAZE MECHANICS — slot notes
+### GAZE MECHANICS — type “side eye”, not the paragraph
 
-Mark can steer eyes vs snout from **Slot notes**. Studio shows `GAZE: side-eye | camera lock | muzzle left/right`. When notes mention gaze / side-eye / sclera / `GAZE:`, Suggest inserts a **GAZE MECHANICS (do this exactly)** block (Riley/Murphy he/him; Both they/their) and weaves the turn into ACTION (usually 0–2s).
+Mark only types a **short phrase** in Slot Notes. He does **not** paste the GAZE MECHANICS paragraph, and he does **not** need a `GAZE:` prefix. Suggest expands the phrase.
 
-How to write notes:
+Studio placeholder is `side eye`. Hint: type “side eye” — Suggest writes the full block.
 
-| Notes | What Suggest does |
-|-------|-------------------|
-| `GAZE: side-eye` or `side-eye` / `side eye` / `sclera` | Canonical side-eye: pupils locked on the lens; muzzle yaws ~30° to the **dog’s left** (viewer’s right); eyeballs **counter-rotate**; sclera visible. Eyes never look where the snout points. |
-| `GAZE: camera lock` / `eyes on lens` / `stare at camera` | Pupils on the lens for all 6s. **No** 30° side-eye turn unless side-eye is also noted. |
-| `muzzle right` / `to his right` | Mirror the yaw (dog’s right = viewer’s left). Use with side-eye. |
-| `muzzle left` / `to his left` / `30 degrees` | Explicit default yaw. |
-| Bare `GAZE:` | Same as side-eye (the keeper). |
-| `GAZE: look away` | Reserved: look-away, not side-eye. |
+| What Mark types | What Suggest writes |
+|-----------------|---------------------|
+| **`side eye`** (also `side-eye`, `sideeye`, `sclera`) | The **full** canonical block: pupils locked on the lens for all 6s; muzzle yaws ~30° to the **dog’s left** (viewer’s right); eyeballs **counter-rotate**; sliver of sclera; eyes never look where the snout points. |
+| `camera lock` / `eyes on lens` / `stare at camera` | Pupils on the lens. **No** 30° turn unless he also wrote side eye. |
+| `muzzle right` / `to his right` | Optional override: mirror the yaw (dog’s right = viewer’s left). Use with side eye, or by itself as the turn. |
+| `muzzle left` / `30 degrees` | Optional override for the default yaw. |
+| `GAZE: …` | Still works if he wants a prefix. Not required. |
 
-Default side-eye matches Mark’s keeper: muzzle ~30° to dog’s left (viewer’s right), pupils locked on lens, sliver of sclera.
+**Priority:** `side eye` alone is enough for the keeper. Riley/Murphy use he/him in the expanded block. ACTION 0–2s gets the muzzle yaw + counter-rotate.
 
 ### NO HUMANS
 
@@ -198,7 +197,7 @@ Seed profiles:
 - **Riley:** soft Foley, medium voice size, normal energy, alert eyes, dry mouth, grumble-hug. **Male black huskita** (he/him).
 - **Both** (together memorial): soft Foley; hug/howl/play/unknown still use the pair-specific together-shot lines (Murphy leans in, Riley wary; Murphy sings, Riley awkward howl; both head-tilt when a phrase is not recognized).
 
-Freeform personality notes (first line = breed) still layer on. Howl-quality notes such as “sings and howls well” or “awkward howl attempt” are included **only** on howl/sing intents so a name clip cannot pick up “sings and howls well.” **Slot notes** are different: if Mark types growl / bark / howl / whine (or synonyms), Suggest allows that vocal in SOUND and times it on the 2–4s beat. Gaze notes (`GAZE: side-eye`, `camera lock`, `muzzle left/right`) add a GAZE MECHANICS block and a 0–2s muzzle/eye beat.
+Freeform personality notes (first line = breed) still layer on. Howl-quality notes such as “sings and howls well” or “awkward howl attempt” are included **only** on howl/sing intents so a name clip cannot pick up “sings and howls well.” **Slot notes** are different: type **side eye** (Suggest writes GAZE MECHANICS) or growl / bark / howl / whine (Suggest writes SOUND). Do not paste the long prompt blocks into Slot Notes.
 
 ### MUST HAVE AUDIO + SOUND — vocalStyle, intent, and slot notes
 

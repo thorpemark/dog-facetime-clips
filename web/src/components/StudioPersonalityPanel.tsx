@@ -92,7 +92,7 @@ export function StudioPersonalityPanel({
     <section className="studio-personality">
       <h2>{dogName}</h2>
       <p className="studio-personality-lead">
-        Radios drive Suggest SOUND / motion / personality. Slot notes can request a growl, bark, howl, or GAZE.
+        Radios drive Suggest SOUND / motion / personality. In Slot Notes, type “side eye” or a growl — Suggest expands them. Don’t paste the GAZE MECHANICS paragraph.
       </p>
 
       <div className="studio-trait-grid">

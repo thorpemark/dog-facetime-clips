@@ -126,7 +126,7 @@ export interface SlotGaze {
   degrees: number
 }
 
-export const SLOT_NOTES_GAZE_HINT = 'GAZE: side-eye | camera lock | muzzle left/right'
+export const SLOT_NOTES_GAZE_HINT = 'side eye · camera lock · muzzle left/right'
 
 function positiveMatch(text: string, pattern: RegExp): boolean {
   const re = new RegExp(pattern.source, pattern.flags.includes('g') ? pattern.flags : `${pattern.flags}g`)
@@ -138,8 +138,12 @@ function positiveMatch(text: string, pattern: RegExp): boolean {
 }
 
 /**
- * Slot notes: `GAZE: side-eye`, `side eye`, `sclera`, `camera lock`, `muzzle left/right`.
- * Bare `GAZE:` defaults to side-eye. `camera lock` alone does not add the 30° turn.
+ * Mark types a short Slot Notes phrase (e.g. "side eye"). Suggest expands it to the
+ * canonical GAZE MECHANICS paragraph. No `GAZE:` prefix required; do not paste the block.
+ *
+ * `side eye` / side-eye / sideeye / sclera → full pupils-on-lens + 30° muzzle yaw + counter-rotate.
+ * `camera lock` alone → eyes on lens, no yaw unless side-eye is also noted.
+ * `muzzle left` / `muzzle right` / `30 degrees` → optional direction/angle overrides.
  */
 export function parseSlotGaze(notes?: string): SlotGaze {
   const empty: SlotGaze = {
@@ -166,6 +170,7 @@ export function parseSlotGaze(notes?: string): SlotGaze {
   const degrees = deg ? Number(deg[1]) : 30
 
   const requested = tagged || sideEyeWords || cameraLockWords || lookAwayWords || muzzleLeft || muzzleRight
+  // Plain "side eye" is enough. Muzzle left/right are direction overrides (and imply the turn).
   const sideEye =
     sideEyeWords || muzzleLeft || muzzleRight || (tagged && !cameraLockWords && !lookAwayWords)
 

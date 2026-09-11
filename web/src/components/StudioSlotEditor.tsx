@@ -292,10 +292,13 @@ export function StudioSlotEditor({
           Slot notes (optional)
           <input
             value={slot.notes ?? ''}
-            placeholder={`${SLOT_NOTES_GAZE_HINT} — also growl / bark / howl`}
+            placeholder="side eye"
             onChange={(event) => onPatch({ notes: event.target.value })}
           />
-          <span className="studio-field-hint">{SLOT_NOTES_GAZE_HINT}</span>
+          <span className="studio-field-hint">
+            Type “side eye” — Suggest writes the full GAZE MECHANICS. Don’t paste the paragraph. Also:{' '}
+            {SLOT_NOTES_GAZE_HINT}
+          </span>
         </label>
         <div className="studio-prompt-actions">
           <button type="button" className="studio-btn-suggest" onClick={suggestPrompt}>
