@@ -1003,7 +1003,7 @@ function timedAction(
     beats = howlAction(dogName, personality, grammar, variantBit)
   } else if (family === 'play') {
     beats = playAction(dogName, personality, grammar, variantBit)
-  } else if (family === 'unknown' || family === 'confused') {
+  } else if (family === 'unknown') {
     beats = unknownAction(dogName, personality, plan, grammar, variantBit)
   } else if (family === 'no') {
     beats = noAction(dogName, personality, plan, grammar, variantBit)
