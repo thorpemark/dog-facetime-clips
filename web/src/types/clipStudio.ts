@@ -84,7 +84,7 @@ export interface DogPersonality {
   notes: string[]
   /** How the dog typically uses its voice. Silent is silence-first. Soft invites faint Foley. */
   vocalStyle: VocalStyle
-  /** Register for allowed vocalization. Unused in AUDIO when vocalStyle is silent (except howl/play exceptions). */
+  /** Register for allowed vocalization. Unused in SOUND when vocalStyle is silent (except howl/play/slot-note vocals). */
   voiceSize: VoiceSize
   energy: EnergyLevel
   eyes: EyeStyle

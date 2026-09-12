@@ -591,7 +591,7 @@ describe('seed personality', () => {
     const rileyHowl = riley?.intents.find((intent) => intent.id === 'howl')?.clipSlots[0]
 
     expect(murphyHug?.prompt).toMatch(/loves hugs/i)
-    expect(rileyHug?.prompt).toMatch(/bares (her )?teeth/i)
+    expect(rileyHug?.prompt).toMatch(/bares (his |her )?teeth/i)
     expect(murphyHowl?.prompt).toMatch(/howls well/i)
     expect(rileyHowl?.prompt).toMatch(/awkward/i)
 

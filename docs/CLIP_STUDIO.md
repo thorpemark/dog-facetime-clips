@@ -37,12 +37,12 @@ Also in Supabase **Authentication → URL Configuration**, **add** (do not repla
 2. Type a name in **New dog name** → **Add dog**.
 3. Set the **Personality** radios (vocal style, voice size, energy, eyes, mouth, touch) and optional notes (first line = breed; following lines = character). Suggest prompt and new clip slots pick this up.
 
-Murphy, Riley, and **Both** ship as seed dogs (huskitas) with baked stills in `web/public/modes/`. **Riley is the black huskita.** **Murphy is the other dog** (not Riley).
+Murphy, Riley, and **Both** ship as seed dogs (huskitas) with baked stills in `web/public/modes/`. **Riley is the male black huskita.** **Murphy is the other dog** (not Riley).
 
 | Mode | Photo | Who |
 |------|-------|-----|
 | **Murphy** | `modes/murphy.jpg` | Tan/ginger huskita, folded ears — the other dog, not Riley |
-| **Riley** | `modes/riley.jpg` | Black-and-white huskita, upright ears — the black huskita |
+| **Riley** | `modes/riley.jpg` | Black-and-white huskita, upright ears — male black huskita |
 | **Both** | `modes/both.jpg` | Murphy on the left, Riley on the right |
 
 Those stills are the Studio tab avatars, the home/demo three-mode picker cards, and incoming-call faces. They are **not** the still Grok uses for new clips. Seed **idle + name / come / hug / howl / unknown** slots start with a copy of that mode photo for the first library. Set each dog’s **Generation still** to the portrait you already used for keepers so later intents match those videos. Reset seed from the bottom of Studio if you want to start over **in this browser** (it does not delete a signed-in cloud library).
@@ -83,7 +83,7 @@ Repeat for the other holiday intents when you want those greetings.
 
 Intent ids are slugs (`belly-rub`). You do **not** edit TypeScript unions for each new intent.
 
-Seed libraries include an **`unknown`** catch-all (confused head-tilt). The matcher plays it when a spoken or typed phrase is not recognized — it does not stay on idle and does not pick a random other intent. Murphy, Riley, and Both each have their own slots + Suggest prompt (silence-first). Attach the MP4s here the same way as any other intent.
+Seed libraries include an **`unknown`** catch-all (confused head-tilt). The matcher plays it when a spoken or typed phrase is not recognized — it does not stay on idle and does not pick a random other intent. Murphy, Riley, and Both each have their own slots + Suggest prompt (Murphy silence-first; Riley/Both soft Foley). Attach the MP4s here the same way as any other intent.
 
 Seed libraries also include **holiday costume-walk** intents (Halloween, Thanksgiving, Christmas, New Year’s, Valentine’s Day, Super Bowl Sunday, St. Patrick’s Day, Birthday, Memorial Day, 4th of July, Labor Day). Existing browsers pick up missing holidays on refresh without wiping attached videos, a Halloween intent you already added, or the generation still. Suggest for these is a **10s / 15s** locked-camera costume walk — not the 6s react-idle arc.
 
@@ -95,7 +95,7 @@ In an expanded intent: type the phrase → **Add phrase**. Lowercased automatica
 
 1. **Add clip variant** on the intent. If a generation still is set, the new slot already has that photo at full frame.
 2. **Add photo** only if you need a different still (same framing editor: portrait + landscape/PC, crop handles, zoom, rotation). **Use this photo as generation still** if this is the keeper you want on later intents.
-3. Optional: type **slot notes** for this variant (director extras).
+3. Optional: type **slot notes** for this variant. Mark only needs a short phrase — e.g. **side eye** — not the GAZE MECHANICS paragraph and not a `GAZE:` prefix. Suggest expands it. Vocals: growl / bark / howl / whine.
 4. **Suggest prompt** → edit if you want → **Copy**.
 5. Generate the video in Grok Imagine / Pika / Gemini (image-to-video from the still). Label `generatorUsed` if you want (optional).
 6. **Attach MP4**. Status becomes `video_attached`.
@@ -111,16 +111,15 @@ This is the main generation loop. It is fully offline in the browser.
 
 1. Pick a slot that still needs a video. Add and frame a source still (portrait FaceTime crop).
 2. Click **Suggest prompt**. The composer fills the textarea from:
-   - dog name + breed notes (huskita / Husky × Akita). **Riley = black huskita**; **Murphy = the other huskita** (keep them distinct; do not swap coats).
+   - dog name + breed notes (huskita / Husky × Akita). **Riley = male black huskita** (he/him); **Murphy = the other huskita** (keep them distinct; do not swap coats).
    - intent (treat, hug, howl, come, unknown head-tilt, …)
-   - seed **Personality** radios (not dog-name ifs). Murphy and Riley ship silent / dry / huskita defaults; Murphy is goofy + cuddly, Riley is alert + grumble-hug. Changing radios changes Suggest. See trait table below.
+   - seed **Personality** radios (not dog-name ifs). Murphy ships silent / dry / huskita; Riley ships soft Foley / alert / grumble-hug. Changing radios changes Suggest. See trait table below.
    - **Play:** downward-dog play-bow (front low, rear up) plus one short sneeze-like challenge huff — not a bark (intent exception even for silent dogs)
-   - this slot’s label + optional slot notes
+   - this slot’s label + optional **slot notes**. Type a short phrase such as **side eye** (no `GAZE:` prefix, do not paste the paragraph). Suggest expands it to the canonical **GAZE MECHANICS** block and absorbs growl/bark/howl/whine into SOUND + ACTION.
    - framing context when a photo is attached (portrait FaceTime, keep identity)
-   - a **6s** Grok Imagine arc for ordinary reactions: reaction peaks in the first ~2–3s → return to calm FaceTime idle and hold. Camera stays perfectly still; only the dog moves.
-   - **Holiday costume-walk intents** (Thanksgiving, Halloween, …): **10s** (15s ok) locked-camera walk — off left, return in costume, walk across with eye contact, return without costume to the exact source pose. Do **not** use 6s for these.
-   - **LOCKED CAMERA** on every Suggest (see below) so playback can return to idle without a framing reset.
-   - **AUDIO first** (silence-first by default — see below). Prompts stay short.
+   - a **6s** Grok Imagine template for ordinary reactions: length/aspect/frame 1 → MUST HAVE AUDIO → SOUND → LOCKED CAMERA → NO HUMANS → identity → timed ACTION **0–2s / 2–4s / 4–6s** (return to the exact source sit by 4–6s). Camera stays perfectly still; only the dog moves.
+   - **Holiday costume-walk intents** (Thanksgiving, Halloween, …): **10s** (15s ok) locked-camera walk — off left, return in costume, walk across with eye contact, return without costume to the exact source pose. Do **not** use 6s for these. MUST HAVE AUDIO + SOUND still apply as appropriate.
+   - **LOCKED CAMERA** and **NO HUMANS** on every Suggest (see below) so playback can return to idle without a framing reset and Grok does not invent a hugging hand.
 3. **Copy** (toast confirms). Paste into **Grok Imagine** as an **image-to-video** prompt, with the framed still as the source image.
 4. In Grok Imagine, length options are **6 / 10 / 15s** (there is no 3–4s). Use **6s** for ordinary reactions, **10s or 15s** for holiday costume walks, **9:16 portrait**, H.264 MP4. Reject morphing / breed drift / extra dogs / talking dogs / camera moves / clips that keep reacting until the last frame.
 5. **Attach MP4** back on the same slot. If Grok still adds bark, music, or other audio, **strip the audio before attaching** — post mute is normal.
@@ -132,11 +131,34 @@ You can edit the prompt after Suggest, then Copy again. Suggest again to rebuild
 Playback returns to the idle still/clip. If Grok pans, zooms, or reframes, the last frame no longer matches idle and the call has to “reset.” Suggest therefore puts a **LOCKED CAMERA** block on every prompt (howl and play included):
 
 - Camera **perfectly still**.
-- **No** pan, tilt, dolly, zoom, push-in, pull-out, handheld shake, or reframing.
+- **No** pan, tilt, zoom, dolly, shake, or reframing.
 - Framing **identical** from first frame to last — same crop as the source still.
-- **Only the subject (dog) moves.**
+- **Only the dog moves.** Small FaceTime-scale backup only; not a zoomie; stays fully in frame.
 
-The 6s arc and the closing line repeat this. Holiday costume walks use **10s or 15s** instead of that 6s arc, still with a locked camera. Reject keepers where the crop drifts.
+Holiday costume walks use **10s or 15s** instead of the 6s timed ACTION, still with a locked camera. Reject keepers where the crop drifts.
+
+### GAZE MECHANICS — type “side eye”, not the paragraph
+
+Mark only types a **short phrase** in Slot Notes. He does **not** paste the GAZE MECHANICS paragraph, and he does **not** need a `GAZE:` prefix. Suggest expands the phrase.
+
+Studio placeholder is `side eye`. Hint: type “side eye” — Suggest writes the full block.
+
+| What Mark types | What Suggest writes |
+|-----------------|---------------------|
+| **`side eye`** (also `side-eye`, `sideeye`, `sclera`) | The **full** canonical block: pupils locked on the lens for all 6s; muzzle yaws ~30° to the **dog’s left** (viewer’s right); eyeballs **counter-rotate**; sliver of sclera; eyes never look where the snout points. |
+| `camera lock` / `eyes on lens` / `stare at camera` | Pupils on the lens. **No** 30° turn unless he also wrote side eye. |
+| `muzzle right` / `to his right` | Optional override: mirror the yaw (dog’s right = viewer’s left). Use with side eye, or by itself as the turn. |
+| `muzzle left` / `30 degrees` | Optional override for the default yaw. |
+| `GAZE: …` | Still works if he wants a prefix. Not required. |
+
+**Priority:** `side eye` alone is enough for the keeper. Riley/Murphy use he/him in the expanded block. ACTION 0–2s gets the muzzle yaw + counter-rotate.
+
+### NO HUMANS
+
+Grok will invent a hugging hand if the prompt is vague. Every Suggest includes:
+
+- No person, no hand, no arm, no finger entering the frame.
+- Nobody hugs the dog on camera.
 
 ### Holiday costume walks (10s+)
 
@@ -150,7 +172,7 @@ Seed holiday intents share one clip concept (Mark’s Thanksgiving prompt, gener
 - Looks **right at the camera** (eye contact) while walking off the **right**.
 - Instantly returns **without** any costume, still the exact same dog.
 - Returns to the **exact sitting position** in the source image.
-- **AUDIO** still follows personality (Murphy/Riley silent unless talker, etc.). No invented bark or music.
+- **SOUND** still follows personality + slot notes (Murphy silence-first unless notes request a vocal; Riley/Both soft Foley). No invented bark or music unless requested.
 
 **Both:** both dogs do the costume walk together and stay identifiable (Murphy left, Riley right), then return to the source poses.
 
@@ -162,53 +184,58 @@ Each dog in the Studio library has a compact **Personality** panel. Radios are m
 
 | Trait | Values | What Suggest does |
 |-------|--------|-------------------|
-| **vocalStyle** | `silent` · `soft` · `barks` · `howler` · `talker` | Builds the AUDIO block. Silent = silence-first (current Murphy/Riley default). Soft = faint whine/breath only. Barks/howler = matching vocalization. Talker = a few English words, labeled **experimental**. |
-| **voiceSize** | `small_high` · `medium` · `large_low` | Pitch of allowed vocalization (high small-dog vs low large-dog). **Muted/disabled in the UI when vocalStyle is silent.** Still colors howl-intent AUDIO when a silent dog is asked to howl/sing. |
-| **energy** | `calm` · `normal` · `hyper` | Motion line: slow/unhurried vs typical vs quick/hyper (stay in frame). |
+| **vocalStyle** | `silent` · `soft` · `barks` · `howler` · `talker` | Builds the SOUND block. Silent = silence-first (Murphy default). Soft = close-mic Foley (Riley/Both default). Barks/howler = matching vocalization. Talker = a few English words, labeled **experimental**. |
+| **voiceSize** | `small_high` · `medium` · `large_low` | Pitch of allowed vocalization (high small-dog vs low large-dog). **Muted/disabled in the UI when vocalStyle is silent.** Still colors howl-intent SOUND when a silent dog is asked to howl/sing. |
+| **energy** | `calm` · `normal` · `hyper` | ACTION beats: slow/unhurried vs typical vs quick/hyper (stay in frame). |
 | **eyes** | `soft_sad` · `alert` · `goofy` | Personality eyes (Murphy seeds `goofy`; Riley seeds `alert`). |
 | **mouth** | `dry` · `slobberer` | Dry muzzle vs a little slobber/drool. |
-| **touch** | `cuddly` · `grumble_hug` | Hug beat: loves hugs / neck offer vs Riley-style silent warning face (bares teeth, not an attack, no growl). |
+| **touch** | `cuddly` · `grumble_hug` | Hug ACTION: loves hugs / neck offer vs Riley-style warning face (bares teeth, not an attack). Growl only if slot notes request it. |
 
 Seed profiles:
 
 - **Murphy:** silent, large/low voice size (for howl exception), normal energy, goofy eyes, dry mouth, cuddly.
-- **Riley:** silent, medium voice size, normal energy, alert eyes, dry mouth, grumble-hug.
-- **Both** (together memorial): silent; hug/howl/play/unknown still use the pair-specific together-shot lines (Murphy leans in, Riley wary; Murphy sings, Riley awkward howl; both head-tilt when a phrase is not recognized).
+- **Riley:** soft Foley, medium voice size, normal energy, alert eyes, dry mouth, grumble-hug. **Male black huskita** (he/him).
+- **Both** (together memorial): soft Foley; hug/howl/play/unknown still use the pair-specific together-shot lines (Murphy leans in, Riley wary; Murphy sings, Riley awkward howl; both head-tilt when a phrase is not recognized).
 
-Freeform notes (first line = breed) still layer on. Howl-quality notes such as “sings and howls well” or “awkward howl attempt” are included **only** on howl/sing intents so a name clip cannot pick up “sings and howls well.”
+Freeform personality notes (first line = breed) still layer on. Howl-quality notes such as “sings and howls well” or “awkward howl attempt” are included **only** on howl/sing intents so a name clip cannot pick up “sings and howls well.” **Slot notes** are different: type **side eye** (Suggest writes GAZE MECHANICS) or growl / bark / howl / whine (Suggest writes SOUND). Do not paste the long prompt blocks into Slot Notes.
 
-### AUDIO first — driven by vocalStyle (howl/sing and play-huff excepted)
+### MUST HAVE AUDIO + SOUND — vocalStyle, intent, and slot notes
 
-Grok Imagine will invent a bark, howl, soundtrack, or talking-dog mouth if the prompt invites it — so Suggest puts **AUDIO first** and stays short. AUDIO is built from **vocalStyle**, not from the dog’s name.
+Grok Imagine will invent a bark, howl, soundtrack, or talking-dog mouth if the prompt invites it — so Suggest follows Mark’s Grok Imagine template: **MUST HAVE AUDIO** (when a real track is wanted) then a **SOUND** block. Slot notes can unlock a specific vocal; other vocals stay banned.
 
-Default AUDIO when vocalStyle is **silent** (every slot that is not howl/sing or play):
+Default SOUND when vocalStyle is **silent** (Murphy, and other silent dogs — every slot that is not howl/sing, play, or a slot-note vocal):
 
-- **Silence-first.**
+- **Silence-first.** No **MUST HAVE AUDIO**.
 - **Hard ban:** bark, howl, whine, growl, music, speech, ambience.
 - **Optional only:** faint breath, soft paw on rug.
 - **Mouth closed.** Face and body motion only.
-- Do **not** say “soft dog sounds”, “pant/huff/whine”, or other language that invites sound.
 
-Other vocalStyle defaults (non-howl, non-play):
+Riley / Both / vocalStyle **soft** (no special vocal in the notes):
 
-- **soft:** faint whine or breath ok; still no bark, howl, music, or speech unless an intent exception applies.
+- **MUST HAVE AUDIO.** Generate a real audio track. Not silent.
+- Close-mic **soft Foley**: faint breath, paw on rug, soft tail swish (mouth/lick on treat).
+- Ban bark, howl, growl, whine, music, speech unless notes or intent allow them.
+
+Other vocalStyle defaults (non-howl, non-play, unless notes add a vocal):
+
 - **barks:** brief barks allowed, pitched by voiceSize; no howl/music/speech.
 - **howler:** a brief howl/aroo allowed, pitched by voiceSize; no bark/music/speech.
 - **talker:** a few clear English words, labeled experimental; no music/ambience/cartoon overacting.
 
-Intent exceptions (still no music or ambience; apply even when vocalStyle is silent):
+Intent + notes (still no music or ambience):
 
-- **Howl / sing intents:** a brief dog howl or husky song. Slot notes such as “responds to a howl” do **not** unlock vocalization on a name / come / hug / treat clip.
+- **Howl / sing intents** or notes matching `howl|sing|aroo`: a brief dog howl or husky song. Ban bark unless the notes also request bark.
+- **Growl / bark / whine in slot notes:** allow that specific vocal; ban the others unless also requested. Example: “short warning growl” → one short low growl in SOUND, timed on 2–4s; no howl, no bark.
 - **Play intents only:** one short **challenge huff** (sneeze-like chuff — the common way dogs ask to play-fight). Motion is a **play-bow / downward-dog stretch** (front low, rear up). Not a bark. Silent dogs still get this single huff.
 
 Other rules:
 
-- **Name, come, here, owner, attention, eye-contact, perk-up:** ears perk + eye contact only. Closed mouth.
-- **Unknown / confused:** classic curious head-tilt toward the camera. AUDIO follows vocalStyle (silence-first for silent dogs — no bark or music). Seed stills are attached on Murphy, Riley, and Both so you can Suggest → Copy → attach.
-- **grumble_hug** may show teeth (silent warning face). That is still **not** a growl or a howl.
-- Howl-quality notes are **omitted** from non-howl prompts.
+- **Name, come, here, owner, attention, eye-contact, perk-up:** ears perk + eye contact only. Closed mouth. Timed 0–2 / 2–4 / 4–6, back to the exact source sit.
+- **Unknown / confused:** classic curious head-tilt toward the camera. SOUND follows vocalStyle (silence-first for silent dogs — no bark or music). Seed stills are attached on Murphy, Riley, and Both so you can Suggest → Copy → attach.
+- **grumble_hug** may show teeth (warning face). That is still **not** a growl unless slot notes ask for one.
+- Howl-quality **personality** notes are **omitted** from non-howl prompts. Slot notes that say howl still apply.
 
-Reject keepers where the dog talks (unless vocalStyle is talker), barks/howls against the AUDIO block, or holds a howl-gape on a non-howl slot. If a keeper is visually good but Grok added extra bark/music/ambience, **strip audio before attaching** — post mute is normal. A play keeper may keep **one** short challenge huff; strip anything else.
+Reject keepers where the dog talks (unless vocalStyle is talker), barks/howls against the SOUND block, or holds a howl-gape on a non-howl slot. If a keeper is visually good but Grok added extra bark/music/ambience, **strip audio before attaching** — post mute is normal. A play keeper may keep **one** short challenge huff; a growl keeper may keep **one** short warning growl; strip anything else.
 
 ### SuperGrok vs an API key
 
@@ -220,7 +247,7 @@ Clip Studio does **not** call Grok from GitHub Pages. In-app **Generate with Gro
 
 1. Frame the source still in Studio so the crop matches the FaceTime portrait (and landscape if you care about desktop).
 2. Suggest prompt → Copy. Keep camera distance consistent across a dog.
-3. Image-to-video in Grok Imagine (or Pika / Gemini). Grok Imagine: **6s** for ordinary reactions, **10s or 15s** for holiday costume walks (not 3–4s), **9:16 portrait**, H.264 MP4. Ordinary prompts lock the camera (only the dog moves), are silence-first (howl/sing or one play-bow challenge huff excepted), and ask for react-then-return-to-idle. Holiday prompts use the locked-camera costume walk instead of that 6s arc. If Grok still adds bark/music, strip audio before attaching — post mute is normal.
+3. Image-to-video in Grok Imagine (or Pika / Gemini). Grok Imagine: **6s** for ordinary reactions, **10s or 15s** for holiday costume walks (not 3–4s), **9:16 portrait**, H.264 MP4. Ordinary prompts lock the camera (only the dog moves), use MUST HAVE AUDIO + SOUND (Murphy silence-first unless notes request a vocal; Riley soft Foley), NO HUMANS, and timed ACTION 0–2 / 2–4 / 4–6 returning to the exact source sit. Holiday prompts use the locked-camera costume walk instead of that 6s arc. If Grok still adds bark/music against SOUND, strip audio before attaching — post mute is normal.
 4. Reject morphing / identity drift / camera movement. Attach the keeper, or mark **needs redo**.
 5. Optional: later commit keepers under `web/public/clips/reactions/{intent}/{intent}_{nn}.mp4` for GitHub Pages.
 

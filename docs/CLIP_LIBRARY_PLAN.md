@@ -138,7 +138,7 @@ Wire point: `useKeywordSpotter` → `matchTranscript` → `onMatch(bucketId)` �
 4. **Suggest prompt** → **Copy** → generate in Grok Imagine (6s · 9:16 for reactions; 10s/15s for holiday costume walks) / Pika / Gemini → **Attach MP4**.
 5. Optional `generatorUsed` label only (no live APIs).
 
-Seed templates still live in `web/src/data/reactionCatalog.ts` and are copied into Murphy / Riley / Both on first load. Suggest hug/howl/play + AUDIO lines are composed from each dog’s Studio **Personality** radios (`web/src/utils/suggestClipPrompt.ts`), not from hard-coded dog-name branches.
+Seed templates still live in `web/src/data/reactionCatalog.ts` and are copied into Murphy / Riley / Both on first load. Suggest hug/howl/play + SOUND lines are composed from each dog’s Studio **Personality** radios, slot notes, and parent intent (`web/src/utils/suggestClipPrompt.ts`).
 
 Missing files fail gracefully: playback tries other variants, then returns to idle. The demo ships bright colored placeholder MP4s so GitHub Pages has *something* visible to play.
 

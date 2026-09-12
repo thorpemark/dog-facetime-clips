@@ -6,7 +6,13 @@ import {
   createSeedStudioState,
 } from '../data/clipStudioSeed'
 import { defaultPersonality } from './dogPersonality'
-import { isNoLikeIntent, isTreatLikeIntent, suggestClipPrompt } from './suggestClipPrompt'
+import {
+  isNoLikeIntent,
+  isTreatLikeIntent,
+  parseSlotGaze,
+  parseSlotVocals,
+  suggestClipPrompt,
+} from './suggestClipPrompt'
 
 const framing = {
   portrait: { focalX: 0.5, focalY: 0.42, focalZoom: 1.6 },
@@ -14,6 +20,89 @@ const framing = {
 }
 
 const INVITING_SOUND = /soft dog sounds|pant\/huff\/whine|quiet pant|soft huff|tiny whine/i
+
+function expectLockedCamera(prompt: string) {
+  expect(prompt).toMatch(/LOCKED CAMERA:/)
+  expect(prompt).toMatch(/perfectly still/)
+  expect(prompt).toMatch(/No pan, tilt, zoom, dolly, shake, or reframing/)
+  expect(prompt).toMatch(/Framing identical first frame to last/)
+  expect(prompt).toMatch(/Only the dog moves/)
+  expect(prompt).toMatch(/NO HUMANS:/)
+  expect(prompt).toMatch(/no person, no hand, no arm, no finger/)
+}
+
+describe('parseSlotVocals', () => {
+  it('reads short warning growl and leaves other vocals off', () => {
+    expect(parseSlotVocals('short warning growl')).toEqual({
+      growl: true,
+      bark: false,
+      howl: false,
+      whine: false,
+    })
+  })
+
+  it('reads howl|sing|aroo and respects negation', () => {
+    expect(parseSlotVocals('let him howl')).toMatchObject({ howl: true })
+    expect(parseSlotVocals('sing it / aroo')).toMatchObject({ howl: true })
+    expect(parseSlotVocals('No howl. No bark.')).toEqual({
+      growl: false,
+      bark: false,
+      howl: false,
+      whine: false,
+    })
+  })
+})
+
+describe('parseSlotGaze', () => {
+  it('treats plain side eye / side-eye / sideeye / sclera as the keeper (no GAZE: prefix)', () => {
+    for (const notes of ['side eye', 'side-eye', 'sideeye', 'sclera', 'sclera side-eye']) {
+      expect(parseSlotGaze(notes), notes).toMatchObject({
+        requested: true,
+        sideEye: true,
+        cameraLock: true,
+        muzzle: 'left',
+        degrees: 30,
+      })
+    }
+    expect(parseSlotGaze('GAZE: side-eye')).toMatchObject({ sideEye: true, muzzle: 'left' })
+  })
+
+  it('treats plain camera lock as eyes on lens without a side-eye turn', () => {
+    expect(parseSlotGaze('camera lock')).toMatchObject({
+      requested: true,
+      sideEye: false,
+      cameraLock: true,
+    })
+    expect(parseSlotGaze('eyes on lens')).toMatchObject({
+      requested: true,
+      sideEye: false,
+      cameraLock: true,
+    })
+    expect(parseSlotGaze('stare at camera')).toMatchObject({
+      requested: true,
+      sideEye: false,
+      cameraLock: true,
+    })
+  })
+
+  it('keeps side eye + camera lock as the full side-eye turn', () => {
+    expect(parseSlotGaze('side eye, camera lock')).toMatchObject({
+      sideEye: true,
+      cameraLock: true,
+    })
+  })
+
+  it('mirrors yaw when notes say muzzle right / to his right', () => {
+    expect(parseSlotGaze('side eye muzzle right')).toMatchObject({
+      sideEye: true,
+      muzzle: 'right',
+    })
+    expect(parseSlotGaze('side eye to his right')).toMatchObject({
+      sideEye: true,
+      muzzle: 'right',
+    })
+  })
+})
 
 describe('suggestClipPrompt', () => {
   it('bakes Riley hug / howl and Murphy hug / howl personality', () => {
@@ -46,10 +135,13 @@ describe('suggestClipPrompt', () => {
       slotLabel: 'Howl / sing',
     })
 
-    expect(rileyHug).toMatch(/bares (her )?teeth/i)
+    expect(rileyHug).toMatch(/bares (his |her )?teeth/i)
     expect(rileyHug).toMatch(/silent warning/i)
     expect(rileyHug).toMatch(/no growl sound/i)
-    expect(rileyHug).toMatch(/black huskita/i)
+    expect(rileyHug).toMatch(/male black huskita/i)
+    expect(rileyHug).toMatch(/He is not Murphy/)
+    expect(rileyHug).not.toMatch(/\bher\b/)
+    expect(rileyHug).not.toMatch(/\bShe is not Murphy/)
     expect(murphyHug).toMatch(/loves hugs/i)
     expect(murphyHug).toMatch(/chest scratch/i)
     expect(murphyHug).toMatch(/nose tilted up/i)
@@ -73,38 +165,47 @@ describe('suggestClipPrompt', () => {
 
     expect(prompt).toMatch(/Grok Imagine/i)
     expect(prompt).toMatch(/image-to-video/i)
-    expect(prompt).toMatch(/6s/)
+    expect(prompt).toMatch(/6 seconds/)
     expect(prompt).toMatch(/9:16/)
-    expect(prompt).toMatch(/return to (a )?calm FaceTime idle/i)
-    expect(prompt).toMatch(/peaks in the first ~2–3 seconds/i)
-    expect(prompt).toMatch(/LOCKED CAMERA/)
-    expect(prompt).toMatch(/perfectly still/i)
-    expect(prompt).toMatch(/no pan, tilt, dolly, zoom, push-in, pull-out, handheld shake, or reframing/i)
-    expect(prompt).toMatch(/only the subject \(dog\) moves/i)
+    expect(prompt).toMatch(/exact source sit/i)
+    expect(prompt).toMatch(/0–2s:/)
+    expect(prompt).toMatch(/2–4s:/)
+    expect(prompt).toMatch(/4–6s:/)
+    expectLockedCamera(prompt)
     expect(prompt).toMatch(/huskita/i)
     expect(prompt).toMatch(/Husky/i)
     expect(prompt).toMatch(/do not morph/i)
     expect(prompt).toMatch(/portrait/i)
     expect(prompt).toMatch(/treat/i)
-    expect(prompt).toMatch(/attached source still/i)
+    expect(prompt).toMatch(/Attached still is frame 1/)
     expect(prompt).toMatch(/tighter face-forward/i)
+    expect(prompt).toMatch(/Natural light/)
   })
 
-  it('puts AUDIO first and keeps the prompt short', () => {
+  it('follows Mark’s template order: length → MUST HAVE AUDIO → SOUND → LOCKED CAMERA → NO HUMANS → ACTION', () => {
     const prompt = suggestClipPrompt({
-      dogName: 'Murphy',
-      personality: MURPHY_PERSONALITY,
+      dogName: 'Riley',
+      personality: RILEY_PERSONALITY,
       intentId: 'name',
       intentDescription: 'Dog name',
       slotLabel: 'Perk up / eye contact',
     })
 
-    expect(prompt.startsWith('AUDIO (read first):')).toBe(true)
-    expect(prompt).toMatch(/LOCKED CAMERA/)
-    expect(prompt.split('\n').length).toBeLessThanOrEqual(10)
+    expect(prompt.startsWith('6 seconds, 9:16')).toBe(true)
+    const must = prompt.indexOf('MUST HAVE AUDIO')
+    const sound = prompt.indexOf('SOUND:')
+    const locked = prompt.indexOf('LOCKED CAMERA:')
+    const humans = prompt.indexOf('NO HUMANS:')
+    const action = prompt.indexOf('ACTION, one continuous shot:')
+    expect(must).toBeGreaterThan(-1)
+    expect(sound).toBeGreaterThan(must)
+    expect(locked).toBeGreaterThan(sound)
+    expect(humans).toBeGreaterThan(locked)
+    expect(action).toBeGreaterThan(humans)
+    expectLockedCamera(prompt)
   })
 
-  it('bakes react-then-idle into the shared 6s arc', () => {
+  it('bakes timed ACTION 0–2 / 2–4 / 4–6 into the shared 6s arc', () => {
     const rileyHug = suggestClipPrompt({
       dogName: 'Riley',
       personality: RILEY_PERSONALITY,
@@ -120,17 +221,18 @@ describe('suggestClipPrompt', () => {
       slotLabel: 'Howl / sing',
     })
 
-    expect(rileyHug).toMatch(/bares (her )?teeth/i)
-    expect(rileyHug).toMatch(/return to (a )?calm FaceTime idle/i)
-    expect(rileyHug).toMatch(/hold/i)
-    expect(rileyHug).toMatch(/Camera stays perfectly still; only the dog moves/)
+    expect(rileyHug).toMatch(/bares (his |her )?teeth/i)
+    expect(rileyHug).toMatch(/0–2s:/)
+    expect(rileyHug).toMatch(/4–6s:/)
+    expect(rileyHug).toMatch(/exact source sit/i)
+    expect(rileyHug).toMatch(/Only the dog moves/)
     expect(murphyHowl).toMatch(/howls well/i)
-    expect(murphyHowl).toMatch(/return to (a )?calm FaceTime idle/i)
-    expect(murphyHowl).toMatch(/6s/)
-    expect(murphyHowl).toMatch(/identical framing first-to-last/)
+    expect(murphyHowl).toMatch(/exact source sit/i)
+    expect(murphyHowl).toMatch(/6 seconds/)
+    expect(murphyHowl).toMatch(/Framing identical first frame to last/)
   })
 
-  it('always includes a strong LOCKED CAMERA block, including play and howl exceptions', () => {
+  it('always includes LOCKED CAMERA and NO HUMANS, including play and howl exceptions', () => {
     const samples = [
       suggestClipPrompt({
         dogName: 'Murphy',
@@ -165,14 +267,8 @@ describe('suggestClipPrompt', () => {
     ]
 
     for (const prompt of samples) {
-      expect(prompt).toMatch(/LOCKED CAMERA:/)
-      expect(prompt).toMatch(/The camera is perfectly still/)
-      expect(prompt).toMatch(/No pan, tilt, dolly, zoom, push-in, pull-out, handheld shake, or reframing/)
-      expect(prompt).toMatch(/Framing is identical from the first frame to the last frame/)
-      expect(prompt).toMatch(/same crop as the source still/)
-      expect(prompt).toMatch(/Only the subject \(dog\) moves/)
-      expect(prompt).toMatch(/Camera stays perfectly still; only the dog moves/)
-      expect(prompt).toMatch(/Repeat: camera perfectly still/)
+      expectLockedCamera(prompt)
+      expect(prompt).toMatch(/small FaceTime-scale backup only/)
     }
 
     expect(samples[1]).toMatch(/Play clip/)
@@ -181,7 +277,7 @@ describe('suggestClipPrompt', () => {
     expect(samples[3]).toMatch(/Soft Foley wanted/)
     expect(samples[3]).not.toMatch(/Silence-first/)
     expect(samples[3]).not.toMatch(/not sound/)
-    expect(samples[3]).toMatch(/attached source still/)
+    expect(samples[3]).toMatch(/Attached still is frame 1/)
   })
 
   it('includes slot notes and generic personality when there is no dog-specific beat', () => {
@@ -202,10 +298,11 @@ describe('suggestClipPrompt', () => {
     expect(prompt).toMatch(/Eager lean in/)
     expect(prompt).toMatch(/lean toward the camera/i)
     expect(prompt).toMatch(/Silence-first/)
+    expect(prompt).toMatch(/Director notes for this slot: Keep the white chest blaze sharp/)
     expect(prompt).not.toMatch(/Murphy and Riley are remarkably non-vocal/)
   })
 
-  it('uses silence-first AUDIO on Murphy name / come / treat and bans inviting sound language', () => {
+  it('uses silence-first SOUND on Murphy name / come / treat and bans inviting sound language', () => {
     const name = suggestClipPrompt({
       dogName: 'Murphy',
       personality: MURPHY_PERSONALITY,
@@ -229,13 +326,14 @@ describe('suggestClipPrompt', () => {
     })
 
     for (const prompt of [name, come, treat]) {
-      expect(prompt.startsWith('AUDIO (read first):')).toBe(true)
+      expect(prompt).toMatch(/SOUND:/)
       expect(prompt).toMatch(/Silence-first/)
       expect(prompt).toMatch(/Hard ban: bark, howl, whine, growl, music, speech, ambience/)
       expect(prompt).toMatch(/faint breath, soft paw on rug/)
       expect(prompt).toMatch(/Mouth closed/)
       expect(prompt).toMatch(/face and body/i)
       expect(prompt).toMatch(/remarkably non-vocal/)
+      expect(prompt).not.toMatch(/MUST HAVE AUDIO/)
       expect(prompt).not.toMatch(INVITING_SOUND)
       expect(prompt).not.toMatch(/Soft Foley wanted/)
       expect(prompt).not.toMatch(/Sings and howls well/)
@@ -256,14 +354,18 @@ describe('suggestClipPrompt', () => {
       userNotes: 'very excited, licks lips, sniffs air',
     })
 
-    expect(prompt.startsWith('AUDIO (read first):')).toBe(true)
+    expect(prompt).toMatch(/MUST HAVE AUDIO/)
+    expect(prompt).toMatch(/SOUND:/)
     expect(prompt).toMatch(/Soft-vocal/)
     expect(prompt).toMatch(/Soft Foley wanted/)
     expect(prompt).toMatch(/faint breath, soft mouth\/lick sounds, paw on rug, soft tail swish/)
-    expect(prompt).toMatch(/Hard ban: bark, howl, music, speech, talking, ambience, heavy whine, growl/)
-    expect(prompt).toMatch(/black huskita/)
+    expect(prompt).toMatch(/No howl/)
+    expect(prompt).toMatch(/No bark/)
+    expect(prompt).toMatch(/No growl/)
+    expect(prompt).toMatch(/male black huskita/)
     expect(prompt).toMatch(/brief lick/)
     expect(prompt).toMatch(/very excited, licks lips, sniffs air/)
+    expect(prompt).toMatch(/Director notes for this slot: very excited, licks lips, sniffs air/)
     expect(prompt).not.toMatch(/Silence-first/)
     expect(prompt).not.toMatch(/not sound/)
     expect(prompt).not.toMatch(/remarkably non-vocal/)
@@ -297,6 +399,7 @@ describe('suggestClipPrompt', () => {
     })
 
     expect(riley).toMatch(/Soft Foley wanted/)
+    expect(riley).toMatch(/MUST HAVE AUDIO/)
     expect(riley).not.toMatch(/Silence-first/)
     expect(riley).not.toMatch(/Mouth closed/)
     expect(both).toMatch(/Soft Foley wanted/)
@@ -304,6 +407,7 @@ describe('suggestClipPrompt', () => {
     expect(customSilent).toMatch(/Silence-first/)
     expect(customSilent).toMatch(/Mouth closed/)
     expect(customSilent).not.toMatch(/Soft Foley wanted/)
+    expect(customSilent).not.toMatch(/MUST HAVE AUDIO/)
   })
 
   it('allows dog howl only on howl/sing intents, still forbids talking and other noise', () => {
@@ -322,37 +426,41 @@ describe('suggestClipPrompt', () => {
       slotLabel: 'Side-touch reaction',
     })
 
-    expect(howl.startsWith('AUDIO (read first):')).toBe(true)
+    expect(howl).toMatch(/MUST HAVE AUDIO/)
     expect(howl).toMatch(/howl\/sing clip/i)
     expect(howl).toMatch(/dog howl/i)
     expect(howl).toMatch(/howls well/i)
     expect(howl).toMatch(/no human words/i)
-    expect(howl).toMatch(/Hard ban: bark, speech, talking, music, ambience/)
+    expect(howl).toMatch(/No bark/)
     expect(howl).not.toMatch(/Silence-first/)
     expect(howl).not.toMatch(INVITING_SOUND)
 
-    expect(hug.startsWith('AUDIO (read first):')).toBe(true)
+    expect(hug).toMatch(/MUST HAVE AUDIO/)
     expect(hug).toMatch(/Soft Foley wanted/)
     expect(hug).not.toMatch(/Silence-first/)
     expect(hug).not.toMatch(/not sound/)
-    expect(hug).toMatch(/bares (her )?teeth/)
+    expect(hug).toMatch(/bares (his |her )?teeth/)
     expect(hug).toMatch(/no growl sound/)
     expect(hug).toMatch(/Mouth closed/)
+    expect(hug).toMatch(/No howl/)
+    expect(hug).toMatch(/No bark/)
     expect(hug).not.toMatch(INVITING_SOUND)
   })
 
-  it('does not unlock vocalization from slot notes such as responds to a howl', () => {
+  it('lets slot notes request a howl vocal on a non-howl intent', () => {
     const prompt = suggestClipPrompt({
       dogName: 'Murphy',
       personality: MURPHY_PERSONALITY,
       intentId: 'come',
       intentDescription: 'Come here',
       slotLabel: 'Eager lean in',
-      userNotes: 'responds to a howl from the other room',
+      userNotes: 'howl / aroo once',
     })
-    expect(prompt).toMatch(/Silence-first/)
-    expect(prompt).not.toMatch(/Howl\/sing clip/)
-    expect(prompt).toMatch(/responds to a howl from the other room/)
+    expect(prompt).toMatch(/MUST HAVE AUDIO/)
+    expect(prompt).toMatch(/Howl\/sing clip/)
+    expect(prompt).toMatch(/No bark/)
+    expect(prompt).not.toMatch(/Silence-first/)
+    expect(prompt).toMatch(/Director notes for this slot: howl \/ aroo once/)
   })
 
   it('bakes Both hug / howl together-shot personality and identity', () => {
@@ -373,7 +481,7 @@ describe('suggestClipPrompt', () => {
 
     expect(hug).toMatch(/keep both dogs in frame/i)
     expect(hug).toMatch(/Murphy leans in/i)
-    expect(hug).toMatch(/Riley is wary/i)
+    expect(hug).toMatch(/Riley is wary|Riley stays wary/i)
     expect(hug).toMatch(/black huskita/i)
     expect(hug).toMatch(/Soft Foley wanted/)
     expect(hug).toMatch(/Riley warning is visual/)
@@ -414,12 +522,12 @@ describe('suggestClipPrompt', () => {
       slotLabel: 'Perk up / eye contact',
     })
 
-    expect(play.startsWith('AUDIO (read first):')).toBe(true)
+    expect(play).toMatch(/MUST HAVE AUDIO/)
     expect(play).toMatch(/Play clip/)
     expect(play).toMatch(/one short challenge huff/i)
     expect(play).toMatch(/sneeze-like chuff/i)
     expect(play).toMatch(/Not a bark/)
-    expect(play).toMatch(/Hard ban: bark, howl, music, speech, ambience/)
+    expect(play).toMatch(/No howl/)
     expect(play).toMatch(/play-bow/i)
     expect(play).toMatch(/front low, rear up/)
     expect(play).toMatch(/downward-dog/)
@@ -443,7 +551,10 @@ describe('suggestClipPrompt', () => {
       /loves hugs/i,
     )
     expect(riley?.intents.find((intent) => intent.id === 'hug')?.clipSlots[0]?.prompt).toMatch(
-      /bares (her )?teeth/i,
+      /bares (his |her )?teeth/i,
+    )
+    expect(riley?.intents.find((intent) => intent.id === 'hug')?.clipSlots[0]?.prompt).toMatch(
+      /male black huskita/i,
     )
     expect(murphy?.intents.find((intent) => intent.id === 'play')?.clipSlots[0]?.prompt).toMatch(
       /play-bow/i,
@@ -453,7 +564,7 @@ describe('suggestClipPrompt', () => {
     )
   })
 
-  it('builds AUDIO and personality from traits, not dog-name ifs', () => {
+  it('builds SOUND and personality from traits, not dog-name ifs', () => {
     const barker = defaultPersonality({
       vocalStyle: 'barks',
       voiceSize: 'small_high',
@@ -556,7 +667,7 @@ describe('suggestClipPrompt', () => {
     expect(howlTreat).toMatch(/Howler/)
     expect(howlTreat).toMatch(/low, large-dog howl/)
     expect(howlTreat).not.toMatch(/Silence-first/)
-    expect(howlHug).toMatch(/bares (her )?teeth/)
+    expect(howlHug).toMatch(/bares (his |her )?teeth/)
     expect(howlHug).toMatch(/no growl sound/)
     expect(howlHug).not.toMatch(/loves hugs/i)
 
@@ -566,7 +677,7 @@ describe('suggestClipPrompt', () => {
 
     expect(softName).toMatch(/Soft-vocal/)
     expect(softName).toMatch(/Soft Foley wanted/)
-    expect(softName).toMatch(/faint breath, soft mouth\/lick sounds/)
+    expect(softName).toMatch(/faint breath/)
     expect(softName).not.toMatch(/Silence-first/)
     expect(softName).not.toMatch(/not sound/)
     expect(softName).not.toMatch(/remarkably non-vocal/)
@@ -606,18 +717,19 @@ describe('suggestClipPrompt', () => {
       slotLabel: 'Curious head-tilt',
     })
 
-    expect(murphy.startsWith('AUDIO (read first):')).toBe(true)
+    expect(murphy).toMatch(/SOUND:/)
     expect(murphy).toMatch(/Silence-first/)
     expect(murphy).toMatch(/Hard ban: bark, howl, whine, growl, music, speech, ambience/)
     expect(murphy).toMatch(/head-tilt/i)
     expect(murphy).toMatch(/huh/)
+    expect(murphy).not.toMatch(/MUST HAVE AUDIO/)
     expect(murphy).not.toMatch(/Soft Foley wanted/)
     expect(murphy).not.toMatch(/Howl\/sing clip/)
     expect(murphy).not.toMatch(/challenge huff/)
     expect(murphy).not.toMatch(INVITING_SOUND)
 
     for (const prompt of [riley, both]) {
-      expect(prompt.startsWith('AUDIO (read first):')).toBe(true)
+      expect(prompt).toMatch(/MUST HAVE AUDIO/)
       expect(prompt).toMatch(/Soft Foley wanted/)
       expect(prompt).toMatch(/head-tilt/i)
       expect(prompt).toMatch(/huh/)
@@ -680,7 +792,7 @@ describe('suggestClipPrompt', () => {
       slotLabel: 'Alert, tail energy',
     })
 
-    expect(thanksgiving.startsWith('AUDIO (read first):')).toBe(true)
+    expect(thanksgiving).toMatch(/SOUND:/)
     expect(thanksgiving).toMatch(/Silence-first/)
     expect(thanksgiving).toMatch(/LOCKED CAMERA/)
     expect(thanksgiving).toMatch(/10s/)
@@ -692,12 +804,13 @@ describe('suggestClipPrompt', () => {
     expect(thanksgiving).toMatch(/without any costume/)
     expect(thanksgiving).toMatch(/exact sitting position/)
     expect(thanksgiving).toMatch(/Do not use the usual 6s/)
-    expect(thanksgiving).not.toMatch(/peaks in the first ~2–3 seconds/)
+    expect(thanksgiving).not.toMatch(/0–2s:/)
     expect(thanksgiving).not.toMatch(INVITING_SOUND)
 
     expect(halloween).toMatch(/Halloween dog costume/)
     expect(halloween).toMatch(/black huskita/)
     expect(halloween).toMatch(/Soft Foley wanted/)
+    expect(halloween).toMatch(/MUST HAVE AUDIO/)
     expect(halloween).not.toMatch(/Silence-first/)
     expect(halloween).not.toMatch(/not sound/)
     expect(halloween).toMatch(/10s/)
@@ -708,8 +821,9 @@ describe('suggestClipPrompt', () => {
     expect(bothChristmas).toMatch(/Soft Foley wanted/)
     expect(bothChristmas).not.toMatch(/Silence-first/)
 
-    expect(walk).toMatch(/6s/)
-    expect(walk).toMatch(/peaks in the first ~2–3 seconds/)
+    expect(walk).toMatch(/6 seconds/)
+    expect(walk).toMatch(/0–2s:/)
+    expect(walk).toMatch(/4–6s:/)
     expect(walk).not.toMatch(/Pilgrim/)
     expect(walk).not.toMatch(/costume walk/i)
   })
@@ -745,7 +859,7 @@ describe('suggestClipPrompt', () => {
     })
 
     for (const prompt of [rileyNo, rileyGuilty]) {
-      expect(prompt.startsWith('AUDIO (read first):')).toBe(true)
+      expect(prompt).toMatch(/MUST HAVE AUDIO/)
       expect(prompt).toMatch(/Soft Foley wanted/)
       expect(prompt).toMatch(/Intent \(no\): No \/ Stop/)
       expect(prompt).toMatch(/ears (go )?back/i)
@@ -758,7 +872,7 @@ describe('suggestClipPrompt', () => {
       expect(prompt).not.toMatch(/food-interest/i)
       expect(prompt).not.toMatch(/expectant lick|Lick \/ expectant/i)
       expect(prompt).not.toMatch(/maybe a brief lick/i)
-      expect(prompt).not.toMatch(/bares (her )?teeth/i)
+      expect(prompt).not.toMatch(/bares (his |her )?teeth/i)
       expect(prompt).not.toMatch(/silent warning/i)
       expect(prompt).not.toMatch(/Silence-first/)
     }
@@ -838,7 +952,7 @@ describe('suggestClipPrompt', () => {
     })
 
     expect(hug).toMatch(/Intent \(hug\)/)
-    expect(hug).toMatch(/bares (her )?teeth/i)
+    expect(hug).toMatch(/bares (his |her )?teeth/i)
     expect(hug).not.toMatch(/Intent \(treat\)/)
     expect(hug).not.toMatch(/eyes lock on an implied treat/i)
     expect(hug).not.toMatch(/Variant beat: Lick \/ expectant/)
@@ -871,6 +985,147 @@ describe('suggestClipPrompt', () => {
     expect(isTreatLikeIntent('no', 'No / Stop')).toBe(false)
     expect(isTreatLikeIntent('unknown', 'Unknown / confused head-tilt')).toBe(false)
     expect(isTreatLikeIntent('halloween', 'Halloween')).toBe(false)
+  })
+
+  it('does not treat an empty or unlabeled intent as treat', () => {
+    const empty = suggestClipPrompt({
+      dogName: 'Riley',
+      personality: RILEY_PERSONALITY,
+      intentId: '',
+      intentDescription: '',
+      slotLabel: 'Lick / expectant',
+    })
+    const idle = suggestClipPrompt({
+      dogName: 'Riley',
+      personality: RILEY_PERSONALITY,
+      intentId: 'idle',
+      intentDescription: 'Idle FaceTime hold',
+      slotLabel: 'Calm look at camera',
+    })
+
+    expect(empty).toMatch(/Intent \(reaction\)/)
+    expect(empty).not.toMatch(/Intent \(treat\)/)
+    expect(empty).not.toMatch(/eyes lock on an implied treat/i)
+    expect(empty).not.toMatch(/food-interest/i)
+    expect(empty).not.toMatch(/maybe a brief lick/i)
+    expect(idle).toMatch(/Intent \(idle\)/)
+    expect(idle).not.toMatch(/Intent \(treat\)/)
+    expect(idle).not.toMatch(/eyes lock on an implied treat/i)
+  })
+
+  it('puts a short warning growl in SOUND from slot notes and bans howl/bark', () => {
+    const prompt = suggestClipPrompt({
+      dogName: 'Riley',
+      personality: RILEY_PERSONALITY,
+      intentId: 'hug',
+      intentDescription: 'Hug / cuddle',
+      slotLabel: 'Side-touch reaction',
+      userNotes: 'short warning growl',
+      hasSourcePhoto: true,
+      framing,
+    })
+
+    expect(prompt).toMatch(/MUST HAVE AUDIO/)
+    expect(prompt).toMatch(/SOUND:/)
+    expect(prompt).toMatch(/short low warning growl/i)
+    expect(prompt).toMatch(/Not a long rumble/)
+    expect(prompt).toMatch(/Not an attack roar/)
+    expect(prompt).toMatch(/No howl/)
+    expect(prompt).toMatch(/No bark/)
+    expect(prompt).toMatch(/No whine/)
+    expect(prompt).toMatch(/2–4s:[\s\S]*short low growl lands here/)
+    expect(prompt).toMatch(/Director notes for this slot: short warning growl/)
+    expect(prompt).toMatch(/male black huskita/)
+    expect(prompt).not.toMatch(/Silence-first/)
+    expect(prompt).not.toMatch(/no growl sound/)
+  })
+
+  it('expands plain “side eye” (no GAZE: prefix) to the full canonical GAZE MECHANICS block', () => {
+    const prompt = suggestClipPrompt({
+      dogName: 'Riley',
+      personality: RILEY_PERSONALITY,
+      intentId: 'hug',
+      intentDescription: 'Hug / cuddle',
+      slotLabel: 'Side-touch reaction',
+      userNotes: 'side eye',
+    })
+
+    expect(prompt).toMatch(/GAZE MECHANICS \(do this exactly\)/)
+    expect(prompt).toMatch(/The camera lens is a fixed point in space/)
+    expect(prompt).toMatch(/Riley's pupils stay aimed at that same point for all 6 seconds/)
+    expect(prompt).toMatch(/yaws about 30 degrees to his left \(viewer's right\)/)
+    expect(prompt).toMatch(/eyeballs counter-rotate in the sockets/)
+    expect(prompt).toMatch(/stare never leaves the lens/)
+    expect(prompt).toMatch(/head\/snout turns, eyes do not/)
+    expect(prompt).toMatch(/sliver of eye-white \(sclera\)/)
+    expect(prompt).toMatch(/classic side-eye/)
+    expect(prompt).toMatch(/never looks where the snout points/)
+    expect(prompt).toMatch(/0–2s:[\s\S]*counter-rotate/)
+    expect(prompt).toMatch(/Director notes for this slot: side eye/)
+    expect(prompt).not.toMatch(/Director notes for this slot:[\s\S]*GAZE MECHANICS \(do this exactly\)/)
+  })
+
+  it('expands sideeye / sclera the same way, and still accepts an optional GAZE: prefix', () => {
+    const phrases = ['side-eye', 'sideeye', 'sclera side-eye', 'GAZE: side-eye']
+    for (const userNotes of phrases) {
+      const prompt = suggestClipPrompt({
+        dogName: 'Riley',
+        personality: RILEY_PERSONALITY,
+        intentId: 'name',
+        intentDescription: 'Dog name',
+        slotLabel: 'Perk up / eye contact',
+        userNotes,
+      })
+      expect(prompt, userNotes).toMatch(/GAZE MECHANICS \(do this exactly\)/)
+      expect(prompt, userNotes).toMatch(/counter-rotate/)
+      expect(prompt, userNotes).toMatch(/his left \(viewer's right\)/)
+      expect(prompt, userNotes).toMatch(`Director notes for this slot: ${userNotes}`)
+    }
+
+    const noGaze = suggestClipPrompt({
+      dogName: 'Riley',
+      personality: RILEY_PERSONALITY,
+      intentId: 'hug',
+      intentDescription: 'Hug / cuddle',
+      slotLabel: 'Side-touch reaction',
+    })
+    expect(noGaze).not.toMatch(/GAZE MECHANICS/)
+    expect(noGaze).not.toMatch(/counter-rotate/)
+  })
+
+  it('expands plain camera lock without a side-eye turn', () => {
+    const prompt = suggestClipPrompt({
+      dogName: 'Murphy',
+      personality: MURPHY_PERSONALITY,
+      intentId: 'name',
+      intentDescription: 'Dog name',
+      slotLabel: 'Perk up / eye contact',
+      userNotes: 'camera lock',
+    })
+    expect(prompt).toMatch(/GAZE MECHANICS \(do this exactly\)/)
+    expect(prompt).toMatch(/Murphy's pupils stay aimed/)
+    expect(prompt).toMatch(/Eyes on the lens/)
+    expect(prompt).toMatch(/No 30-degree side-eye muzzle yaw/)
+    expect(prompt).toMatch(/Director notes for this slot: camera lock/)
+    expect(prompt).not.toMatch(/yaws about 30 degrees/)
+    expect(prompt).not.toMatch(/classic side-eye/)
+    expect(prompt).not.toMatch(/counter-rotate/)
+  })
+
+  it('muzzle right on plain side eye mirrors yaw to the dog’s right (viewer’s left)', () => {
+    const prompt = suggestClipPrompt({
+      dogName: 'Riley',
+      personality: RILEY_PERSONALITY,
+      intentId: 'hug',
+      intentDescription: 'Hug / cuddle',
+      slotLabel: 'Side-touch reaction',
+      userNotes: 'side eye muzzle right',
+    })
+    expect(prompt).toMatch(/GAZE MECHANICS \(do this exactly\)/)
+    expect(prompt).toMatch(/his right \(viewer's left\)/)
+    expect(prompt).not.toMatch(/his left \(viewer's right\)/)
+    expect(prompt).toMatch(/counter-rotate/)
+    expect(prompt).toMatch(/Director notes for this slot: side eye muzzle right/)
   })
 
   it('bakes Riley and Murphy no/stop seed slots without treat lick copy', () => {

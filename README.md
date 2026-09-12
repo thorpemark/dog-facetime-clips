@@ -16,7 +16,7 @@ A gentle memorial experience that simulates FaceTiming a beloved dog who has pas
 | **Sharing** | Supabase memorial links | Same UX target; clip assets per memorial (planned) |
 | **Status** | Production memorial sharing | v1 scaffold — see [`docs/CLIP_LIBRARY_PLAN.md`](docs/CLIP_LIBRARY_PLAN.md) |
 
-**Next steps for Mark:** from home, pick **Murphy / Riley / Both** (photos are preloaded; Riley is the black huskita, Murphy is the other dog), or open **Clip Studio** (`/studio`) to refine framing, **Suggest prompt** → **Copy** into Grok Imagine (6s · 9:16, or Pika), and attach MP4s. See [`docs/CLIP_STUDIO.md`](docs/CLIP_STUDIO.md). Ken Burns photo mode stays as fallback until dual-mode is complete.
+**Next steps for Mark:** from home, pick **Murphy / Riley / Both** (photos are preloaded; Riley is the male black huskita, Murphy is the other dog), or open **Clip Studio** (`/studio`) to refine framing, **Suggest prompt** → **Copy** into Grok Imagine (6s · 9:16, or Pika), and attach MP4s. See [`docs/CLIP_STUDIO.md`](docs/CLIP_STUDIO.md). Ken Burns photo mode stays as fallback until dual-mode is complete.
 
 ### Three call modes
 
