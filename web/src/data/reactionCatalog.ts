@@ -167,7 +167,7 @@ export const REACTION_CATALOG: ReactionBucket[] = [
     priority: 6,
     description: 'No / Stop',
     semanticHints:
-      'No, no no, stop that, uh uh, don’t, leave it, ah ah, knock it off, stop it. A correction or prohibition — not praise.',
+      'No, no no, stop that, uh uh, don’t, leave it, ah ah, knock it off, stop it. A correction or prohibition — not praise, not a treat, not a hug.',
   },
   {
     id: 'owner',

@@ -7,7 +7,7 @@ import { resolveSourcePhoto } from '../utils/clipStudioStore'
 import { displayNameForClipVideo } from '../utils/clipVideoName'
 import { normalizeClipWeights } from '../data/reactionCatalog'
 import { applyStudioPreviewSound } from '../utils/callVideoSound'
-import { isHolidayLikeIntent, suggestClipPrompt } from '../utils/suggestClipPrompt'
+import { isHolidayLikeIntent, SLOT_NOTES_GAZE_HINT, suggestClipPrompt } from '../utils/suggestClipPrompt'
 import { PhotoFocalEditor } from './PhotoFocalEditor'
 
 const STATUS_LABEL: Record<ClipSlot['status'], string> = {
@@ -300,9 +300,13 @@ export function StudioSlotEditor({
           Slot notes (optional)
           <input
             value={slot.notes ?? ''}
-            placeholder="Extra direction for this variant (included when you Suggest)"
+            placeholder="side eye"
             onChange={(event) => onPatch({ notes: event.target.value })}
           />
+          <span className="studio-field-hint">
+            Type “side eye” — Suggest writes the full GAZE MECHANICS. Don’t paste the paragraph. Also:{' '}
+            {SLOT_NOTES_GAZE_HINT}
+          </span>
         </label>
         <div className="studio-prompt-actions">
           <button type="button" className="studio-btn-suggest" onClick={suggestPrompt}>

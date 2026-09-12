@@ -591,9 +591,15 @@ describe('seed personality', () => {
     const rileyHowl = riley?.intents.find((intent) => intent.id === 'howl')?.clipSlots[0]
 
     expect(murphyHug?.prompt).toMatch(/loves hugs/i)
-    expect(rileyHug?.prompt).toMatch(/bares (her )?teeth/i)
+    expect(rileyHug?.prompt).toMatch(/bares (his |her )?teeth/i)
     expect(murphyHowl?.prompt).toMatch(/howls well/i)
     expect(rileyHowl?.prompt).toMatch(/awkward/i)
+
+    const rileyNo = riley?.intents.find((intent) => intent.id === 'no')?.clipSlots[0]
+    expect(rileyNo?.prompt).toMatch(/Intent \(no\)/)
+    expect(rileyNo?.prompt).toMatch(/ears (go )?back/i)
+    expect(rileyNo?.prompt).not.toMatch(/Intent \(treat\)/)
+    expect(rileyNo?.prompt).not.toMatch(/eyes lock on an implied treat/i)
   })
 
   it('exposes hug and howl as playback buckets', () => {

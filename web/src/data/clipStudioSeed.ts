@@ -171,10 +171,10 @@ export const MURPHY_PERSONALITY: DogPersonality = {
 export const RILEY_PERSONALITY: DogPersonality = {
   breed: 'huskita (Husky × Akita mix)',
   notes: [
-    'Riley is the black huskita.',
+    'Riley is a male black huskita.',
     'Soft Foley — faint breath, soft mouth/lick, paw on rug, tail swish. Not a barker.',
     'Independent, expressive, a bit stubborn.',
-    'Does not like hugs: silent warning face, bares teeth when her side is touched or she is asked for a hug (not an attack).',
+    'Does not like hugs: silent warning face, bares teeth when his side is touched or he is asked for a hug (not an attack).',
     'Awkward howl attempt — hesitant and slightly off, not a full song.',
   ],
   vocalStyle: 'soft',

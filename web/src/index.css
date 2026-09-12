@@ -2657,6 +2657,11 @@ button {
   color: rgba(255, 255, 255, 0.55);
 }
 
+.studio-field-hint {
+  font-size: 0.72rem;
+  color: rgba(255, 255, 255, 0.4);
+}
+
 .studio-intent-list {
   display: flex;
   flex-direction: column;
