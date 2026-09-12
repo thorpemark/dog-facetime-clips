@@ -537,7 +537,7 @@ describe('seed modes and photos', () => {
         expect(holiday, `${dog?.name} missing ${holidayId}`).toBeDefined()
         expect(holiday?.clipSlots.length).toBeGreaterThanOrEqual(1)
         expect(holiday?.clipSlots[0]?.resultVideo).toBeNull()
-        expect(holiday?.clipSlots[0]?.prompt).toMatch(/walks off camera/i)
+        expect(holiday?.clipSlots[0]?.prompt).toMatch(/walks completely off camera/i)
         expect(holiday?.clipSlots[0]?.prompt).toMatch(/10s/)
         expect(holiday?.clipSlots[0]?.prompt).toMatch(/Do not use the usual 6s/)
         expect(holiday?.clipSlots[0]?.prompt).not.toMatch(/peaks in the first ~2–3 seconds/)
@@ -836,5 +836,62 @@ describe('migrateStudioState personality radios', () => {
         ?.clipSlots[0]?.prompt,
     ).toBe('OLD-RILEY-TREAT')
     expect(migrated.dogs.find((dog) => dog.id === 'both')?.personality.vocalStyle).toBe('soft')
+  })
+
+  it('prefills empty slot notes and does not overwrite Murphy keeper notes', () => {
+    const seed = createSeedStudioState()
+    const riley = seed.dogs.find((dog) => dog.id === 'riley')
+    const murphy = seed.dogs.find((dog) => dog.id === 'murphy')
+    const rileyNo = riley?.intents.find((intent) => intent.id === 'no')?.clipSlots[0]
+    const rileyTreat = riley?.intents
+      .find((intent) => intent.id === 'treat')
+      ?.clipSlots.find((slot) => /lick/i.test(slot.label))
+    const holiday = riley?.intents.find((intent) => intent.id === 'halloween')?.clipSlots[0]
+
+    expect(rileyNo?.notes).toBe(
+      'Ears pin back, freeze, slight guilty eye contact, return to sit.',
+    )
+    expect(rileyTreat?.notes).toBe(
+      'Eyes lock on treat, eager lean, brief lip lick, settle to still.',
+    )
+    expect(holiday?.notes).toMatch(/off left|costume walk|exact source sit/i)
+    expect(rileyNo?.prompt).toMatch(/Director notes for this slot/)
+    expect(rileyNo?.prompt).toMatch(/Ears pin back, freeze, slight guilty eye contact/)
+
+    if (!murphy) throw new Error('missing murphy')
+    const keeper = 'MARK WROTE THIS BEAT'
+    const stored = {
+      ...seed,
+      seedRevision: 7,
+      dogs: seed.dogs.map((dog) =>
+        dog.id === 'murphy'
+          ? {
+              ...dog,
+              intents: dog.intents.map((intent) =>
+                intent.id === 'howl'
+                  ? {
+                      ...intent,
+                      clipSlots: intent.clipSlots.map((slot, index) =>
+                        index === 0 ? { ...slot, notes: keeper } : { ...slot, notes: undefined },
+                      ),
+                    }
+                  : {
+                      ...intent,
+                      clipSlots: intent.clipSlots.map((slot) => ({ ...slot, notes: undefined })),
+                    },
+              ),
+            }
+          : dog,
+      ),
+    }
+    const migrated = migrateStudioState(stored)
+    const murphyHowl = migrated.dogs
+      .find((dog) => dog.id === 'murphy')
+      ?.intents.find((intent) => intent.id === 'howl')?.clipSlots[0]
+    const murphyName = migrated.dogs
+      .find((dog) => dog.id === 'murphy')
+      ?.intents.find((intent) => intent.id === 'name')?.clipSlots[0]
+    expect(murphyHowl?.notes).toBe(keeper)
+    expect(murphyName?.notes).toMatch(/that’s me|recognition/i)
   })
 })

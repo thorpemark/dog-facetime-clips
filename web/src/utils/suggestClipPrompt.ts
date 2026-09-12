@@ -291,6 +291,7 @@ export function isPlayLikeIntent(intentId: string, intentDescription = ''): bool
 
 /** Play-only: one short challenge huff. Does not unlock howl or other vocals. */
 export function allowsPlayHuff(input: SuggestPromptInput): boolean {
+  if (isHowlLikeIntent(input.intentId, input.intentDescription)) return false
   return isPlayLikeIntent(input.intentId, input.intentDescription)
 }
 
@@ -313,18 +314,100 @@ function isAttentionStyleIntent(intentId: string, intentDescription = ''): boole
   )
 }
 
-function isHugLikeIntent(intentId: string): boolean {
+function isHugLikeIntent(intentId: string, intentDescription = ''): boolean {
   const intent = normalizeIntent(intentId)
-  return intent.includes('hug') || intent.includes('cuddle') || intent.includes('snuggle')
+  if (intent.includes('hug') || intent.includes('cuddle') || intent.includes('snuggle')) {
+    return true
+  }
+  const desc = intentDescription.trim().toLowerCase()
+  if (!desc) return false
+  return /\bhug\b|\bcuddle\b|\bsnuggle\b/.test(desc)
+}
+
+const ID_MOTION_FAMILIES = [
+  'unknown',
+  'confused',
+  'treat',
+  'hug',
+  'howl',
+  'come',
+  'here',
+  'name',
+  'owner',
+  'good',
+  'walk',
+  'play',
+  'quiet',
+  'idle',
+  'no',
+] as const
+
+export type SuggestIntentFamily =
+  | 'holiday'
+  | 'howl'
+  | 'play'
+  | 'hug'
+  | 'unknown'
+  | 'no'
+  | 'treat'
+  | 'walk'
+  | 'good'
+  | 'come'
+  | 'here'
+  | 'name'
+  | 'owner'
+  | 'quiet'
+  | 'idle'
+  | 'attention'
+  | 'generic'
+
+function matchesIntentId(intent: string, family: string): boolean {
+  return intent === family || intent.startsWith(`${family}-`)
+}
+
+function isUnknownLikeIntent(intentId: string): boolean {
+  const intent = normalizeIntent(intentId)
+  return (
+    intent === 'unknown' ||
+    intent === 'confused' ||
+    intent.startsWith('unknown-') ||
+    intent.startsWith('confused-')
+  )
 }
 
 /**
- * Treat / food-interest family. Parent intent id (and official description) only.
- * Slot labels such as “Lick / expectant” must not reclassify a no/hug/play slot.
+ * Correction / prohibition buckets. Id wins over labels so a No slot
+ * cannot inherit treat motion from leftover notes or a lick-style variant name.
  */
-export function isTreatLikeIntent(intentId: string, intentDescription = ''): boolean {
+export function isNoLikeIntent(intentId: string, intentDescription = ''): boolean {
   const intent = normalizeIntent(intentId)
-  if (intent === 'treat' || intent.startsWith('treat-')) return true
+  if (isUnknownLikeIntent(intentId)) return false
+  if (
+    matchesIntentId(intent, 'no') ||
+    matchesIntentId(intent, 'stop') ||
+    matchesIntentId(intent, 'leave-it') ||
+    intent === 'leaveit' ||
+    intent.startsWith('leaveit-')
+  ) {
+    return true
+  }
+  const desc = intentDescription.trim().toLowerCase()
+  if (!desc) return false
+  if (isHolidayLikeIntent(intentId, intentDescription)) return false
+  if (/\b(treat|chicken|cookie|snack|nummies)\b/.test(desc) && !/\b(no|stop|leave it|don'?t)\b/.test(desc)) {
+    return false
+  }
+  return /\b(no|stop|leave it|uh[- ]?uh|don'?t|knock it off|correction|guilty settle)\b/.test(desc)
+}
+
+/** Food-interest buckets. Never wins over `no` / holiday (trick or treat). */
+export function isTreatLikeIntent(intentId: string, intentDescription = ''): boolean {
+  if (isNoLikeIntent(intentId, intentDescription)) return false
+  if (isHolidayLikeIntent(intentId, intentDescription)) return false
+  const intent = normalizeIntent(intentId)
+  if (matchesIntentId(intent, 'treat') || matchesIntentId(intent, 'food') || matchesIntentId(intent, 'cookie')) {
+    return true
+  }
   const desc = intentDescription.trim().toLowerCase()
   if (!desc) return false
   if (/trick[-\s]?or[-\s]?treat/.test(intent) || /trick[-\s]?or[-\s]?treat/.test(desc)) return false
@@ -332,18 +415,41 @@ export function isTreatLikeIntent(intentId: string, intentDescription = ''): boo
 }
 
 /**
- * No / stop / correction family. Never use `includes('no')` — that matches `unknown`.
- * Slot labels (“Ears Back / Pause”) and notes do not pick this family.
+ * One exclusive family per Suggest. Uses intent id, then description —
+ * never slot labels (those are variant beats only).
  */
-export function isNoLikeIntent(intentId: string, intentDescription = ''): boolean {
+export function classifySuggestIntent(
+  input: Pick<SuggestPromptInput, 'intentId' | 'intentDescription'>,
+): SuggestIntentFamily {
+  const intentId = input.intentId
+  const desc = input.intentDescription
+  if (isHolidayLikeIntent(intentId, desc)) return 'holiday'
+  if (isHowlLikeIntent(intentId, desc)) return 'howl'
+  if (isPlayLikeIntent(intentId, desc)) return 'play'
+  if (isHugLikeIntent(intentId, desc)) return 'hug'
+  if (isUnknownLikeIntent(intentId)) return 'unknown'
+
   const intent = normalizeIntent(intentId)
-  if (isUnknownLikeIntent(intentId)) return false
-  if (intent === 'no' || intent.startsWith('no-') || intent === 'stop' || intent.startsWith('stop-')) {
-    return true
+  const byLength = [...ID_MOTION_FAMILIES].sort((a, b) => b.length - a.length)
+  for (const family of byLength) {
+    if (matchesIntentId(intent, family)) {
+      return family === 'confused' ? 'unknown' : family
+    }
   }
-  const desc = intentDescription.trim().toLowerCase()
-  if (!desc) return false
-  return /\b(no+|stop that|uh-?uh|uh oh|leave it|knock it off)\b/.test(desc)
+
+  if (isNoLikeIntent(intentId, desc)) return 'no'
+  if (isTreatLikeIntent(intentId, desc)) return 'treat'
+
+  const text = desc.trim().toLowerCase()
+  if (/\bwalk\b|go outside|leash/.test(text)) return 'walk'
+  if (/\bgood (boy|girl|dog|pup)\b/.test(text)) return 'good'
+  if (/\bquiet\b|\bsettle\b|\bcalm down\b/.test(text)) return 'quiet'
+  if (/\bcome here\b|\bcome over\b|\brecall\b/.test(text)) return 'come'
+  if (/\bover here\b|\bthis way\b/.test(text)) return 'here'
+  if (/\bowner\b|\bmom\b|\bdad\b/.test(text)) return 'owner'
+  if (/\bidle\b|facetime hold/.test(text)) return 'idle'
+  if (isAttentionStyleIntent(intentId, desc)) return 'attention'
+  return 'generic'
 }
 
 function isRileyOrBoth(dogName: string): boolean {
@@ -365,9 +471,17 @@ function wantsOpenMouthOrExcited(intentId: string, intentDescription = ''): bool
   return isTreatLikeIntent(intentId, intentDescription)
 }
 
+const FOOD_NOTE = /\b(lick|licks|treat|chicken|cookie|snack|nummies|food)\b/i
+
 function personalityNotesForIntent(
   personality: DogPersonality,
-  options: { allowHowl: boolean; softFoley: boolean; treatLike: boolean; hugLike: boolean },
+  options: {
+    allowHowl: boolean
+    softFoley: boolean
+    treatLike: boolean
+    hugLike: boolean
+    family?: SuggestIntentFamily
+  },
 ): string {
   let notes = personality.notes.map((note) => note.trim()).filter(Boolean)
   if (!options.allowHowl) {
@@ -383,6 +497,9 @@ function personalityNotesForIntent(
   }
   if (options.softFoley) {
     notes = notes.filter((note) => !/remarkably non-vocal|not sound/i.test(note))
+  }
+  if (options.family === 'no' || options.family === 'quiet') {
+    notes = notes.filter((note) => !FOOD_NOTE.test(note))
   }
   return notes.join(' ')
 }
@@ -407,50 +524,22 @@ function traitFlavor(personality: DogPersonality): string {
   return parts.join(', ')
 }
 
-function isUnknownLikeIntent(intentId: string): boolean {
-  const intent = normalizeIntent(intentId)
-  return (
-    intent === 'unknown' ||
-    intent === 'confused' ||
-    intent.startsWith('unknown-') ||
-    intent.startsWith('confused-')
-  )
-}
-
-function isIdleLikeIntent(intentId: string): boolean {
-  const intent = normalizeIntent(intentId)
-  return intent === 'idle' || intent.startsWith('idle-')
-}
-
 function isTreatLikeLabel(text: string): boolean {
   return /\b(lick|licks|expectant|treat|chicken|cookie|snack|food[-\s]?interest|mouth open|open mouth)\b/i.test(
     text,
   )
 }
 
-function variantBitFor(slotLabel: string, family: string | null): string {
+function variantBitFor(slotLabel: string, family: SuggestIntentFamily): string {
   const variant = slotLabel.trim()
   if (!variant) return ''
   if (family !== 'treat' && isTreatLikeLabel(variant)) return ''
-  return ` Variant beat: ${variant}.`
+  const director = variantDirectorNote(family, variant)
+  return director ? ` Variant beat: ${variant}. ${director}` : ` Variant beat: ${variant}.`
 }
 
-function motionFamily(input: SuggestPromptInput): string | null {
-  const intent = normalizeIntent(input.intentId)
-  const description = input.intentDescription
-  if (isTreatLikeIntent(input.intentId, description)) return 'treat'
-  if (isHugLikeIntent(input.intentId)) return 'hug'
-  if (isHowlLikeIntent(input.intentId, description)) return 'howl'
-  if (isPlayLikeIntent(input.intentId, description)) return 'play'
-  if (isUnknownLikeIntent(input.intentId)) {
-    return intent === 'confused' || intent.startsWith('confused-') ? 'confused' : 'unknown'
-  }
-  if (isNoLikeIntent(input.intentId, description)) return 'no'
-  if (isIdleLikeIntent(input.intentId)) return 'idle'
-  for (const id of ['come', 'here', 'name', 'owner', 'good', 'walk', 'quiet'] as const) {
-    if (intent === id || intent.startsWith(`${id}-`)) return id
-  }
-  return null
+function motionFamily(input: SuggestPromptInput): SuggestIntentFamily {
+  return classifySuggestIntent(input)
 }
 
 interface SoundPlan {
@@ -569,11 +658,15 @@ function soundBlock(
         'Hard ban: music, ambience, cartoon overacting. Not a song.',
     )
   } else if (plan.softFoley && !plan.howl && !plan.playHuff) {
-    const lick = wantsOpenMouthOrExcited(input.intentId, input.intentDescription)
-      ? 'faint breath, soft mouth/lick sounds, paw on rug, soft tail swish'
-      : 'faint breath, paw pads on a rug, soft tail swish'
+    const family = classifySuggestIntent(input)
+    const correction = family === 'no' || family === 'quiet'
+    const lick =
+      !correction && wantsOpenMouthOrExcited(input.intentId, input.intentDescription)
+        ? 'faint breath, soft mouth/lick sounds, paw on rug, soft tail swish'
+        : 'faint breath, paw pads on a rug, soft tail swish'
+    const extra = correction ? ' No lick, no treat or food sounds.' : ''
     lines.push(
-      `Soft-vocal. Soft Foley wanted: ${lick}. Close-mic dog foley. Generate a real quiet track, not a silent file. ` +
+      `Soft-vocal. Soft Foley wanted: ${lick}.${extra} Close-mic dog foley. Generate a real quiet track, not a silent file. ` +
         'Keep it very quiet. No soundtrack.',
     )
   } else if (!plan.howl && !plan.playHuff && !plan.talker) {
@@ -622,12 +715,18 @@ function durationHeader(input: SuggestPromptInput, holiday: boolean): string {
   if (holiday) {
     return (
       `10 seconds, 9:16, Grok Imagine image-to-video. ${still} Same ${crop} first-to-last. ` +
-      `Costume walk (choose 10s or 15s in Grok Imagine; do not use 6s): walk off, return in costume, ` +
-      `walk across with eye contact, return without costume to the exact sitting pose in the source still. ` +
-      `Do not use the usual 6s react-then-idle arc.`
+      `Costume walk (choose 10s or 15s in Grok Imagine; do not use 6s): ` +
+      `(1) walk completely off screen one side; (2) instantly come back in holiday costume, eye contact while crossing, ` +
+      `walk completely off the other side; (3) instantly walk back in without costume and sit in the exact original position of the source still. ` +
+      `No fade, dissolve, transition, cut, or morph. Do not use the usual 6s react-then-idle arc.`
     )
   }
-  return `6 seconds, 9:16, Grok Imagine image-to-video. ${still} Same ${crop} first-to-last.`
+  return (
+    `6 seconds, 9:16, Grok Imagine image-to-video. ${still} Same ${crop} first-to-last. ` +
+    `Reaction peaks in the first ~2–3 seconds, then return to a calm FaceTime idle — ` +
+    `the exact sitting pose of the source still — and hold so playback can loop back to idle without a jump. ` +
+    `Do not freeze mid-lick, mid-bow, off-center, or in a different pose.`
+  )
 }
 
 function lookLine(dogName: string): string {
@@ -839,19 +938,26 @@ function noAction(
 }
 
 function holidayCostumeWalkMotion(spec: HolidayIntentSpec, together: boolean): string {
+  const noFade =
+    'No fade, dissolve, transition, cut, or morph — one continuous shot. ' +
+    'Costume appears or vanishes the instant they re-enter, not a dissolve. '
   if (together) {
     return (
-      `Together shot: both dogs stay identifiable (Murphy left, Riley right). ` +
-      `This exact pair walks off camera to the left side and instantly returns wearing ${spec.costume}, ` +
-      `looks right at the camera as they walk off screen on the right, then instantly returns without any costume, ` +
-      `still the exact same two dogs, and returns to the exact sitting positions in the source image. ` +
+      `Together shot: both dogs do this same costume-walk pattern and both dogs stay identifiable (Murphy left, Riley right). ` +
+      `This exact pair walks completely off camera to the left (fully out of frame). ${noFade}` +
+      `They instantly come back wearing ${spec.costume}, look right at the camera with eye contact while crossing the screen, ` +
+      `then walk completely off screen on the right. ` +
+      `They instantly walk back in without any costume (costume gone the instant they re-enter) ` +
+      `and sit in the exact original sitting positions in the source still, still the exact same two dogs. ` +
       `Do not swap coats or places. Keep both in frame whenever they are on screen.`
     )
   }
   return (
-    `this exact dog walks off camera to the left side and instantly returns wearing ${spec.costume} ` +
-    `and looks right at the camera as they walk off screen on the right, then instantly returns without any costume, ` +
-    `still the exact same dog, and returns to the exact sitting position in the source image`
+    `this exact dog walks completely off camera to the left (fully out of frame). ${noFade}` +
+    `They instantly come back wearing ${spec.costume}, looks right at the camera with eye contact while crossing the screen, ` +
+    `and walk completely off screen on the right. ` +
+    `They instantly walk back in without any costume (costume gone the instant they re-enter), ` +
+    `still the exact same dog, and sit in the exact original sitting position of the source still.`
   )
 }
 
@@ -897,50 +1003,50 @@ function timedAction(
     beats = howlAction(dogName, personality, grammar, variantBit)
   } else if (family === 'play') {
     beats = playAction(dogName, personality, grammar, variantBit)
-  } else if (family === 'unknown' || family === 'confused') {
+  } else if (family === 'unknown') {
     beats = unknownAction(dogName, personality, plan, grammar, variantBit)
   } else if (family === 'no') {
     beats = noAction(dogName, personality, plan, grammar, variantBit)
   } else if (family === 'treat') {
     beats = [
-      `Ears perk, eyes lock on an implied treat, slight eager lean toward the phone camera.${energyBit}`,
+      `Food-interest: ears perk, eyes lock on an implied treat, slight eager lean toward the phone camera.${energyBit}`,
       `Food-interest while looking at the phone camera — maybe a brief lick, sniff the air, expectant.${land}${variantBit}`,
       'Eases back to the exact source sit, still looking toward camera.',
     ]
   } else if (family === 'come') {
     beats = [
-      `Ears perk and eye contact only: head orients toward the camera.${silent}${energyBit}`,
-      `Head tilt and eager lean toward the camera as if recalling. Stay in portrait; do not walk out of frame.${land}${variantBit}`,
+      `Recall lean: ears perk and eye contact only: head orients toward the camera.${silent}${energyBit}`,
+      `Recall lean: head tilt and eager lean toward the camera as if recalling. Stay in portrait; do not walk out of frame.${land}${variantBit}`,
       'Eases to the exact source sit, still looking toward camera.',
     ]
   } else if (family === 'here') {
     beats = [
-      `Ears perk and eye contact only: glance toward the speaker/camera.${silent}${energyBit}`,
-      `Ears orient this way. Attention shift, not a full recall.${land}${variantBit}`,
+      `Orientation flick: ears perk and eye contact only: glance toward the speaker/camera.${silent}${energyBit}`,
+      `Orientation flick: ears orient this way. Attention shift, not a full recall.${land}${variantBit}`,
       'Returns to the exact source sit, still looking toward camera.',
     ]
   } else if (family === 'name') {
     beats = [
-      `Ears perk and eye contact only: ears forward toward the phone.${silent}${energyBit}`,
-      `Small head lift of recognition toward the phone.${land}${variantBit}`,
+      `Name-call spark: ears perk and eye contact only: ears forward toward the phone.${silent}${energyBit}`,
+      `Name-call spark: small head lift of recognition toward the phone.${land}${variantBit}`,
       'Holds contact, then eases to the exact source sit.',
     ]
   } else if (family === 'owner') {
     beats = [
-      `Ears perk and eye contact only: soft recognition of the familiar person.${silent}${energyBit}`,
-      `Lean in, warm eyes.${land}${variantBit}`,
+      `Person-recognition glow: ears perk and eye contact only: soft recognition of the familiar person.${silent}${energyBit}`,
+      `Person-recognition glow: lean in, warm eyes.${land}${variantBit}`,
       'Returns to the exact source sit, still looking toward camera.',
     ]
   } else if (family === 'good') {
     beats = [
-      `Happy praise reaction: soft proud eyes.${silent}${energyBit}`,
-      `A pleased wriggle or tail energy, relaxed expression.${land}${variantBit}`,
+      `Praise wriggle: happy praise reaction: soft proud eyes.${silent}${energyBit}`,
+      `Praise wriggle: a pleased wriggle or tail energy, relaxed expression.${land}${variantBit}`,
       'Returns to the exact source sit, still looking toward camera.',
     ]
   } else if (family === 'walk') {
     beats = [
-      `Alert walk excitement: ears up, bright eyes.${silent}${energyBit}`,
-      `A little body energy as if the leash or door was mentioned. Stay in frame.${land}${variantBit}`,
+      `Leash-word voltage: alert walk excitement: ears up, bright eyes.${silent}${energyBit}`,
+      `Leash-word voltage: a little body energy as if the leash or door was mentioned. Stay in frame.${land}${variantBit}`,
       'Settles to the exact source sit, still looking toward camera.',
     ]
   } else if (family === 'quiet') {
@@ -976,6 +1082,176 @@ function timedAction(
     `2–4s: ${beats[1]}${gazeOverlay.hold}\n` +
     `4–6s: ${beats[2]}${gazeOverlay.hold}`
   )
+}
+
+function pickLabeledBeat(label: string, pairs: Array<[RegExp, string]>, fallback: string): string {
+  const key = label.trim().toLowerCase()
+  for (const [pattern, beat] of pairs) {
+    if (pattern.test(key)) return beat
+  }
+  return fallback
+}
+
+/**
+ * Short director line for a clip variant. Used as seed Slot notes and as the
+ * Suggest variant beat so labels stay intent-correct and not samey.
+ */
+export function variantDirectorNote(family: SuggestIntentFamily, slotLabel: string): string {
+  const label = slotLabel.trim()
+  switch (family) {
+    case 'no':
+      return pickLabeledBeat(
+        label,
+        [
+          [/ears back|pause/, 'Ears pin back, freeze, slight guilty eye contact, return to sit.'],
+          [/guilty|settle/, 'Guilty settle: shrinks into a sorry sit, eyes flick up, hold the source pose.'],
+        ],
+        'Correction: ears back, pause, guilty settle — then the exact source sit. No treat, no lick.',
+      )
+    case 'treat':
+      return pickLabeledBeat(
+        label,
+        [
+          [/lick|expectant/, 'Eyes lock on treat, eager lean, brief lip lick, settle to still.'],
+          [/mouth open|excited/, 'Excited food-face, mouth slightly open, then close and return to the source sit.'],
+          [/food interest/, 'Curious sniff toward an implied treat, bright eyes, then back to the still sit.'],
+        ],
+        'Food-interest spark, then return to the exact source sit. Not a correction.',
+      )
+    case 'name':
+      return pickLabeledBeat(
+        label,
+        [
+          [/perk|eye contact/, 'Name-call spark: ears pop forward, eyes find the phone — “that’s me!”'],
+          [/head turn/, 'A little “did you say me?” head turn into camera, then the source sit.'],
+          [/soft recognition/, 'Slow sweet blink of recognition, tiny smile in the eyes, hold the still.'],
+        ],
+        'Recognition of their name — not a treat, not a recall. Back to the source sit.',
+      )
+    case 'come':
+      return pickLabeledBeat(
+        label,
+        [
+          [/head tilt|step forward/, 'Head tilt plus a weight-shift half-step closer — stay in portrait.'],
+          [/eager lean/, 'Big eager lean toward the phone like a recall, then back to sit.'],
+          [/get up|approach/, 'Starts to rise as if coming, then settles back to the exact source sit.'],
+        ],
+        'Recall lean toward camera; do not walk out of frame. Return to the source sit.',
+      )
+    case 'here':
+      return pickLabeledBeat(
+        label,
+        [
+          [/look toward/, 'Quick “over here?” orientation — eyes and ears snap to the speaker.'],
+          [/glance/, 'A cheeky glance this way, not a full come-here, then the still sit.'],
+        ],
+        'Attention flick toward the speaker. Not a recall. Hold the source sit.',
+      )
+    case 'owner':
+      return pickLabeledBeat(
+        label,
+        [
+          [/lean/, 'Soft recognition of their person, a fond lean-in, warm eyes, back to sit.'],
+          [/gaze/, 'Long soft owner-gaze, then blink and hold the source pose.'],
+        ],
+        'They heard their person’s name — fond, not food-crazy. Return to the source sit.',
+      )
+    case 'good':
+      return pickLabeledBeat(
+        label,
+        [
+          [/wag/, 'Happy praise wriggle / tail energy, proud face, then the still sit.'],
+          [/proud/, 'Soft proud eyes, a pleased “I know I’m good” hold, back to pose.'],
+          [/wriggle/, 'Pleased little wriggle for “good dog,” then settle to the source sit.'],
+        ],
+        'Praise glow — proud, not treat-crazy. Return to the exact source sit.',
+      )
+    case 'walk':
+      return pickLabeledBeat(
+        label,
+        [
+          [/tail/, 'Leash-word voltage: bright eyes, tail energy, paws planted in frame.'],
+          [/door|leash/, 'Door / leash excitement — “OUTSIDE?!” — then sit back on the still.'],
+          [/ready/, 'Ready-to-go perk, a little bounce in place, return to the source sit.'],
+        ],
+        'Walk-word excitement while staying in frame. Back to the exact source sit.',
+      )
+    case 'hug':
+      return pickLabeledBeat(
+        label,
+        [
+          [/side-touch|side touch/, 'Side-touch reaction: body language when a hand finds their ribs.'],
+          [/hug/, 'Small FaceTime hug beat, then return to the exact source sit.'],
+        ],
+        'Hug / cuddle body-language change, then the source sit. Not a come-here.',
+      )
+    case 'howl':
+      return pickLabeledBeat(
+        label,
+        [
+          [/attempt/, 'Awkward or committed howl attempt, then mouth closes and they sit the still.'],
+          [/howl|sing/, 'Head lifts into a howl/sing, then back to the exact source sit.'],
+        ],
+        'Brief howl/sing, then return to the source sit. Not a name-call.',
+      )
+    case 'play':
+      return pickLabeledBeat(
+        label,
+        [
+          [/huff|challenge/, 'Drop into a play-bow with one short challenge huff, then sit the still.'],
+          [/play-bow|play bow|front low/, 'Downward-dog play-bow (front low, rear up), then return to sit.'],
+        ],
+        'Play-bow invite, then back to the exact source sit. Not a zoomie.',
+      )
+    case 'quiet':
+      return pickLabeledBeat(
+        label,
+        [
+          [/calm/, 'Exhale and soften — “okay, I’ll settle” — hold the source sit.'],
+          [/settle|rest/, 'Quiet downshift into rest, eyes heavy, exact source pose.'],
+        ],
+        'Settle and calm. Return to the exact source sit. Not a correction freeze.',
+      )
+    case 'unknown':
+      return pickLabeledBeat(
+        label,
+        [
+          [/huh/, 'Confused “huh?” face, head cocked, then the still sit.'],
+          [/tilt/, 'Classic curious head-tilt toward the phone, then hold the source pose.'],
+        ],
+        'Curious “huh?” head-tilt. Not a command. Back to the source sit.',
+      )
+    case 'idle':
+      return pickLabeledBeat(
+        label,
+        [
+          [/blink|breathe/, 'Soft blink and breathe — alive FaceTime hold, same sit as the still.'],
+          [/calm|look/, 'Calm look at camera, tiny micro-moves, exact source pose.'],
+        ],
+        'Calm FaceTime hold. Stay in the exact sitting pose of the source still.',
+      )
+    case 'holiday':
+      return pickLabeledBeat(
+        label,
+        [
+          [/look at camera|eye contact/, 'Costume walk with a clear look-at-camera as they cross, then sit the still.'],
+          [/costume|walk/, 'Off left, instant costume, cross, off right, instant no-costume, exact source sit.'],
+        ],
+        'Holiday costume walk, then sit in the exact original position of the source still.',
+      )
+    default:
+      return label
+        ? `${label} — a short, readable beat, then the exact source sit.`
+        : 'A short, readable reaction, then the exact source sit.'
+  }
+}
+
+export function seedDirectorNote(
+  intentId: string,
+  intentDescription: string,
+  slotLabel: string,
+): string {
+  return variantDirectorNote(classifySuggestIntent({ intentId, intentDescription }), slotLabel)
 }
 
 /**
@@ -1026,13 +1302,15 @@ export function suggestClipPrompt(input: SuggestPromptInput): string {
   const gaze = parseSlotGaze(input.userNotes)
   const holiday = isHolidayLikeIntent(intentId, intentDescription)
   const notes = input.userNotes?.trim()
-  const hugLike = isHugLikeIntent(intentId)
+  const hugLike = isHugLikeIntent(intentId, intentDescription)
   const treatLike = isTreatLikeIntent(intentId, intentDescription)
+  const family = classifySuggestIntent(resolved)
   const character = personalityNotesForIntent(personality, {
     allowHowl: plan.howl,
     softFoley: plan.softFoley,
     treatLike,
     hugLike,
+    family,
   })
   const flavor = traitFlavor(personality)
 

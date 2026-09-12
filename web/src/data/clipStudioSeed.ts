@@ -19,12 +19,12 @@ import {
   type ReactionBucket,
 } from './reactionCatalog'
 import { generateId } from '../lib/ids'
-import { suggestClipPrompt } from '../utils/suggestClipPrompt'
+import { seedDirectorNote, suggestClipPrompt } from '../utils/suggestClipPrompt'
 import { normalizePersonality } from '../utils/dogPersonality'
 import { fullImageDualFraming } from '../utils/focalPoint'
 
 /** Existing browsers merge this seed when their stored revision is lower. */
-export const STUDIO_SEED_REVISION = 7
+export const STUDIO_SEED_REVISION = 8
 
 export function buildClipPrompt(
   dog: { name: string; personality: DogPersonality },
@@ -72,6 +72,8 @@ function slotsFromBucket(
   return bucket.clips.map((clip, index) => {
     const label = clip.label ?? `${bucket.id} ${String(index + 1).padStart(2, '0')}`
     const id = `${dog.name.toLowerCase()}-${bucket.id}-${index + 1}`
+    const description = bucket.description ?? bucket.id
+    const notes = seedDirectorNote(bucket.id, description, label)
     const sourcePhoto = isKeySeedIntent(bucket.id)
       ? cloneSourcePhoto(defaultPhoto, id)
       : null
@@ -79,7 +81,13 @@ function slotsFromBucket(
       id,
       weight: clip.weight,
       label,
-      prompt: buildClipPrompt(dog, { id: bucket.id, description: bucket.description ?? bucket.id }, label),
+      notes,
+      prompt: buildClipPrompt(
+        dog,
+        { id: bucket.id, description },
+        label,
+        { userNotes: notes, hasSourcePhoto: Boolean(sourcePhoto) },
+      ),
       sourcePhoto,
       resultVideo: clip.path
         ? { path: clip.path, origin: 'placeholder' as const, fileName: clip.path.split('/').pop() }
@@ -98,11 +106,16 @@ function idleIntent(
   const slots: ClipSlot[] = [1, 2].map((index) => {
     const id = `${dog.name.toLowerCase()}-idle-${index}`
     const label = index === 1 ? 'Calm look at camera' : 'Soft blink / breathe'
+    const notes = seedDirectorNote('idle', description, label)
     return {
       id,
       weight: index === 1 ? 55 : 45,
       label,
-      prompt: buildClipPrompt(dog, { id: 'idle', description }, label),
+      notes,
+      prompt: buildClipPrompt(dog, { id: 'idle', description }, label, {
+        userNotes: notes,
+        hasSourcePhoto: Boolean(defaultPhoto),
+      }),
       sourcePhoto: cloneSourcePhoto(defaultPhoto, id),
       resultVideo: {
         path: index === 1 ? 'clips/idle/idle_01.mp4' : 'clips/idle/idle_02.mp4',
@@ -233,12 +246,17 @@ export function createEmptyClipSlot(
 ): ClipSlot {
   const label = `${intent.description} ${String(index).padStart(2, '0')}`
   const id = generateId()
+  const notes = seedDirectorNote(intent.id, intent.description, label)
   const sourcePhoto = cloneGenerationStillForSlot(dog.generationPhoto, id)
   return {
     id,
     weight: 40,
     label,
-    prompt: buildClipPrompt(dog, intent, label),
+    notes,
+    prompt: buildClipPrompt(dog, intent, label, {
+      userNotes: notes,
+      hasSourcePhoto: Boolean(sourcePhoto),
+    }),
     sourcePhoto,
     resultVideo: null,
     status: sourcePhoto ? 'photo_ready' : 'empty',
@@ -256,15 +274,17 @@ function holidayIntentForDog(
   const clipSlots: ClipSlot[] = spec.clipLabels.map((label, index) => {
     const id = `${dog.name.toLowerCase().replace(/\s+/g, '-')}-${spec.id}-${index + 1}`
     const sourcePhoto = cloneGenerationStillForSlot(dog.generationPhoto, id)
+    const notes = seedDirectorNote(spec.id, spec.description, label)
     return {
       id,
       weight: index === 0 ? 55 : 45,
       label,
+      notes,
       prompt: buildClipPrompt(
         dog,
         { id: spec.id, description: spec.description },
         label,
-        { hasSourcePhoto: Boolean(sourcePhoto) },
+        { userNotes: notes, hasSourcePhoto: Boolean(sourcePhoto) },
       ),
       sourcePhoto,
       resultVideo: null,

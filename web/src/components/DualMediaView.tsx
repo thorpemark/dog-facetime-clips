@@ -7,6 +7,7 @@ import {
 } from '../utils/callIdentity'
 import { findDog, getStudioState, subscribeStudio } from '../utils/clipStudioStore'
 import { focalForOrientation, photoSourceFromFraming } from '../utils/focalPoint'
+import { applyCallVideoSound } from '../utils/callVideoSound'
 import { FocalPhotoLayer } from './FocalPhotoLayer'
 
 function photoLayerWrapperStyle(
@@ -44,9 +45,7 @@ export function DualMediaView() {
   useEffect(() => {
     const videos = [primaryRef.current, secondaryRef.current]
     for (const video of videos) {
-      if (!video) continue
-      video.volume = 1
-      video.muted = !videoSoundUnlocked
+      applyCallVideoSound(video)
     }
   }, [videoSoundUnlocked, primaryRef, secondaryRef])
 
