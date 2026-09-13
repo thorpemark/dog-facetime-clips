@@ -677,6 +677,20 @@ button {
   border: 1px solid rgba(255, 255, 255, 0.1);
   max-height: 40vh;
   overflow-y: auto;
+  opacity: 1;
+  transition: opacity 640ms ease;
+}
+
+.debug-panel--hidden {
+  opacity: 0;
+  pointer-events: none;
+  transition: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .debug-panel {
+    transition: none;
+  }
 }
 
 .debug-header {
@@ -752,6 +766,12 @@ button {
 
 .debug-trigger:active {
   background: rgba(255, 255, 255, 0.2);
+}
+
+.debug-trigger-idle {
+  width: 100%;
+  margin-bottom: 4px;
+  font-weight: 600;
 }
 
 /* Call ended */

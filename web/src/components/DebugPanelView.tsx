@@ -1,4 +1,8 @@
 import { useMemorialCall } from '../context/MemorialCallContext'
+import {
+  DEBUG_PANEL_FADE_IN_MS,
+  hideDebugPanelForBehavior,
+} from '../utils/debugPanelVisibility'
 import { resolvePhrases } from '../utils/keywordRules'
 
 export function DebugPanelView() {
@@ -13,6 +17,7 @@ export function DebugPanelView() {
     rulesConfig,
     triggerReaction,
     triggerPhrase,
+    triggerIdle,
     setShowDebugPanel,
   } = useMemorialCall()
 
@@ -20,9 +25,18 @@ export function DebugPanelView() {
     behaviorState.type === 'react'
       ? `react(${behaviorState.clipId})`
       : behaviorState.type
+  const hideForReaction = hideDebugPanelForBehavior(behaviorState.type)
 
   return (
-    <div className="debug-panel">
+    <div
+      className={`debug-panel${hideForReaction ? ' debug-panel--hidden' : ''}`}
+      style={{
+        transitionDuration: hideForReaction ? '0ms' : `${DEBUG_PANEL_FADE_IN_MS}ms`,
+      }}
+      aria-hidden={hideForReaction}
+      data-hidden-for-reaction={hideForReaction ? 'true' : 'false'}
+      inert={hideForReaction}
+    >
       <div className="debug-header">
         <h3>Debug Panel</h3>
         <button
@@ -80,6 +94,15 @@ export function DebugPanelView() {
           Send
         </button>
       </div>
+
+      <p className="debug-section-title">Call loop</p>
+      <button
+        type="button"
+        className="debug-trigger debug-trigger-idle"
+        onClick={triggerIdle}
+      >
+        Test idle
+      </button>
 
       <p className="debug-section-title">Trigger Reactions</p>
       <div className="debug-grid">
