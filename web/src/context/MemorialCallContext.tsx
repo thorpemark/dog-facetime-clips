@@ -70,6 +70,8 @@ interface MemorialCallContextValue {
   toggleMute: () => void
   triggerReaction: (clipId: string, transcript?: string) => void
   triggerPhrase: (phrase: string) => void
+  /** Play / return to the call idle loop (same clip as post-reaction return). */
+  triggerIdle: () => void
   unlockVideoSound: () => void
 }
 
@@ -211,6 +213,17 @@ export function MemorialCallProvider({
     },
     [enterCooldown, playReaction, setCanProcessMatches, unlockVideoSound],
   )
+
+  const triggerIdle = useCallback(() => {
+    if (callPhaseRef.current !== 'active') return
+    if (cooldownRef.current) window.clearTimeout(cooldownRef.current)
+    cooldownRef.current = null
+    setReactionHud(null)
+    setCanProcessMatches(false)
+    setBehaviorState({ type: 'idle' })
+    unlockVideoSound()
+    loadIdle({ restart: true })
+  }, [loadIdle, setCanProcessMatches, unlockVideoSound])
 
   triggerReactionRef.current = triggerReaction
 
@@ -429,6 +442,7 @@ export function MemorialCallProvider({
       toggleMute,
       triggerReaction,
       triggerPhrase,
+      triggerIdle,
       unlockVideoSound,
     }),
     [
@@ -458,6 +472,7 @@ export function MemorialCallProvider({
       toggleMute,
       triggerReaction,
       triggerPhrase,
+      triggerIdle,
       unlockVideoSound,
     ],
   )

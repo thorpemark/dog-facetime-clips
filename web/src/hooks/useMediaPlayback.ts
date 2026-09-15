@@ -93,6 +93,7 @@ export function useMediaPlayback(
   const photoIndexRef = useRef(0)
   const activePhotoSlotRef = useRef<'primary' | 'secondary'>('primary')
   const isPlayingReactionRef = useRef(false)
+  const playbackSeqRef = useRef(0)
   const onCompleteRef = useRef<(() => void) | null>(null)
   const idleTimerRef = useRef<number | null>(null)
   const reactionTimerRef = useRef<number | null>(null)
@@ -348,11 +349,14 @@ export function useMediaPlayback(
     [fadeVideosToStill, idleUrls, playIdleOnSlot],
   )
 
-  const loadIdle = useCallback(() => {
+  const loadIdle = useCallback((options?: { restart?: boolean }) => {
+    const restart = options?.restart === true
     clearTimers()
+    playbackSeqRef.current += 1
     isPlayingReactionRef.current = false
     setIsReactionPlaying(false)
     setCurrentClipId('idle')
+    onCompleteRef.current = null
 
     if (usePhotos) {
       photoIndexRef.current = 0
@@ -384,8 +388,19 @@ export function useMediaPlayback(
 
     const active =
       activeSlotRef.current === 'primary' ? primaryRef.current : secondaryRef.current
-    if (videoMatchesIdle(active, urls) && !active?.paused) {
+    if (videoMatchesIdle(active, urls) && !active?.paused && !restart) {
       setIdleVisual('video')
+      return
+    }
+
+    if (restart && videoMatchesIdle(active, urls) && active) {
+      try {
+        active.currentTime = 0
+      } catch {
+        /* some browsers reject seek before metadata */
+      }
+      setIdleVisual('video')
+      void playCallVideo(active)
       return
     }
 
@@ -473,6 +488,7 @@ export function useMediaPlayback(
       if (!incomingVideo) return
 
       clearTimers()
+      const seq = ++playbackSeqRef.current
       isPlayingReactionRef.current = true
       setIsReactionPlaying(true)
       setIdleVisual('video')
@@ -481,6 +497,7 @@ export function useMediaPlayback(
 
       const onEnded = () => {
         incomingVideo.removeEventListener('ended', onEnded)
+        if (seq !== playbackSeqRef.current) return
         finishReactionToIdle(onCompleteRef.current ?? onComplete)
       }
 
@@ -490,12 +507,14 @@ export function useMediaPlayback(
         withSound: true,
         onReady: () => {
           cancelLoadRef.current = null
+          if (seq !== playbackSeqRef.current) return
           void playCallVideo(incomingVideo)
           crossfadeTo(incomingSlot)
           incomingVideo.addEventListener('ended', onEnded)
         },
         onFail: () => {
           cancelLoadRef.current = null
+          if (seq !== playbackSeqRef.current) return
           finishReactionToIdle(onCompleteRef.current ?? onComplete)
         },
       })
@@ -518,6 +537,7 @@ export function useMediaPlayback(
 
   const stop = useCallback(() => {
     clearTimers()
+    playbackSeqRef.current += 1
     primaryRef.current?.pause()
     secondaryRef.current?.pause()
     isPlayingReactionRef.current = false
